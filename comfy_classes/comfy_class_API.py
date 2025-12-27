@@ -3,6 +3,7 @@ import json
 import os
 import random
 import time
+import shutil
 from typing import List, Optional
 
 import requests
@@ -19,7 +20,8 @@ logger = logging.getLogger(__name__)
 from constant import DEBUG, DEBUG_FULL
 DEBUG_ImageGeneratorAPIWrapper = DEBUG
 from constant import (
-    WS_URL, HTTP_BASE_URL, BASE_DIR, COMFY_OUTPUT_FOLDER, INPUT_IMAGE_PATH, COMFY_WORKFLOW_DIR
+    WS_URL, HTTP_BASE_URL, BASE_DIR, OUTPUT_IMAGE_PATH, INPUT_IMAGE_PATH, COMFY_WORKFLOW_DIR,
+    PHOTOBOOTH_SAVED_FOLDER, KEEP_INPUT_IMAGE
 )
 from prompts import dico_styles
 
@@ -35,13 +37,16 @@ class ImageGeneratorAPIWrapper(QObject):
         Initialize the ImageGeneratorAPIWrapper with an optional style and input QImage.
         """
         super().__init__()
+        os.makedirs(OUTPUT_IMAGE_PATH, exist_ok=True)
         if DEBUG_ImageGeneratorAPIWrapper:
             logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Initializing with style={style}")
         self.server_url = HTTP_BASE_URL
         self._styles_prompts = dico_styles
-        self._output_folder = COMFY_OUTPUT_FOLDER
+        self._output_folder = OUTPUT_IMAGE_PATH
         self._workflow_dir = COMFY_WORKFLOW_DIR
         self._style = style if style in self._styles_prompts else next(iter(self._styles_prompts))
+        self.generated_image_path = None
+        self.qimg = None
 
         path = self.find_json_by_name(self._workflow_dir, self._style)
         with open(path, encoding='utf-8') as f:
@@ -58,6 +63,7 @@ class ImageGeneratorAPIWrapper(QObject):
         self._negative_prompt = 'watermark, text'
         if qimg is not None:
             self.set_img(qimg)
+            self.qimg = qimg
         if DEBUG_ImageGeneratorAPIWrapper:
             logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Initialized. Total steps sum = {TOTAL_STEPS_SUM}")
             
@@ -65,6 +71,7 @@ class ImageGeneratorAPIWrapper(QObject):
         """
         Set the input image for the workflow by saving the provided QImage.
         """
+        self.qimg = qimg
         if DEBUG_ImageGeneratorAPIWrapper:
             logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Setting input image.")
         self.save_qimage(os.path.dirname(INPUT_IMAGE_PATH), qimg)
@@ -124,19 +131,19 @@ class ImageGeneratorAPIWrapper(QObject):
         raise FileNotFoundError(f"No JSON found for {name}")
     
 
-    def _clear_output_folder(self) -> None:
+    def delete_generated_image(self) -> None:
         """
-        Remove existing PNG files in the output folder.
+        Delete the generated image from disk.
         """
-        if DEBUG_ImageGeneratorAPIWrapper:
-            logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Clearing output folder: {self._output_folder}")
-        for fpath in glob.glob(os.path.join(self._output_folder, '*.png')):
+        if self.generated_image_path and os.path.exists(self.generated_image_path):
             try:
-                os.remove(fpath)
-            except OSError:
-                pass
-        if DEBUG_ImageGeneratorAPIWrapper:
-            logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Output folder cleared.")
+                os.remove(self.generated_image_path)
+                if DEBUG_ImageGeneratorAPIWrapper:
+                    logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Deleted generated image: {self.generated_image_path}")
+                self.generated_image_path = None
+            except OSError as e:
+                if DEBUG_ImageGeneratorAPIWrapper:
+                    logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Failed to delete generated image {self.generated_image_path}: {e}")
 
     def _prepare_prompt(self, custom_prompt: Optional[dict]) -> dict:
         """
@@ -182,7 +189,10 @@ class ImageGeneratorAPIWrapper(QObject):
         """
         if DEBUG_ImageGeneratorAPIWrapper:
             logger.info(f"[DEBUG] Starting image generation…")
-        self._clear_output_folder()
+
+        # Get the list of images before generation
+        images_before = self.get_image_paths()
+
         prompt = self._prepare_prompt(custom_prompt)
 
 
@@ -303,6 +313,15 @@ class ImageGeneratorAPIWrapper(QObject):
             if DEBUG_ImageGeneratorAPIWrapper:
                 logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] After ws.close() — connected={ws.connected}")
 
+        # After generation, find the new image
+        images_after = self.get_image_paths()
+        new_images = [p for p in images_after if p not in images_before]
+        if new_images:
+            self.generated_image_path = new_images[-1]
+            if DEBUG_ImageGeneratorAPIWrapper:
+                logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] New image generated at: {self.generated_image_path}")
+
+
 
     def get_progress_percentage(self) -> float:
         """
@@ -373,6 +392,13 @@ class ImageGeneratorAPIWrapper(QObject):
             logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Timeout reached, no image file found.")
         raise TimeoutError("Failed to load image within timeout period.")
     
+    def get_latest_image_path(self) -> Optional[str]:
+        """
+        Get the path of the most recently created image file.
+        """
+        paths = self.get_image_paths()
+        return paths[-1] if paths else None
+
     def delete_input_and_output_images(self) -> None:
         """
         Delete the input image and all output images from disk.
@@ -388,17 +414,45 @@ class ImageGeneratorAPIWrapper(QObject):
                 if DEBUG_ImageGeneratorAPIWrapper:
                     logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Failed to delete input image: {e}")
 
-    
-        for fpath in glob.glob(os.path.join(self._output_folder, '*.png')):
+        self.delete_generated_image()
+
+    def move_output_image(self) -> None:
+        """
+        Move the generated output image to a timestamped folder in the photobooth_saved folder.
+        If KEEP_INPUT_IMAGE is True, also save the input qimg.
+        """
+        if DEBUG_ImageGeneratorAPIWrapper:
+            logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Moving output image.")
+
+        if self.generated_image_path and os.path.exists(self.generated_image_path):
+            # Create a unique folder for this session using a timestamp
+            timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+            session_folder_name = f"photobooth_{timestamp}"
+            session_save_folder = os.path.join(PHOTOBOOTH_SAVED_FOLDER, session_folder_name)
+            os.makedirs(session_save_folder, exist_ok=True)
+
+            # Save the input image if the option is enabled
+            if KEEP_INPUT_IMAGE and self.qimg:
+                input_image_path = os.path.join(session_save_folder, "input.png")
+                self.qimg.save(input_image_path)
+                if DEBUG_ImageGeneratorAPIWrapper:
+                    logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Saved input image to: {input_image_path}")
+
+            # Move the generated image
+            unique_filename = "output.png"
+            new_path = os.path.join(session_save_folder, unique_filename)
+
             try:
-                os.remove(fpath)
+                shutil.move(self.generated_image_path, new_path)
                 if DEBUG_ImageGeneratorAPIWrapper:
-                    logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Deleted output image: {fpath}")
-            except OSError as e:
+                    logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Moved generated image to: {new_path}")
+                # Update the path to the new location
+                self.generated_image_path = new_path
+            except Exception as e:
                 if DEBUG_ImageGeneratorAPIWrapper:
-                    logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Failed to delete output image {fpath}: {e}")
-
-
+                    logger.info(f"[DEBUG_ImageGeneratorAPIWrapper] Failed to move image: {e}")
+        elif DEBUG_ImageGeneratorAPIWrapper:
+            logger.info("[DEBUG_ImageGeneratorAPIWrapper] No generated image found to move.")
 
 if __name__ == '__main__':
     wrapper = ImageGeneratorAPIWrapper(style='oil paint')

@@ -16,6 +16,8 @@
 - View, save, and share generated images.
 - Local hotspot and captive portal for phone downloads without internet.
 
+Photobooth has a log file where it records each times it generate an image. When an image is generated, it is saved for sharing via the Wifi hotspot, if activated. The image is deleted when Photobooth comes back to its welcome screen.
+
 ---
 
 ## Hardware requirements
@@ -100,13 +102,22 @@ After making changes, restart PhotoBooth to apply your new configuration.
 
 ## Installation
 
-Follow these steps to install and set up PhotoBooth. For full details, refer to **`CR_Installation_Photobooth_2025_V3_en.pdf`**.
+Follow these steps to install and set up PhotoBooth.
 
 ### 1. Prerequisites
 
-- Python 3.10 or newer
-- Raspberry Pi OS (for hotspot features, if using Raspberry Pi)
-- Camera connected to your PC or Raspberry Pi
+Hardware:
+
+- Camera connected to your computer
+- Optional: Raspberry Pi OS (for hotspot features, if using Raspberry Pi)
+
+Software:
+
+- [comfyUI](https://www.comfy.org/) (see below for more details on installing ComfyUI),
+- [Git](https://git-scm.com/) required by ComfyUI and photobooth,
+- Python 3.10 or newer, also required by ComfyUI and photobooth,
+- The installation process of ComfyUI and Photobooth will install the additional python packages needed for them to run,
+- recommended: Visual Studio Code to modify the code (prompts and settings) and adapt it to your needs.
 
 ### 2. Clone the Repository
 
@@ -145,14 +156,13 @@ sudo apt install libxcb-cursor0 #may be needed
 
 ### 5. Configure ComfyUI
 
-
 #### ComfyUI Installation & Model Setup
 
 Comfy is assumed to be in the same folder as Photobooth. If this is not the case, be sure to set the correct path in `constant.py`.
 
 1. **Install ComfyUI**
-	 - Follow instructions at: https://github.com/comfyanonymous/ComfyUI
-	 - Example (Linux):
+	 - Follow instructions at: https://www.comfy.org/ or https://github.com/comfyanonymous/ComfyUI
+	 - If you install ComfyUI from source using the Github repo you may run these commands (Linux):
 		 ```bash
 		 git clone https://github.com/comfyanonymous/ComfyUI.git
 		 cd ComfyUI
@@ -209,7 +219,7 @@ Comfy is assumed to be in the same folder as Photobooth. If this is not the case
 
 4. **Test ComfyUI**
 	 - Start ComfyUI and verify that models are detected and loaded correctly.
-	 - Ensure the PhotoBooth app can communicate with ComfyUI (see PDF for API/config details).
+	 - Ensure the PhotoBooth app can communicate with ComfyUI (see config details).
 
 ### 6. Hotspot & Captive Portal Setup (Raspberry Pi)
 
@@ -231,7 +241,7 @@ You can use a `.bat` script to automate launching PhotoBooth and ComfyUI (change
 ```bat
 @echo off
 del /f /q "C:\AI Demos\PhotoBooth\app.log"
-start "" "C:\Users\vitensenteret_ml3\AppData\Local\Programs\@comfyorgcomfyui-electron\ComfyUI.exe"
+start "" "C:\Users\USERNAME\AppData\Local\Programs\@comfyorgcomfyui-electron\ComfyUI.exe"
 cd /d "C:\AI Demos\PhotoBooth"
 python .\main.py
 pause
@@ -255,5 +265,5 @@ Just press the keys alt and F4 to close the window. The Photobooth window is con
 ## Credits
 
 Developed as part of the **Machine Learning Group – UiT Tromsø** demonstration projects.  
-Full list of contributors and acknowledgements are included in the PDF documentation.
+Full list of contributors and acknowledgements are included in the PDF documentation **`CR_Installation_Photobooth_2025_V3_en.pdf`**.
 

@@ -2,6 +2,9 @@
 ########################################
 #   Constant Aesthetic
 ########################################
+import os
+
+
 SHOW_LOGOS = False  # ML group and Tvibit logos display
 GRID_WIDTH = 5
 
@@ -405,6 +408,9 @@ GENERIC_BUTTON_STYLE = FIRST_BUTTON_STYLE
 
 EASY_KID_ACCESS = True
 
+VALIDATION_OVERLAY_MESSAGE = "" 
+COUNTDOWN_START = 2
+
 SLEEP_TIMER_SECONDS = 20 
 SLEEP_TIMER_SECONDS_QRCODE_OVERLAY = 90
 
@@ -413,33 +419,45 @@ TOOLTIP_DURATION_MS = 3000
 DEBUG = False
 DEBUG_FULL = False
 
+# ComfyUI server URLs
 WS_URL = "ws://127.0.0.1:8188/ws"
 HTTP_BASE_URL = "http://127.0.0.1:8188"
-HOTSPOT_URL = "https://192.168.10.2:5000/share"
 
-import os
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-COMFY_OUTPUT_FOLDER = os.path.abspath(
-    os.path.join(BASE_DIR, "../ComfyUI/output")
-)
-INPUT_IMAGE_PATH = os.path.abspath(
-    os.path.join(BASE_DIR, "../ComfyUI/input/input.png")
-)
+
+# File paths for images and workflows
+BASE_DIR = os.path.abspath(os.path.dirname(__file__)) # BASE_DIR is the photobooth directory
 COMFY_WORKFLOW_DIR = os.path.abspath(
     os.path.join(BASE_DIR, "workflows")
 )
 
-ShareByHotspot = False  
+# Output and Input image paths, change according to your needs
+COMFY_FOLDER = os.path.abspath(
+    os.path.join(BASE_DIR, "../ComfyUI")
+)
+# folder where ComfyUI outputs images
+OUTPUT_IMAGE_PATH = os.path.abspath(
+    os.path.join(COMFY_FOLDER, "output")
+)
+PHOTOBOOTH_SAVED_FOLDER = os.path.abspath(
+    os.path.join(COMFY_FOLDER, "output/photobooth_saved")
+)
+INPUT_IMAGE_PATH = os.path.abspath(
+    os.path.join(COMFY_FOLDER, "input/input.png")
+)
 
-#try:
-#    from config_local import CAMERA_ID # type: ignore
-#except ImportError:
+
+KEEP_GENERATED_IMAGE = False
+KEEP_INPUT_IMAGE = False
+
+
+# Camera settings
 CAMERA_ID = 0
 CAMERA_ROTATE_ANGLE = 270    # Default camera rotation angle (0, 90, 180, 270)
 
+
+
+
+# Wifi Hotspot sharing
+ShareByHotspot = False 
+HOTSPOT_URL = "https://192.168.10.2:5000/share"
 TEMP_IMAGE = "temp.jpg"
-
-VALIDATION_OVERLAY_MESSAGE = "" 
-
-
-COUNTDOWN_START = 2  

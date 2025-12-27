@@ -16,6 +16,7 @@ from gui_classes.gui_window.base_window import BaseWindow
 from constant import HOTSPOT_URL, TOOLTIP_STYLE, TOOLTIP_DURATION_MS, SLEEP_TIMER_SECONDS_QRCODE_OVERLAY, MAIN_WINDOW_MSG_STYLE
 from prompts import dico_styles
 from gui_classes.gui_manager.thread_manager import CountdownThread, ImageGenerationThread
+from comfy_classes.comfy_class_API import ImageGeneratorAPIWrapper
 from gui_classes.gui_manager.standby_manager import StandbyManager
 from gui_classes.gui_manager.background_manager import BackgroundManager
 from gui_classes.gui_object.overlay import OverlayRules, OverlayQrcode
@@ -43,6 +44,7 @@ class MainWindow(BaseWindow):
         self._generation_task = None
         self._generation_in_progress = False
         self._countdown_callback_active = False
+        self.api = ImageGeneratorAPIWrapper()
         self.standby_manager = StandbyManager(parent) if hasattr(parent, 'set_view') else None
         QApplication.instance().installEventFilter(self.standby_manager)
         self.bg_label = QLabel(self)
@@ -242,7 +244,7 @@ class MainWindow(BaseWindow):
             self.cleanup()
         self.hide_header_label()
 
-        self._generation_task = ImageGenerationThread(style=style_name, input_image=input_image, parent=self)
+        self._generation_task = ImageGenerationThread(style=style_name, input_image=input_image, api=self.api, parent=self)
         if callback:
             self._generation_task.finished.connect(callback)
         self._generation_task.start()
