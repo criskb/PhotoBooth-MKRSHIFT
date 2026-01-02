@@ -114,13 +114,15 @@ Hardware:
 Software:
 
 - [comfyUI](https://www.comfy.org/) (see below for more details on installing ComfyUI),
-- [Git](https://git-scm.com/) required by ComfyUI and photobooth,
-- Python 3.10 or newer, also required by ComfyUI and photobooth,
+- [Git](https://git-scm.com/) required by ComfyUI and photobooth, (install with default parameters)
+- on Windows, ComfyUI requires Visual C++ and/or Visual Studio Community, you may need to install/re-install it (from Microsoft Store),
+- Python 3.10, 3.11 or 3.12, also required by ComfyUI and photobooth,
 - The installation process of ComfyUI and Photobooth will install the additional python packages needed for them to run,
 - recommended: Visual Studio Code to modify the code (prompts and settings) and adapt it to your needs.
 
 ### 2. Clone the Repository
 
+On Windows open a Terminal with by pressing the keys "Windows + r" and type in `cmd` and then press enter. In the Terminal, type `cd Documents` then:
 ```bash
 git clone https://github.com/uitml/PhotoBooth.git
 cd PhotoBooth
@@ -128,24 +130,25 @@ cd PhotoBooth
 
 ### 3. Install Python Dependencies
 
-It is recommended to use a virtual environment:
+It is recommended to use a virtual environment, in the Photobooth folder run:
 
+Windows (with Python 3.12)
 ```bash
-python3 -m venv venv
+python -p3.12 -m venv venv
+venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
+
+Linux / Mac
+```bash
+python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-#### Additional AI/FaceID dependencies
-
-```bash
-pip install insightface
-pip install onnxruntime
-pip install onnxruntime-gpu
-```
 
 ### 4. Install Qt (Qt6) and System Libraries
-
+On Windows, Qt is installed automatically via the installation of PySide6 in the `pip install -r requirement.txt`.
 #### Linux
 
 ```bash
@@ -160,9 +163,21 @@ sudo apt install libxcb-cursor0 #may be needed
 
 Comfy is assumed to be in the same folder as Photobooth. If this is not the case, be sure to set the correct path in `constant.py`.
 
+#### Automated Setup using Scripts
+
+To simplify the setup of ComfyUI's custom nodes and models, we have provided automation scripts for both Windows and Linux. These scripts will download and place all the required files for you.
+
+-   **For Windows:** Run the `setup_comfyui.bat` script by double-clicking it.
+-   **For Linux/macOS:** First, make the script executable by running `chmod +x setup_comfyui.sh`, then run it with `./setup_comfyui.sh`.
+
+If you encounter any issues with the scripts or prefer to set up your environment manually, please follow the detailed steps below.
+
+---
+
 1. **Install ComfyUI**
 	 - Follow instructions at: https://www.comfy.org/ or https://github.com/comfyanonymous/ComfyUI
-	 - If you install ComfyUI from source using the Github repo you may run these commands (Linux):
+	 - On Windows ComfyUI installs by default in a folder `ComfyUI` in the `Documents` folder,
+	 - If you install ComfyUI from source using the Github repo you may go to your `Documents` folder and run these command lines (Linux):
 		 ```bash
 		 git clone https://github.com/comfyanonymous/ComfyUI.git
 		 cd ComfyUI
@@ -197,52 +212,79 @@ Comfy is assumed to be in the same folder as Photobooth. If this is not the case
 
 3. **Download Required Models**
 	 - **ControlNet Models:**
-		 - Place in `ComfyUI/models/controlnet/`
-		 - Download from:
-			 - [Depth](https://huggingface.co/lllyasviel/control_v11f1p_sd15_depth)
-			 - [IP2P](https://huggingface.co/lllyasviel/control_v11e_sd15_ip2p)
+		 - In `ComfyUI/models/controlnet/` create the folder `1.5/` and place the 3 following safetensor files:
+		 -	`control_v11e_sd15_ip2p_fp16.safetensors`, `control_v11f1p_sd15_depth_fp16.safetensors`, `control_v11p_sd15_lineart_fp16.safetensors`.
+		 - You can download them from:
+		 	 - [HuggingFace](https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/tree/main) and find the original documentation here: [Depth](https://huggingface.co/lllyasviel/control_v11f1p_sd15_depth) and [IP2P](https://huggingface.co/lllyasviel/control_v11e_sd15_ip2p).
 	 - **Stable Diffusion Checkpoints:**
-		 - Place in `ComfyUI/models/checkpoints/`
-		 - Example: [DreamShaper](https://civitai.com/models/4384/dreamshaper) (any SD 1.5 model can be used)
+		 - In `ComfyUI/models/checkpoints/` place the Dreamshaper model, download the safetensor file: dreamshaper_8.safetensors from [HuggingFace](https://huggingface.co/digiplay/DreamShaper_8/blob/main/dreamshaper_8.safetensors) or [Civitai](https://civitai.com/models/4384/dreamshaper) (any SD 1.5 model can be used)
+	 - **Upscale model**
+	 	 - In `ComfyUI/models/upscale_models/` place the file `RealESRGAN_x2.pth`, you can find it on [HuggingFace](https://huggingface.co/ai-forever/Real-ESRGAN/tree/main)
 	 - **Other Models:**
-		 - For IP-Adapter, follow the procedure in the [ComfyUI_IPAdapter_plus documentation](https://github.com/cubiq/ComfyUI_IPAdapter_plus).
-	 - **VAE Models:** (optional, for better color reproduction)
-		 - Place in `ComfyUI/models/vae/`
-	 - **InsightFace Models:** (for face recognition)
-		 - Place in `ComfyUI/models/insightface/`
-	 - **ONNX Models:** (for onnxruntime)
-		 - Place in appropriate subfolders under `ComfyUI/models/`
+		 - For IP-Adapter, follow the procedure in the [ComfyUI_IPAdapter_plus documentation](https://github.com/cubiq/ComfyUI_IPAdapter_plus). Make sure you have in your folder `ComfyUI/models/clip_vision` and place the following files:
+			 - `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`
+			 - `clip-vit-large-patch14.safetensors`
+		 - In folder `ComfyUI/models/ipadapter` (create folder if it does not exist):
+			 - `ip-adapter-faceid-plusv2_sd15.bin`
+			 - `ip-adapter-faceid-portrait-v11_sd15.bin`
+			 - `ip-adapter-faceid_sd15.bin`
+			 - `ip-adapter-plus-face_sd15.safetensors`
+			 - `ip-adapter_sd15.safetensors`
+		 - In folder `ComfyUI/models/loras`:
+			 - `ip-adapter-faceid-plusv2_sd15_lora.safetensors`
+			 - `ip-adapter-faceid_sd15_lora.safetensors`
 
-3. **Configure Workflows**
-	 - Place workflow JSON files (e.g., `default.json`, `comic.json`) in the `workflows/` directory of PhotoBooth.
-	 - You can create or edit workflows in the ComfyUI web interface and export them as JSON.
+
+
+You may need the following additional AI/FaceID dependencies, if you have the error "No module named 'insightface'" when you try to run one of the Photobooth workflows (see below 'Test ComfyUI'),
+
+For Windows, in the Terminal, go to the Comfy folder and run:
+```bash
+.venv\Scripts\activate.bat
+pip3 install insightface
+pip3 install onnxruntime
+```
+
+for Linux inside th evirtual environment of ComfyUI:
+```bash
+pip install insightface
+pip install onnxruntime
+pip install onnxruntime-gpu
+```
+
 
 4. **Test ComfyUI**
-	 - Start ComfyUI and verify that models are detected and loaded correctly.
-	 - Ensure the PhotoBooth app can communicate with ComfyUI (see config details).
+Start ComfyUI and verify that models in the `workflows` directory of PhotoBooth can be loaded correctly in ComfyUI and run on a test image (use a test image with a face present in it).
+	
 
 ### 6. Hotspot & Captive Portal Setup (Raspberry Pi)
 
-Follow the steps in the PDF to set up the hotspot and captive portal. Place configuration files in `hotspot_classes/in_py/configuration_files/` as described.
+This is optional and only necessary if you want to use the Rasberry Pi to share images using Wifi. Follow the steps in the PDF to set up the hotspot and captive portal. Place configuration files in `hotspot_classes/in_py/configuration_files/` as described.
 
 ### 7. Run PhotoBooth
 
-Photobooth assumes that ComfyUI is running and accessible at the local url `HTTP_BASE_URL = "http://127.0.0.1:8188"`.
-If it is serving another url, you can modify the `constant.py` to point to the correct one.
+Open a Terminal or use the one opened previously, in the PhotoBooth folder, run:
 
 #### Linux/macOS
+be sure to have your virtual environment activated (`source venv/bin/activate`) and run:
 ```bash
 python main.py
 ```
 
 #### Windows
+```bash
+venv\Scripts\activate.bat
+python main.py
+```
+
 You can use a `.bat` script to automate launching PhotoBooth and ComfyUI (change the paths to your correct comfy and photobooth paths):
 
 ```bat
 @echo off
-del /f /q "C:\AI Demos\PhotoBooth\app.log"
-start "" "C:\Users\USERNAME\AppData\Local\Programs\@comfyorgcomfyui-electron\ComfyUI.exe"
-cd /d "C:\AI Demos\PhotoBooth"
+del /f /q "C:\Users\USERNAME\Documents\PhotoBooth\app.log"
+start "" "C:\Users\USERNAME\AppData\Local\Programs\ComfyUI\ComfyUI.exe"
+cd /d "C:\Users\USERNAME\Documents\PhotoBooth"
+call venv\Scripts\activate.bat
 python .\main.py
 pause
 ```
@@ -255,6 +297,13 @@ pause
 
 **Note:**
 Adapt this `.bat` file to your own configuration, including the paths to `ComfyUI.exe` and the PhotoBooth folder.
+
+#### Communication between PhotoBooth and ComfyUI
+
+Photobooth assumes that ComfyUI is running and accessible at the local url `HTTP_BASE_URL = "http://127.0.0.1:8188"`.
+If it is serving another url, you can modify the `constant.py` to point to the correct one. More generally, the communication between the PhotoBooth app and ComfyUI is set in the `constant.py` file (see config details). Check it if PhotoBooth does not work after ComfyUI is set. Restart PhotoBooth after any modification of the configuration file.
+
+
 
 ### 8. Quit Photobooth
 
