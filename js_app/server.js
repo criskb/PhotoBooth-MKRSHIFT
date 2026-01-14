@@ -26,7 +26,7 @@ const printerCommand = process.env.PRINTER_COMMAND ?? "";
 const comfyHistoryUrl = `${comfyServerUrl}/history`;
 const comfyProgressUrl = `${comfyServerUrl}/progress`;
 const comfyViewUrl = `${comfyServerUrl}/view`;
-const comfyClientId = crypto.randomUUID();
+const comfyClientId = process.env.COMFY_CLIENT_ID ?? crypto.randomUUID();
 const progressByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
@@ -77,7 +77,7 @@ function connectComfyWebsocket() {
   const wsUrl = `${comfyServerUrl.replace(/^http/, "ws")}/ws?clientId=${encodeURIComponent(
     comfyClientId
   )}`;
-  console.info(`ComfyUI WebSocket connecting: ${wsUrl}`);
+  console.info(`ComfyUI WebSocket connecting (clientId: ${comfyClientId}): ${wsUrl}`);
   comfySocket = new WebSocket(wsUrl);
   comfySocketReady = false;
   comfySocket.on("open", () => {
@@ -264,6 +264,7 @@ const server = http.createServer((req, res) => {
           const captureName = `${safeId}.png`;
           const buffer = writeBase64Image(image, comfyInputPath);
           fs.writeFileSync(path.join(galleryInputDir, captureName), buffer);
+          console.info(`Queueing ComfyUI prompt (clientId: ${comfyClientId}).`);
           const result = await sendWorkflow({
             workflowDir,
             styleName: style,
