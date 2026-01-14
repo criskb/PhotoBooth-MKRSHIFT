@@ -1,85 +1,67 @@
 # PhotoBooth-MKRSHIFT
 
+PhotoBooth-MKRSHIFT is a JavaScript-first photo booth stack that pairs a Node.js server with a Three.js web UI and ComfyUI workflows. Styles and prompts live in workflow JSON files, and the UI consumes them through a simple JSON API.
+
+## Repository layout
+
 ```
 PhotoBooth-MKRSHIFT/
-├── comfy_classes/          # Legacy Python ComfyUI integration (deprecated)
-├── gui_classes/            # Legacy Python UI (deprecated)
-├── hotspot_classes/        # Hotspot and captive portal integration (legacy)
-├── js_app/                 # JavaScript server + ComfyUI client
-├── language_file/          # Language translations (norway.json, sami.json, uk.json)
-├── workflows/              # ComfyUI workflow definitions (default.json, clay.json, etc.)
-├── web_ui/                 # Three.js UI for the photo booth
-├── main.py                 # Legacy Python entry point (deprecated)
-├── requirements.txt        # Legacy Python dependencies (deprecated)
-└── README.md               # Project documentation
+├── js_app/        # Node.js API server + ComfyUI client
+├── web_ui/        # Three.js photo booth UI (served by js_app)
+├── workflows/     # ComfyUI workflow JSON files (style prompts live here)
+├── gallery/       # Generated image output (if enabled)
+└── README.md      # Project documentation
 ```
 
----
+> Legacy Python folders remain for historical reference, but the active stack is the JavaScript app in `js_app/`.
 
-## Documentation
+## Quick start
 
-## JavaScript-Only Configuration Guide
-
-PhotoBooth now runs entirely on JavaScript. Prompts live inside ComfyUI workflow JSON files and the UI is powered by three.js.
-
-### Configure styles
-
-- **`workflows/`**: Each workflow JSON contains its own prompt text and style settings. Add new styles by dropping a JSON file in this folder. The JS server exposes the style list at `/api/styles`.
-
-### Run the UI server
+### 1) Install dependencies
 
 ```bash
 cd js_app
 npm install
+```
+
+### 2) Run the server
+
+```bash
 npm run start
 ```
 
-The server will be available at `http://localhost:8080` and serves the three.js UI from `web_ui/`.
+The server starts on `http://localhost:8080` and serves the Three.js UI from `web_ui/`.
 
----
+## Configuring styles
 
-## Installation
+Each workflow JSON inside `workflows/` contains its own prompt text and settings. To add a new style, drop a workflow JSON file into the folder. The API exposes the style list at:
 
-Follow these steps to install and set up PhotoBooth.
-
-### 1. Prerequisites
-
-Hardware:
-
-- Camera connected to your computer
-- Optional: Raspberry Pi OS (for hotspot features, if using Raspberry Pi)
-
-Software:
-
-- [comfyUI](https://www.comfy.org/) (see below for more details on installing ComfyUI)
-- [Node.js](https://nodejs.org/) 18+ for the JS server
-
----
+```
+GET /api/styles
+```
 
 ## ComfyUI runtime notes
 
-When launching ComfyUI, enable preview updates so the UI can display sampling progress:
+Start ComfyUI with preview updates enabled so the UI can show sampling progress:
 
 ```bash
 python main.py --preview-method taesd
 ```
 
-If you prefer automatic selection, you can use:
+If you want automatic selection:
 
 ```bash
 python main.py --preview-method auto
 ```
 
-### TTY requirements in containers
+### Container TTY requirements
 
-Some samplers in ComfyUI expect a TTY for progress output. If you are running inside Docker, make sure you allocate a TTY (for example, `docker run -it ...`) or configure your runtime to attach a pseudo-TTY so progress updates do not stall or disappear.
+Some ComfyUI samplers expect a TTY. If you run in Docker, allocate a TTY (for example, `docker run -it ...`) so progress output does not stall.
 
-### Troubleshooting: proxy timeouts
+### Proxy timeouts
 
-Long-running image generations can exceed reverse-proxy timeouts. If you see 504/timeout errors while a job is still running, increase the proxy timeout values (for example, `proxy_read_timeout`/`proxy_send_timeout` in Nginx or `timeout`/`readTimeout` in your load balancer) to accommodate longer sampling durations.
-
----
+Long-running image generations can exceed reverse-proxy defaults. Increase proxy timeout values (for example, `proxy_read_timeout`/`proxy_send_timeout` in Nginx) if you see 504s while jobs are still running.
 
 ## Legacy Python notes
 
-The previous Python implementation is still checked in for reference, but it is no longer used by the JS workflow. You can remove it after validating the JS build on your target hardware.
+The previous Python implementation is deprecated and retained only for reference.
