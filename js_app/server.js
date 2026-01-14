@@ -28,6 +28,7 @@ const comfyProgressUrl = `${comfyServerUrl}/progress`;
 const comfyViewUrl = `${comfyServerUrl}/view`;
 const comfyClientId = process.env.COMFY_CLIENT_ID ?? crypto.randomUUID();
 const progressByPrompt = new Map();
+const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
 let lastPromptId = null;
@@ -43,27 +44,32 @@ function updateProgressFromSocket(payload) {
   });
 }
 
-function resolvePromptIdFromSocket(data) {
+function resolvePromptIdFromSocket(message) {
   return (
-    data?.prompt_id ??
-    data?.promptId ??
-    data?.prompt?.id ??
-    data?.prompt?.prompt_id ??
-    data?.prompt?.promptId ??
-    data?.extra_data?.prompt_id ??
-    data?.extra_data?.promptId ??
-    data?.metadata?.prompt_id ??
-    data?.metadata?.promptId ??
+    message?.prompt_id ??
+    message?.promptId ??
+    message?.data?.prompt_id ??
+    message?.data?.promptId ??
+    message?.data?.prompt?.id ??
+    message?.data?.prompt?.prompt_id ??
+    message?.data?.prompt?.promptId ??
+    message?.data?.extra_data?.prompt_id ??
+    message?.data?.extra_data?.promptId ??
+    message?.data?.metadata?.prompt_id ??
+    message?.data?.metadata?.promptId ??
     lastPromptId
   );
 }
 
 function handleComfySocketMessage(message) {
-  if (!message?.type || !message?.data) {
+  if (!message?.type) {
     return;
   }
-  const promptId = resolvePromptIdFromSocket(message.data);
+  const promptId = resolvePromptIdFromSocket(message);
   if (message.type === "progress_state" || message.type === "progress") {
+    if (!message.data) {
+      return;
+    }
     const value = Number(message.data.value ?? 0);
     const max = Number(message.data.max ?? 0);
     const percent =
@@ -73,6 +79,12 @@ function handleComfySocketMessage(message) {
       percent,
     });
     return;
+  }
+  if (message.type === "executed" && promptId && message.data?.output) {
+    const socketOutput = getOutputImage(message.data.output);
+    if (socketOutput) {
+      outputByPrompt.set(promptId, socketOutput);
+    }
   }
   if (message.type === "executing" && message.data.node == null) {
     updateProgressFromSocket({
@@ -101,12 +113,16 @@ function connectComfyWebsocket() {
     comfySocketReady = true;
     console.info("ComfyUI WebSocket connected.");
   });
-  comfySocket.on("message", (data) => {
-    if (typeof data !== "string") {
+  comfySocket.on("message", (data, isBinary) => {
+    if (isBinary) {
+      return;
+    }
+    const raw = typeof data === "string" ? data : data?.toString?.("utf8");
+    if (!raw) {
       return;
     }
     try {
-      const message = JSON.parse(data);
+      const message = JSON.parse(raw);
       handleComfySocketMessage(message);
     } catch (error) {
       // ignore malformed messages
@@ -181,6 +197,9 @@ function getOutputImage(historyItem) {
     historyItem?.result?.outputs ??
     historyItem?.result?.output ??
     historyItem?.output;
+  if (historyItem?.images?.length) {
+    return historyItem.images[0];
+  }
   if (!outputs) {
     return null;
   }
@@ -282,6 +301,7 @@ const server = http.createServer((req, res) => {
           const buffer = writeBase64Image(image, comfyInputPath);
           fs.writeFileSync(path.join(galleryInputDir, captureName), buffer);
           console.info(`Queueing ComfyUI prompt (clientId: ${comfyClientId}).`);
+          const promptId = crypto.randomUUID();
           const result = await sendWorkflow({
             workflowDir,
             styleName: style,
@@ -289,13 +309,22 @@ const server = http.createServer((req, res) => {
             inputImagePath: comfyInputPath,
             serverUrl: comfyServerUrl,
             clientId: comfyClientId,
+            promptId,
           });
           if (result?.prompt_id) {
             promptToCapture.set(result.prompt_id, safeId);
             lastPromptId = result.prompt_id;
+          } else {
+            promptToCapture.set(promptId, safeId);
+            lastPromptId = promptId;
           }
           res.writeHead(202, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ status: "queued", promptId: result.prompt_id }));
+          res.end(
+            JSON.stringify({
+              status: "queued",
+              promptId: result.prompt_id ?? promptId,
+            })
+          );
         } catch (error) {
           res.writeHead(500);
           res.end(`Queue failed: ${error.message}`);
@@ -327,7 +356,7 @@ const server = http.createServer((req, res) => {
           historyResult?.[promptId] ??
           historyResult?.history?.[promptId] ??
           historyResult;
-        const outputImage = getOutputImage(historyItem);
+        const outputImage = outputByPrompt.get(promptId) ?? getOutputImage(historyItem);
         const captureId = promptToCapture.get(promptId);
         const fallbackOutputPath = captureId
           ? path.join(galleryOutputDir, `${captureId}.png`)
@@ -363,7 +392,10 @@ const server = http.createServer((req, res) => {
           }
         }
         const completed =
-          Boolean(socketProgress?.complete) || Boolean(historyItem?.status?.completed);
+          Boolean(socketProgress?.complete) ||
+          Boolean(historyItem?.status?.completed) ||
+          Boolean(historyItem?.status?.status_str === "success") ||
+          Boolean(outputImage);
         if (!Number.isFinite(percent) || percent <= 0) {
           percent = completed ? 100 : 0;
         }
