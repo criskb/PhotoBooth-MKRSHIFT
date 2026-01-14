@@ -7,6 +7,8 @@ const progressLabel = document.querySelector(".progress__label");
 const progressValue = document.querySelector(".progress__value");
 const progressFill = document.querySelector(".progress__fill");
 const progressPreview = document.querySelector(".progress__preview");
+const progressClose = document.querySelector(".progress-card__close");
+const appRoot = document.querySelector(".app");
 
 let selectedStyle = null;
 let isQueueing = false;
@@ -72,6 +74,7 @@ async function queueSelfie(source = "tap") {
   }
 
   isQueueing = true;
+  setBusy(true);
   currentPromptId = null;
   if (progressPoller) {
     clearInterval(progressPoller);
@@ -105,6 +108,7 @@ async function queueSelfie(source = "tap") {
     progressLabel.textContent = "Error";
     progressValue.textContent = "0%";
     progressFill.style.width = "0%";
+    setBusy(false);
   } finally {
     isQueueing = false;
   }
@@ -190,6 +194,24 @@ function startProgressPolling() {
   }, 1200);
 }
 
+function setBusy(isBusy) {
+  if (isBusy) {
+    appRoot.classList.add("app--busy");
+    return;
+  }
+  appRoot.classList.remove("app--busy");
+  progressLabel.textContent = "Idle";
+  progressValue.textContent = "0%";
+  progressFill.style.width = "0%";
+  progressPreview.src = "";
+  progressPreview.style.display = "none";
+  if (progressPoller) {
+    clearInterval(progressPoller);
+    progressPoller = null;
+  }
+  currentPromptId = null;
+}
+
 async function loadStyles() {
   try {
     const response = await fetch("/api/styles");
@@ -221,6 +243,11 @@ async function loadStyles() {
 actionButton.addEventListener("click", async () => {
   await ensureMotionPermission();
   queueSelfie("tap");
+});
+progressClose.addEventListener("click", () => {
+  setBusy(false);
+  statusLabel.textContent = "Ready";
+  statusMeta.textContent = "Select a style, then tap or shake to shoot";
 });
 window.addEventListener("devicemotion", handleShake);
 

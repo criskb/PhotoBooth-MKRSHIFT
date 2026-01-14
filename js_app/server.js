@@ -135,9 +135,21 @@ const server = http.createServer((req, res) => {
         const historyResult = results[1].status === "fulfilled" ? results[1].value : null;
         const historyItem = historyResult?.[promptId];
         const outputImage = getOutputImage(historyItem);
+        const progressValue =
+          progressResult?.value ??
+          progressResult?.progress?.value ??
+          progressResult?.current ??
+          progressResult?.progress?.current ??
+          0;
+        const progressMax =
+          progressResult?.max ??
+          progressResult?.progress?.max ??
+          progressResult?.total ??
+          progressResult?.progress?.total ??
+          0;
         const percent =
-          progressResult && typeof progressResult.value === "number" && progressResult.max
-            ? (progressResult.value / progressResult.max) * 100
+          typeof progressValue === "number" && typeof progressMax === "number" && progressMax > 0
+            ? (progressValue / progressMax) * 100
             : historyItem?.status?.completed
               ? 100
               : 0;

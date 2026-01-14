@@ -22,6 +22,25 @@ html {
   overflow: hidden;
 }
 
+.app--busy::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 5, 9, 0.75);
+  z-index: 2;
+}
+
+.app--busy .controls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#camera,
+.hud,
+.controls {
+  z-index: 1;
+}
+
 #camera {
   position: absolute;
   inset: 0;
@@ -87,29 +106,59 @@ html {
   align-items: center;
 }
 
-.progress {
-  width: min(520px, 90vw);
-  background: rgba(8, 11, 18, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 0.85rem 1.1rem;
+.progress-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.app--busy .progress-overlay {
+  display: flex;
+}
+
+.progress-card {
+  width: min(720px, 92vw);
+  background: rgba(8, 11, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem 2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  position: relative;
+}
+
+.progress-card__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(10, 12, 18, 0.8);
+  color: #f7f7fb;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .progress__meta {
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: rgba(247, 247, 251, 0.75);
 }
 
 .progress__bar {
   width: 100%;
-  height: 0.55rem;
+  height: 0.7rem;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 999px;
   overflow: hidden;
@@ -127,8 +176,10 @@ html {
 .progress__preview {
   display: none;
   width: 100%;
-  border-radius: 0.8rem;
+  border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 55vh;
+  object-fit: contain;
 }
 
 .action {
