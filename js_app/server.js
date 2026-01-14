@@ -5,6 +5,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import WebSocket from "ws";
 import { loadWorkflowStyles } from "./workflowLoader.js";
 import { sendWorkflow } from "./comfyClient.js";
 
@@ -66,10 +67,6 @@ function handleComfySocketMessage(message) {
 }
 
 function connectComfyWebsocket() {
-  if (typeof WebSocket === "undefined") {
-    console.warn("WebSocket is not available; falling back to polling progress.");
-    return;
-  }
   if (comfySocket) {
     try {
       comfySocket.close();
@@ -80,30 +77,34 @@ function connectComfyWebsocket() {
   const wsUrl = `${comfyServerUrl.replace(/^http/, "ws")}/ws?clientId=${encodeURIComponent(
     comfyClientId
   )}`;
+  console.info(`ComfyUI WebSocket connecting: ${wsUrl}`);
   comfySocket = new WebSocket(wsUrl);
   comfySocketReady = false;
-  comfySocket.addEventListener("open", () => {
+  comfySocket.on("open", () => {
     comfySocketReady = true;
+    console.info("ComfyUI WebSocket connected.");
   });
-  comfySocket.addEventListener("message", (event) => {
-    if (typeof event.data !== "string") {
+  comfySocket.on("message", (data) => {
+    if (typeof data !== "string") {
       return;
     }
     try {
-      const message = JSON.parse(event.data);
+      const message = JSON.parse(data);
       handleComfySocketMessage(message);
     } catch (error) {
       // ignore malformed messages
     }
   });
-  comfySocket.addEventListener("close", () => {
+  comfySocket.on("close", () => {
     comfySocketReady = false;
+    console.warn("ComfyUI WebSocket closed; reconnecting.");
     setTimeout(() => {
       connectComfyWebsocket();
     }, 1500);
   });
-  comfySocket.addEventListener("error", () => {
+  comfySocket.on("error", () => {
     comfySocketReady = false;
+    console.warn("ComfyUI WebSocket error; falling back to polling.");
   });
 }
 
@@ -351,6 +352,7 @@ const server = http.createServer((req, res) => {
           percent,
           label: completed ? "Complete" : "Sampling",
           complete: completed,
+          websocketConnected: comfySocketReady,
           outputUrl: outputImage
             ? `/api/output?filename=${encodeURIComponent(outputImage.filename)}&type=${
                 outputImage.type ?? "output"
