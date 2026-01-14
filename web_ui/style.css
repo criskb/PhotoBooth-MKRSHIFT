@@ -275,9 +275,9 @@ html {
 .progress__qr-image {
   width: 160px;
   height: 160px;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(12, 15, 22, 0.8);
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .settings-modal {
@@ -491,9 +491,9 @@ html {
 .gallery-qr-image {
   width: 160px;
   height: 160px;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(12, 15, 22, 0.3);
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .gallery-pair {

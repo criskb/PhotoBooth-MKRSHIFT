@@ -732,7 +732,7 @@ const server = http.createServer((req, res) => {
         if (!link) {
           throw new Error("Missing upload link");
         }
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
           link
         )}`;
         res.writeHead(200, { "Content-Type": "application/json" });
