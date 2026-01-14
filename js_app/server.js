@@ -20,12 +20,12 @@ const galleryInputDir = path.join(galleryDir, "input");
 const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
-const comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 const printerCommand = process.env.PRINTER_COMMAND ?? "";
-const comfyHistoryUrl = `${comfyServerUrl}/history`;
-const comfyProgressUrl = `${comfyServerUrl}/progress`;
-const comfyViewUrl = `${comfyServerUrl}/view`;
+let comfyHistoryUrl = `${comfyServerUrl}/history`;
+let comfyProgressUrl = `${comfyServerUrl}/progress`;
+let comfyViewUrl = `${comfyServerUrl}/view`;
 const comfyClientId = process.env.COMFY_CLIENT_ID ?? crypto.randomUUID();
 const progressByPrompt = new Map();
 const progressMetaByPrompt = new Map();
@@ -33,6 +33,33 @@ const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
 let lastPromptId = null;
+
+function setComfyServerUrl(nextUrl) {
+  if (!nextUrl || nextUrl === comfyServerUrl) {
+    return;
+  }
+  comfyServerUrl = nextUrl;
+  comfyHistoryUrl = `${comfyServerUrl}/history`;
+  comfyProgressUrl = `${comfyServerUrl}/progress`;
+  comfyViewUrl = `${comfyServerUrl}/view`;
+  connectComfyWebsocket();
+}
+
+function normalizeComfyServerUrl(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.toString().replace(/\/$/, "");
+  } catch (error) {
+    return null;
+  }
+}
 
 function updateProgressFromSocket(payload) {
   if (!payload?.promptId) {
@@ -372,6 +399,10 @@ const server = http.createServer((req, res) => {
       .then(async (payload) => {
         const style = payload.style;
         const image = payload.image;
+        const comfyOverride = normalizeComfyServerUrl(payload.comfyServerUrl);
+        if (comfyOverride) {
+          setComfyServerUrl(comfyOverride);
+        }
         if (!style || !image) {
           res.writeHead(400);
           res.end("Missing style or image");
@@ -421,6 +452,10 @@ const server = http.createServer((req, res) => {
   if (req.url.startsWith("/api/progress")) {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const promptId = url.searchParams.get("promptId");
+    const comfyOverride = normalizeComfyServerUrl(url.searchParams.get("comfyServerUrl"));
+    if (comfyOverride) {
+      setComfyServerUrl(comfyOverride);
+    }
     if (!promptId) {
       res.writeHead(400);
       res.end("Missing promptId");

@@ -73,7 +73,20 @@
 
     <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="settings-card">
-        <h2 id="settings-title">Printer Settings</h2>
+        <h2 id="settings-title">Settings</h2>
+        <label class="settings-field">
+          ComfyUI API Endpoint
+          <input class="settings-input settings-input--comfy" type="url" placeholder="http://127.0.0.1:8188" />
+        </label>
+        <label class="settings-field">
+          Camera Orientation
+          <select class="settings-input settings-input--orientation">
+            <option value="0">0° (Normal)</option>
+            <option value="90">90°</option>
+            <option value="180">180°</option>
+            <option value="270">270°</option>
+          </select>
+        </label>
         <label class="settings-field">
           Printer Name
           <input class="settings-input settings-input--printer" type="text" placeholder="Office_Printer_1" />

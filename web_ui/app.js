@@ -16,6 +16,8 @@ const appRoot = document.querySelector(".app");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
+const settingsComfyInput = document.querySelector(".settings-input--comfy");
+const settingsOrientationInput = document.querySelector(".settings-input--orientation");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
@@ -43,6 +45,9 @@ let lastOutputUrl = null;
 let printerConfig = { name: "", enabled: false };
 let freeimageApiKey = "";
 let selectedGalleryUrl = "";
+const defaultComfyServerUrl = "http://127.0.0.1:8188";
+let comfyServerUrl = defaultComfyServerUrl;
+let cameraOrientation = 0;
 
 function toTitleCase(value) {
   return value
@@ -76,11 +81,25 @@ function captureFrame() {
   if (!video.videoWidth || !video.videoHeight) {
     return null;
   }
+  const orientation = Number(cameraOrientation) || 0;
   const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const needsSwap = orientation === 90 || orientation === 270;
+  canvas.width = needsSwap ? video.videoHeight : video.videoWidth;
+  canvas.height = needsSwap ? video.videoWidth : video.videoHeight;
   const context = canvas.getContext("2d");
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if (orientation) {
+    context.translate(canvas.width / 2, canvas.height / 2);
+    context.rotate((orientation * Math.PI) / 180);
+    context.drawImage(
+      video,
+      -video.videoWidth / 2,
+      -video.videoHeight / 2,
+      video.videoWidth,
+      video.videoHeight
+    );
+  } else {
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  }
   return canvas.toDataURL("image/png");
 }
 
@@ -133,7 +152,11 @@ async function queueSelfie(source = "tap") {
     const response = await fetch("/api/selfie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style: selectedStyle, image: imageData }),
+      body: JSON.stringify({
+        style: selectedStyle,
+        image: imageData,
+        comfyServerUrl,
+      }),
     });
     if (!response.ok) {
       const message = await response.text();
@@ -241,7 +264,11 @@ function startProgressPolling() {
   });
   progressPoller = setInterval(async () => {
     try {
-      const response = await fetch(`/api/progress?promptId=${encodeURIComponent(currentPromptId)}`);
+      const response = await fetch(
+        `/api/progress?promptId=${encodeURIComponent(
+          currentPromptId
+        )}&comfyServerUrl=${encodeURIComponent(comfyServerUrl)}`
+      );
       if (!response.ok) {
         throw new Error("Progress unavailable");
       }
@@ -309,14 +336,27 @@ function loadPrinterConfig() {
     if (freeimageRaw) {
       freeimageApiKey = freeimageRaw;
     }
+    const comfyRaw = localStorage.getItem("comfyServerUrl");
+    if (comfyRaw) {
+      comfyServerUrl = comfyRaw;
+    }
+    const orientationRaw = localStorage.getItem("cameraOrientation");
+    if (orientationRaw) {
+      cameraOrientation = Number(orientationRaw) || 0;
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false };
     freeimageApiKey = "";
+    comfyServerUrl = defaultComfyServerUrl;
+    cameraOrientation = 0;
   }
+  settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
+  settingsOrientationInput.value = String(cameraOrientation || 0);
   settingsPrinterInput.value = printerConfig.name || "";
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
   settingsFreeimageInput.value = freeimageApiKey || "";
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  applyCameraOrientation();
 }
 
 function savePrinterConfig() {
@@ -327,7 +367,12 @@ function savePrinterConfig() {
   localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
   freeimageApiKey = settingsFreeimageInput.value.trim();
   localStorage.setItem("freeimageApiKey", freeimageApiKey);
+  comfyServerUrl = settingsComfyInput.value.trim() || defaultComfyServerUrl;
+  localStorage.setItem("comfyServerUrl", comfyServerUrl);
+  cameraOrientation = Number(settingsOrientationInput.value) || 0;
+  localStorage.setItem("cameraOrientation", String(cameraOrientation));
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  applyCameraOrientation();
 }
 
 function openSettings() {
@@ -364,6 +409,12 @@ function setGallerySelection(item) {
   galleryUploadStatus.textContent = "";
   galleryQr.style.display = "none";
   galleryQrImage.src = "";
+}
+
+function applyCameraOrientation() {
+  const orientation = Number(cameraOrientation) || 0;
+  video.style.transform = orientation ? `rotate(${orientation}deg)` : "";
+  video.style.transformOrigin = "center";
 }
 
 function toggleFullscreen() {
