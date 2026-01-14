@@ -20,12 +20,12 @@ const galleryInputDir = path.join(galleryDir, "input");
 const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
-const comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
-const imgurClientId = process.env.IMGUR_CLIENT_ID ?? "";
+let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 const printerCommand = process.env.PRINTER_COMMAND ?? "";
-const comfyHistoryUrl = `${comfyServerUrl}/history`;
-const comfyProgressUrl = `${comfyServerUrl}/progress`;
-const comfyViewUrl = `${comfyServerUrl}/view`;
+let comfyHistoryUrl = `${comfyServerUrl}/history`;
+let comfyProgressUrl = `${comfyServerUrl}/progress`;
+let comfyViewUrl = `${comfyServerUrl}/view`;
 const comfyClientId = process.env.COMFY_CLIENT_ID ?? crypto.randomUUID();
 const progressByPrompt = new Map();
 const progressMetaByPrompt = new Map();
@@ -33,6 +33,33 @@ const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
 let lastPromptId = null;
+
+function setComfyServerUrl(nextUrl) {
+  if (!nextUrl || nextUrl === comfyServerUrl) {
+    return;
+  }
+  comfyServerUrl = nextUrl;
+  comfyHistoryUrl = `${comfyServerUrl}/history`;
+  comfyProgressUrl = `${comfyServerUrl}/progress`;
+  comfyViewUrl = `${comfyServerUrl}/view`;
+  connectComfyWebsocket();
+}
+
+function normalizeComfyServerUrl(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const url = new URL(trimmed);
+    return url.toString().replace(/\/$/, "");
+  } catch (error) {
+    return null;
+  }
+}
 
 function updateProgressFromSocket(payload) {
   if (!payload?.promptId) {
@@ -372,6 +399,10 @@ const server = http.createServer((req, res) => {
       .then(async (payload) => {
         const style = payload.style;
         const image = payload.image;
+        const comfyOverride = normalizeComfyServerUrl(payload.comfyServerUrl);
+        if (comfyOverride) {
+          setComfyServerUrl(comfyOverride);
+        }
         if (!style || !image) {
           res.writeHead(400);
           res.end("Missing style or image");
@@ -421,6 +452,10 @@ const server = http.createServer((req, res) => {
   if (req.url.startsWith("/api/progress")) {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const promptId = url.searchParams.get("promptId");
+    const comfyOverride = normalizeComfyServerUrl(url.searchParams.get("comfyServerUrl"));
+    if (comfyOverride) {
+      setComfyServerUrl(comfyOverride);
+    }
     if (!promptId) {
       res.writeHead(400);
       res.end("Missing promptId");
@@ -583,14 +618,18 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.url.startsWith("/api/upload") && req.method === "POST") {
-    if (!imgurClientId) {
-      res.writeHead(501);
-      res.end("IMGUR_CLIENT_ID not configured");
-      return;
-    }
     readJsonBody(req)
       .then(async (payload) => {
         const imageUrl = payload.imageUrl;
+        const apiKey =
+          typeof payload.apiKey === "string" && payload.apiKey.trim()
+            ? payload.apiKey.trim()
+            : freeimageHostKey;
+        if (!apiKey) {
+          res.writeHead(501);
+          res.end("FREEIMAGE_HOST_KEY not configured");
+          return;
+        }
         if (!imageUrl) {
           res.writeHead(400);
           res.end("Missing imageUrl");
@@ -598,24 +637,41 @@ const server = http.createServer((req, res) => {
         }
         const resolvedUrl = buildLocalUrl(req, imageUrl);
         const base64 = await readImageAsBase64(resolvedUrl);
-        const imgurResponse = await fetch("https://api.imgur.com/3/image", {
+        const formData = new FormData();
+        formData.append("key", apiKey);
+        formData.append("source", base64);
+        formData.append("format", "json");
+        const uploadResponse = await fetch("https://freeimage.host/api/1/upload", {
           method: "POST",
-          headers: {
-            Authorization: `Client-ID ${imgurClientId}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ image: base64, type: "base64" }),
+          body: formData,
         });
-        if (!imgurResponse.ok) {
-          const message = await imgurResponse.text();
-          throw new Error(message || "Imgur upload failed");
+        let result = null;
+        try {
+          result = await uploadResponse.json();
+        } catch (error) {
+          // ignore parse errors
         }
-        const result = await imgurResponse.json();
-        const link = result?.data?.link;
+        if (!uploadResponse.ok) {
+          const message =
+            result?.status_txt ??
+            result?.error ??
+            result?.message ??
+            (await uploadResponse.text().catch(() => "")) ??
+            "";
+          throw new Error(message || "Upload failed");
+        }
+        if (!result) {
+          throw new Error("Upload response missing JSON");
+        }
+        const link =
+          result?.image?.url ??
+          result?.image?.display_url ??
+          result?.data?.link ??
+          result?.url;
         if (!link) {
-          throw new Error("Missing Imgur link");
+          throw new Error("Missing upload link");
         }
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
           link
         )}`;
         res.writeHead(200, { "Content-Type": "application/json" });
