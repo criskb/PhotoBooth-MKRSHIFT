@@ -14,8 +14,12 @@ const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const appRoot = document.querySelector(".app");
 const settingsToggle = document.querySelector(".settings-toggle");
+const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
+const settingsComfyInput = document.querySelector(".settings-input--comfy");
+const settingsOrientationInput = document.querySelector(".settings-input--orientation");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
+const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
@@ -25,6 +29,10 @@ const galleryClose = document.querySelector(".gallery-close");
 const galleryList = document.querySelector(".gallery-list");
 const galleryInputImage = document.querySelector(".gallery-image--input");
 const galleryOutputImage = document.querySelector(".gallery-image--output");
+const galleryUploadButton = document.querySelector(".gallery-action--upload");
+const galleryUploadStatus = document.querySelector(".gallery-upload-status");
+const galleryQr = document.querySelector(".gallery-qr");
+const galleryQrImage = document.querySelector(".gallery-qr-image");
 
 let selectedStyle = null;
 let isQueueing = false;
@@ -35,6 +43,11 @@ let progressPoller = null;
 let outputReady = false;
 let lastOutputUrl = null;
 let printerConfig = { name: "", enabled: false };
+let freeimageApiKey = "";
+let selectedGalleryUrl = "";
+const defaultComfyServerUrl = "http://127.0.0.1:8188";
+let comfyServerUrl = defaultComfyServerUrl;
+let cameraOrientation = 0;
 
 function toTitleCase(value) {
   return value
@@ -68,11 +81,25 @@ function captureFrame() {
   if (!video.videoWidth || !video.videoHeight) {
     return null;
   }
+  const orientation = Number(cameraOrientation) || 0;
   const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const needsSwap = orientation === 90 || orientation === 270;
+  canvas.width = needsSwap ? video.videoHeight : video.videoWidth;
+  canvas.height = needsSwap ? video.videoWidth : video.videoHeight;
   const context = canvas.getContext("2d");
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if (orientation) {
+    context.translate(canvas.width / 2, canvas.height / 2);
+    context.rotate((orientation * Math.PI) / 180);
+    context.drawImage(
+      video,
+      -video.videoWidth / 2,
+      -video.videoHeight / 2,
+      video.videoWidth,
+      video.videoHeight
+    );
+  } else {
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  }
   return canvas.toDataURL("image/png");
 }
 
@@ -125,7 +152,11 @@ async function queueSelfie(source = "tap") {
     const response = await fetch("/api/selfie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style: selectedStyle, image: imageData }),
+      body: JSON.stringify({
+        style: selectedStyle,
+        image: imageData,
+        comfyServerUrl,
+      }),
     });
     if (!response.ok) {
       const message = await response.text();
@@ -233,7 +264,11 @@ function startProgressPolling() {
   });
   progressPoller = setInterval(async () => {
     try {
-      const response = await fetch(`/api/progress?promptId=${encodeURIComponent(currentPromptId)}`);
+      const response = await fetch(
+        `/api/progress?promptId=${encodeURIComponent(
+          currentPromptId
+        )}&comfyServerUrl=${encodeURIComponent(comfyServerUrl)}`
+      );
       if (!response.ok) {
         throw new Error("Progress unavailable");
       }
@@ -297,12 +332,31 @@ function loadPrinterConfig() {
     if (raw) {
       printerConfig = JSON.parse(raw);
     }
+    const freeimageRaw = localStorage.getItem("freeimageApiKey");
+    if (freeimageRaw) {
+      freeimageApiKey = freeimageRaw;
+    }
+    const comfyRaw = localStorage.getItem("comfyServerUrl");
+    if (comfyRaw) {
+      comfyServerUrl = comfyRaw;
+    }
+    const orientationRaw = localStorage.getItem("cameraOrientation");
+    if (orientationRaw) {
+      cameraOrientation = Number(orientationRaw) || 0;
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false };
+    freeimageApiKey = "";
+    comfyServerUrl = defaultComfyServerUrl;
+    cameraOrientation = 0;
   }
+  settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
+  settingsOrientationInput.value = String(cameraOrientation || 0);
   settingsPrinterInput.value = printerConfig.name || "";
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
+  settingsFreeimageInput.value = freeimageApiKey || "";
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  applyCameraOrientation();
 }
 
 function savePrinterConfig() {
@@ -311,7 +365,14 @@ function savePrinterConfig() {
     enabled: settingsEnabledInput.checked,
   };
   localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  freeimageApiKey = settingsFreeimageInput.value.trim();
+  localStorage.setItem("freeimageApiKey", freeimageApiKey);
+  comfyServerUrl = settingsComfyInput.value.trim() || defaultComfyServerUrl;
+  localStorage.setItem("comfyServerUrl", comfyServerUrl);
+  cameraOrientation = Number(settingsOrientationInput.value) || 0;
+  localStorage.setItem("cameraOrientation", String(cameraOrientation));
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  applyCameraOrientation();
 }
 
 function openSettings() {
@@ -325,11 +386,52 @@ function closeSettings() {
 
 function openGallery() {
   galleryModal.classList.add("gallery-modal--open");
+  galleryUploadStatus.textContent = "";
+  galleryQr.style.display = "none";
+  galleryQrImage.src = "";
   loadGallery();
 }
 
 function closeGallery() {
   galleryModal.classList.remove("gallery-modal--open");
+}
+
+function setGallerySelection(item) {
+  if (!item) {
+    selectedGalleryUrl = "";
+    galleryUploadButton.disabled = true;
+    return;
+  }
+  selectedGalleryUrl = item.outputUrl;
+  galleryInputImage.src = item.inputUrl;
+  galleryOutputImage.src = item.outputUrl;
+  galleryUploadButton.disabled = false;
+  galleryUploadStatus.textContent = "";
+  galleryQr.style.display = "none";
+  galleryQrImage.src = "";
+}
+
+function applyCameraOrientation() {
+  const orientation = Number(cameraOrientation) || 0;
+  const container = appRoot.getBoundingClientRect();
+  const containerRatio =
+    container.width && container.height ? container.width / container.height : 1;
+  const rotated = orientation === 90 || orientation === 270;
+  const scale = rotated ? Math.min(containerRatio, 1 / containerRatio) : 1;
+  if (orientation) {
+    video.style.transform = `rotate(${orientation}deg) scale(${scale})`;
+  } else {
+    video.style.transform = "";
+  }
+  video.style.transformOrigin = "center";
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    return;
+  }
+  document.exitFullscreen?.().catch(() => {});
 }
 
 function renderGalleryItems(items) {
@@ -339,6 +441,7 @@ function renderGalleryItems(items) {
     empty.textContent = "No results yet.";
     empty.style.opacity = "0.6";
     galleryList.appendChild(empty);
+    setGallerySelection(null);
     return;
   }
   items.forEach((item) => {
@@ -352,13 +455,11 @@ function renderGalleryItems(items) {
     row.appendChild(thumb);
     row.appendChild(label);
     row.addEventListener("click", () => {
-      galleryInputImage.src = item.inputUrl;
-      galleryOutputImage.src = item.outputUrl;
+      setGallerySelection(item);
     });
     galleryList.appendChild(row);
   });
-  galleryInputImage.src = items[0].inputUrl;
-  galleryOutputImage.src = items[0].outputUrl;
+  setGallerySelection(items[0]);
 }
 
 async function loadGallery() {
@@ -374,30 +475,57 @@ async function loadGallery() {
   }
 }
 
-async function uploadToImgur() {
+async function uploadImage(imageUrl) {
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageUrl, apiKey: freeimageApiKey }),
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "Upload failed");
+  }
+  return response.json();
+}
+
+async function uploadToFreeimage() {
   if (!lastOutputUrl) {
     return;
   }
   uploadButton.disabled = true;
   try {
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: lastOutputUrl }),
-    });
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-    const data = await response.json();
+    const data = await uploadImage(lastOutputUrl);
     if (data.qrUrl) {
       qrImage.src = data.qrUrl;
       qrContainer.style.display = "flex";
     }
+    statusLabel.textContent = "Upload Complete";
+    statusMeta.textContent = "Scan the QR code to view the image.";
   } catch (error) {
     statusLabel.textContent = "Upload Failed";
-    statusMeta.textContent = "Unable to upload to Imgur.";
+    statusMeta.textContent = error?.message || "Unable to upload the image.";
   } finally {
     uploadButton.disabled = false;
+  }
+}
+
+async function uploadGallerySelection() {
+  if (!selectedGalleryUrl) {
+    return;
+  }
+  galleryUploadButton.disabled = true;
+  galleryUploadStatus.textContent = "Uploading...";
+  try {
+    const data = await uploadImage(selectedGalleryUrl);
+    if (data.qrUrl) {
+      galleryQrImage.src = data.qrUrl;
+      galleryQr.style.display = "flex";
+    }
+    galleryUploadStatus.textContent = "Upload complete.";
+  } catch (error) {
+    galleryUploadStatus.textContent = error?.message || "Upload failed.";
+  } finally {
+    galleryUploadButton.disabled = false;
   }
 }
 
@@ -461,6 +589,7 @@ actionButton.addEventListener("click", async () => {
   queueSelfie("tap");
 });
 settingsToggle.addEventListener("click", () => openSettings());
+fullscreenToggle.addEventListener("click", toggleFullscreen);
 settingsSave.addEventListener("click", () => {
   savePrinterConfig();
   closeSettings();
@@ -468,7 +597,8 @@ settingsSave.addEventListener("click", () => {
 settingsClose.addEventListener("click", closeSettings);
 galleryToggle.addEventListener("click", openGallery);
 galleryClose.addEventListener("click", closeGallery);
-uploadButton.addEventListener("click", uploadToImgur);
+galleryUploadButton.addEventListener("click", uploadGallerySelection);
+uploadButton.addEventListener("click", uploadToFreeimage);
 printButton.addEventListener("click", sendToPrinter);
 doneButton.addEventListener("click", () => {
   if (!outputReady) {
@@ -479,6 +609,7 @@ doneButton.addEventListener("click", () => {
   statusMeta.textContent = "Select a style, then tap or shake to shoot";
 });
 window.addEventListener("devicemotion", handleShake);
+window.addEventListener("resize", applyCameraOrientation);
 
 startCamera();
 loadStyles();
