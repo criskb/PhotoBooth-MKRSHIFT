@@ -35,6 +35,12 @@ html {
   pointer-events: none;
 }
 
+.app--busy .utility-controls,
+.app--busy .gallery-toggle {
+  opacity: 0;
+  pointer-events: none;
+}
+
 #camera,
 .hud,
 .controls,
@@ -42,10 +48,17 @@ html {
   z-index: 1;
 }
 
-.settings-toggle {
+.utility-controls {
   position: absolute;
-  top: 2.5rem;
-  right: 2rem;
+  bottom: 2.25rem;
+  left: 2.25rem;
+  display: flex;
+  gap: 0.75rem;
+  z-index: 2;
+}
+
+.settings-toggle,
+.fullscreen-toggle {
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 999px;
