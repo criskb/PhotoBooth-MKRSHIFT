@@ -61,6 +61,24 @@ function normalizeComfyServerUrl(value) {
   }
 }
 
+function buildPreviewUrl(preview) {
+  if (!preview) {
+    return null;
+  }
+  if (typeof preview === "string") {
+    return `${comfyViewUrl}?filename=${encodeURIComponent(preview)}`;
+  }
+  const filename = preview.filename ?? preview.image ?? preview.name;
+  if (!filename) {
+    return null;
+  }
+  const type = preview.type ?? "temp";
+  const subfolder = preview.subfolder ?? "";
+  return `${comfyViewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
+    type
+  )}&subfolder=${encodeURIComponent(subfolder)}`;
+}
+
 function updateProgressFromSocket(payload) {
   if (!payload?.promptId) {
     return;
@@ -512,6 +530,7 @@ const server = http.createServer((req, res) => {
                 outputImage.type ?? "output"
               }&subfolder=${encodeURIComponent(outputImage.subfolder ?? "")}`
             : fallbackOutputUrl,
+          previewUrl: buildPreviewUrl(progressResult?.preview),
         };
         if (captureId && outputImage && !outputSaved.has(promptId)) {
           fetchComfyImageBuffer(outputImage)

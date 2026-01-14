@@ -9,9 +9,11 @@
 <body>
   <div class="app">
     <div class="hud">
-      <div class="brand">
+      <div class="brand brand-card">
         <span class="brand__title">AI PHOTOBOOTH</span>
-        <span class="brand__subtitle">MKRShift</span>
+        <span class="brand__subtitle">
+          <span class="brand__subtitle-accent">MKR</span><span class="brand__subtitle-neutral">Shift</span>
+        </span>
       </div>
       <div class="status">
         <span class="status__label">Ready</span>
@@ -23,16 +25,6 @@
 
     <div class="controls">
       <button class="action">Take Selfie</button>
-      <div class="progress" aria-live="polite">
-        <div class="progress__meta">
-          <span class="progress__label">Idle</span>
-          <span class="progress__value">0%</span>
-        </div>
-        <div class="progress__bar">
-          <span class="progress__fill"></span>
-        </div>
-        <img class="progress__preview" alt="Latest generated output" />
-      </div>
       <div class="styles">
         <button class="style">Clay</button>
         <button class="style">Comic</button>

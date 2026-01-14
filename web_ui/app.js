@@ -250,8 +250,11 @@ function updateProgress(progress) {
   });
   if (progress.outputUrl) {
     lastOutputUrl = progress.outputUrl;
+  }
+  const previewUrl = progress.outputUrl ?? progress.previewUrl;
+  if (previewUrl) {
     progressPreviews.forEach((element) => {
-      element.src = progress.outputUrl;
+      element.src = previewUrl;
       element.style.display = "block";
     });
   }
