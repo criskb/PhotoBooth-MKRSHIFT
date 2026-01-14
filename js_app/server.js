@@ -197,18 +197,26 @@ function getOutputImage(historyItem) {
     historyItem?.result?.outputs ??
     historyItem?.result?.output ??
     historyItem?.output;
-  if (historyItem?.images?.length) {
-    return historyItem.images[0];
-  }
-  if (!outputs) {
-    return null;
-  }
-  for (const output of Object.values(outputs)) {
-    if (output?.images?.length) {
-      return output.images[0];
+  const pickImage = (images) => {
+    if (!Array.isArray(images) || images.length === 0) {
+      return null;
+    }
+    const outputImage = images.find((image) => image?.type === "output");
+    if (outputImage) {
+      return outputImage;
+    }
+    const nonInputImage = images.find((image) => image && image.type !== "input");
+    return nonInputImage ?? null;
+  };
+  if (outputs) {
+    for (const output of Object.values(outputs)) {
+      const selected = pickImage(output?.images);
+      if (selected) {
+        return selected;
+      }
     }
   }
-  return null;
+  return pickImage(historyItem?.images);
 }
 
 async function readImageAsBase64(imageUrl) {

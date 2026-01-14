@@ -3,10 +3,10 @@ const stylesContainer = document.querySelector(".styles");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
 const actionButton = document.querySelector(".action");
-const progressLabel = document.querySelector(".progress__label");
-const progressValue = document.querySelector(".progress__value");
-const progressFill = document.querySelector(".progress__fill");
-const progressPreview = document.querySelector(".progress__preview");
+const progressLabels = Array.from(document.querySelectorAll(".progress__label"));
+const progressValues = Array.from(document.querySelectorAll(".progress__value"));
+const progressFills = Array.from(document.querySelectorAll(".progress__fill"));
+const progressPreviews = Array.from(document.querySelectorAll(".progress__preview"));
 const uploadButton = document.querySelector(".progress-action--upload");
 const printButton = document.querySelector(".progress-action--print");
 const doneButton = document.querySelector(".progress-action--done");
@@ -101,11 +101,19 @@ async function queueSelfie(source = "tap") {
     clearInterval(progressPoller);
     progressPoller = null;
   }
-  progressLabel.textContent = "Queueing";
-  progressValue.textContent = "0%";
-  progressFill.style.width = "0%";
-  progressPreview.src = "";
-  progressPreview.style.display = "none";
+  progressLabels.forEach((element) => {
+    element.textContent = "Queueing";
+  });
+  progressValues.forEach((element) => {
+    element.textContent = "0%";
+  });
+  progressFills.forEach((element) => {
+    element.style.width = "0%";
+  });
+  progressPreviews.forEach((element) => {
+    element.src = "";
+    element.style.display = "none";
+  });
   qrContainer.style.display = "none";
   qrImage.src = "";
   uploadButton.disabled = true;
@@ -131,9 +139,15 @@ async function queueSelfie(source = "tap") {
   } catch (error) {
     statusLabel.textContent = "Queue Failed";
     statusMeta.textContent = "Unable to send workflow to ComfyUI.";
-    progressLabel.textContent = "Error";
-    progressValue.textContent = "0%";
-    progressFill.style.width = "0%";
+    progressLabels.forEach((element) => {
+      element.textContent = "Error";
+    });
+    progressValues.forEach((element) => {
+      element.textContent = "0%";
+    });
+    progressFills.forEach((element) => {
+      element.style.width = "0%";
+    });
     setBusy(false);
   } finally {
     isQueueing = false;
@@ -185,13 +199,22 @@ function handleShake(event) {
 
 function updateProgress(progress) {
   const percent = Math.max(0, Math.min(100, Math.round(progress.percent ?? 0)));
-  progressLabel.textContent = progress.label ?? "Sampling";
-  progressValue.textContent = `${percent}%`;
-  progressFill.style.width = `${percent}%`;
+  const label = progress.label ?? "Sampling";
+  progressLabels.forEach((element) => {
+    element.textContent = label;
+  });
+  progressValues.forEach((element) => {
+    element.textContent = `${percent}%`;
+  });
+  progressFills.forEach((element) => {
+    element.style.width = `${percent}%`;
+  });
   if (progress.outputUrl) {
     lastOutputUrl = progress.outputUrl;
-    progressPreview.src = progress.outputUrl;
-    progressPreview.style.display = "block";
+    progressPreviews.forEach((element) => {
+      element.src = progress.outputUrl;
+      element.style.display = "block";
+    });
   }
 }
 
@@ -199,9 +222,15 @@ function startProgressPolling() {
   if (!currentPromptId) {
     return;
   }
-  progressLabel.textContent = "Sampling";
-  progressValue.textContent = "0%";
-  progressFill.style.width = "0%";
+  progressLabels.forEach((element) => {
+    element.textContent = "Sampling";
+  });
+  progressValues.forEach((element) => {
+    element.textContent = "0%";
+  });
+  progressFills.forEach((element) => {
+    element.style.width = "0%";
+  });
   progressPoller = setInterval(async () => {
     try {
       const response = await fetch(`/api/progress?promptId=${encodeURIComponent(currentPromptId)}`);
@@ -213,14 +242,18 @@ function startProgressPolling() {
       if (data.complete) {
         clearInterval(progressPoller);
         progressPoller = null;
-        progressLabel.textContent = "Complete";
+        progressLabels.forEach((element) => {
+          element.textContent = "Complete";
+        });
         outputReady = true;
         uploadButton.disabled = false;
         printButton.disabled = !printerConfig.enabled || !printerConfig.name;
         doneButton.disabled = false;
       }
     } catch (error) {
-      progressLabel.textContent = "Waiting";
+      progressLabels.forEach((element) => {
+        element.textContent = "Waiting";
+      });
     }
   }, 1200);
 }
@@ -231,11 +264,19 @@ function setBusy(isBusy) {
     return;
   }
   appRoot.classList.remove("app--busy");
-  progressLabel.textContent = "";
-  progressValue.textContent = "";
-  progressFill.style.width = "0%";
-  progressPreview.src = "";
-  progressPreview.style.display = "none";
+  progressLabels.forEach((element) => {
+    element.textContent = "";
+  });
+  progressValues.forEach((element) => {
+    element.textContent = "";
+  });
+  progressFills.forEach((element) => {
+    element.style.width = "0%";
+  });
+  progressPreviews.forEach((element) => {
+    element.src = "";
+    element.style.display = "none";
+  });
   qrContainer.style.display = "none";
   qrImage.src = "";
   uploadButton.disabled = true;
@@ -442,6 +483,3 @@ window.addEventListener("devicemotion", handleShake);
 startCamera();
 loadStyles();
 loadPrinterConfig();
-if (!printerConfig.name) {
-  openSettings();
-}
