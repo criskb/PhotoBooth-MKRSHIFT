@@ -306,19 +306,21 @@ html {
   align-items: flex-start;
   justify-content: flex-start;
   animation: idle-scroll 35s linear infinite;
+  transform: rotate(45deg);
+  transform-origin: center;
 }
 
 .idle-overlay__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  grid-auto-rows: 160px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows: auto;
   gap: 0;
   width: 200%;
 }
 
 .idle-overlay__tile {
   width: 100%;
-  height: 100%;
+  aspect-ratio: 9 / 16;
   overflow: hidden;
 }
 
@@ -326,7 +328,7 @@ html {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: rotate(45deg) scale(1.1);
+  transform: scale(1.02);
 }
 
 .idle-overlay__title {
