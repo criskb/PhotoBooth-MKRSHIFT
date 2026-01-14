@@ -11,15 +11,15 @@
     <div class="hud">
       <div class="brand">
         <span class="brand__title">Photo Booth</span>
-        <span class="brand__tag">3D Experience</span>
       </div>
       <div class="status">
         <span class="status__label">Ready</span>
-        <span class="status__meta">Select a style to begin</span>
+        <span class="status__meta">Select a style, then tap or shake to shoot</span>
       </div>
+      <button class="settings-toggle" aria-label="Settings">⚙️</button>
     </div>
 
-    <canvas id="scene"></canvas>
+    <video id="camera" autoplay playsinline muted></video>
 
     <div class="controls">
       <button class="action">Take Selfie</button>
@@ -29,6 +29,72 @@
         <button class="style">Oil Paint</button>
         <button class="style">Cyberpunk</button>
         <button class="style">Pixel Art</button>
+      </div>
+    </div>
+
+    <button class="gallery-toggle" aria-label="Open gallery">🖼️</button>
+
+    <div class="progress-overlay" aria-live="polite">
+      <div class="progress-card">
+        <div class="progress__meta">
+          <span class="progress__label">Idle</span>
+          <span class="progress__value">0%</span>
+        </div>
+        <div class="progress__bar">
+          <span class="progress__fill"></span>
+        </div>
+        <img class="progress__preview" alt="Latest generated output" />
+        <div class="progress__actions">
+          <button class="progress-action progress-action--upload" disabled>Upload</button>
+          <button class="progress-action progress-action--print" disabled>Print</button>
+          <button class="progress-action progress-action--done" disabled>Back to Capture</button>
+        </div>
+        <div class="progress__qr">
+          <span class="progress__qr-label">Upload QR</span>
+          <img class="progress__qr-image" alt="QR code for uploaded image" />
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="settings-card">
+        <h2 id="settings-title">Printer Settings</h2>
+        <label class="settings-field">
+          Printer Name
+          <input class="settings-input settings-input--printer" type="text" placeholder="Office_Printer_1" />
+        </label>
+        <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--enabled" type="checkbox" />
+          Enable printing
+        </label>
+        <div class="settings-actions">
+          <button class="settings-action settings-action--save">Save</button>
+          <button class="settings-action settings-action--close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="gallery-modal" role="dialog" aria-modal="true" aria-labelledby="gallery-title">
+      <div class="gallery-card">
+        <div class="gallery-header">
+          <h2 id="gallery-title">Gallery</h2>
+          <button class="gallery-close" aria-label="Close gallery">Close</button>
+        </div>
+        <div class="gallery-body">
+          <div class="gallery-list"></div>
+          <div class="gallery-detail">
+            <div class="gallery-pair">
+              <div class="gallery-panel">
+                <span class="gallery-label">Input</span>
+                <img class="gallery-image gallery-image--input" alt="Input image" />
+              </div>
+              <div class="gallery-panel">
+                <span class="gallery-label">Output</span>
+                <img class="gallery-image gallery-image--output" alt="Output image" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
