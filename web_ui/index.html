@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Booth UI</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="hud">
+      <div class="brand">
+        <span class="brand__title">Photo Booth</span>
+        <span class="brand__tag">3D Experience</span>
+      </div>
+      <div class="status">
+        <span class="status__label">Ready</span>
+        <span class="status__meta">Select a style to begin</span>
+      </div>
+    </div>
+
+    <canvas id="scene"></canvas>
+
+    <div class="controls">
+      <button class="action">Take Selfie</button>
+      <div class="styles">
+        <button class="style">Clay</button>
+        <button class="style">Comic</button>
+        <button class="style">Oil Paint</button>
+        <button class="style">Cyberpunk</button>
+        <button class="style">Pixel Art</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
