@@ -386,6 +386,9 @@ async function readImageAsBase64(imageUrl) {
 }
 
 function buildLocalUrl(req, imageUrl) {
+  if (imageUrl.startsWith("data:")) {
+    return imageUrl;
+  }
   if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
     return imageUrl;
   }
@@ -405,10 +408,11 @@ async function saveTempImage(imageUrl, req) {
   return filePath;
 }
 
-function runPrintCommand(command, printerName, filePath) {
+function runPrintCommand(command, printerName, filePath, copies = 1) {
   const cmd = command
     .replace("{printer}", printerName)
-    .replace("{file}", filePath);
+    .replace("{file}", filePath)
+    .replace("{copies}", String(copies));
   return new Promise((resolve, reject) => {
     exec(cmd, (error) => {
       if (error) {
@@ -678,6 +682,23 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url.startsWith("/api/idle-images")) {
+    const idleDir = path.join(webDir, "idle_pictures");
+    let items = [];
+    try {
+      items = fs
+        .readdirSync(idleDir)
+        .filter((file) => file.toLowerCase().endsWith(".png"))
+        .sort()
+        .map((file) => `/idle_pictures/${encodeURIComponent(file)}`);
+    } catch (error) {
+      items = [];
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ images: items }));
+    return;
+  }
+
   if (req.url.startsWith("/api/upload") && req.method === "POST") {
     readJsonBody(req)
       .then(async (payload) => {
@@ -732,7 +753,7 @@ const server = http.createServer((req, res) => {
         if (!link) {
           throw new Error("Missing upload link");
         }
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
           link
         )}`;
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -755,13 +776,15 @@ const server = http.createServer((req, res) => {
       .then(async (payload) => {
         const imageUrl = payload.imageUrl;
         const printerName = payload.printerName;
+        const copies = Number(payload.copies ?? 1);
         if (!imageUrl || !printerName) {
           res.writeHead(400);
           res.end("Missing imageUrl or printerName");
           return;
         }
         const filePath = await saveTempImage(imageUrl, req);
-        await runPrintCommand(printerCommand, printerName, filePath);
+        const safeCopies = Number.isFinite(copies) && copies > 0 ? Math.floor(copies) : 1;
+        await runPrintCommand(printerCommand, printerName, filePath, safeCopies);
         res.writeHead(202, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ status: "sent" }));
       })

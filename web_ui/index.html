@@ -63,6 +63,17 @@
       </div>
     </div>
 
+    <div class="idle-overlay idle-overlay--hidden" aria-live="polite">
+      <div class="idle-overlay__track" aria-hidden="true">
+        <div class="idle-overlay__grid idle-overlay__grid--primary"></div>
+        <div class="idle-overlay__grid idle-overlay__grid--secondary"></div>
+      </div>
+      <div class="idle-overlay__copy">
+        <p class="idle-overlay__title">Touch to start</p>
+        <p class="idle-overlay__subtitle">AI PhotoBooth by MKRShift</p>
+      </div>
+    </div>
+
     <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="settings-card">
         <h2 id="settings-title">Settings</h2>
@@ -84,6 +95,16 @@
           <input class="settings-input settings-input--printer" type="text" placeholder="Office_Printer_1" />
         </label>
         <label class="settings-field">
+          Printer Copies
+          <input
+            class="settings-input settings-input--printer-copies"
+            type="number"
+            min="1"
+            step="1"
+            value="1"
+          />
+        </label>
+        <label class="settings-field">
           Freeimage API Key
           <input class="settings-input settings-input--freeimage" type="text" placeholder="Freeimage API Key" />
         </label>
@@ -91,9 +112,23 @@
           <input class="settings-input settings-input--enabled" type="checkbox" />
           Enable printing
         </label>
+        <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--watermark" type="checkbox" />
+          Add MKRSHIFT watermark on upload/print
+        </label>
         <div class="settings-actions">
           <button class="settings-action settings-action--save">Save</button>
           <button class="settings-action settings-action--close">Close</button>
+        </div>
+        <div class="settings-about">
+          <p class="settings-about__title">About this project</p>
+          <p class="settings-about__text">
+            This project is a complete rewrite based on the collaborative work from
+            <a href="https://github.com/tvibitnmkt/PhotoBooth" target="_blank" rel="noreferrer">tvibitnmkt/PhotoBooth</a>
+            and
+            <a href="https://github.com/ADEFORGE/PhotoBooth" target="_blank" rel="noreferrer">ADEFORGE/PhotoBooth</a>.
+          </p>
+          <p class="settings-about__text">Made by Cris K B · MKRShift</p>
         </div>
       </div>
     </div>
