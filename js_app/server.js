@@ -191,6 +191,26 @@ async function fetchComfyJson(url) {
   return response.json();
 }
 
+function parseComfyProgressPercent(progressPayload) {
+  if (typeof progressPayload === "number" && Number.isFinite(progressPayload)) {
+    return progressPayload <= 1 ? progressPayload * 100 : progressPayload;
+  }
+  const progressValue = Number(
+    progressPayload?.value ??
+      progressPayload?.current ??
+      progressPayload?.step ??
+      progressPayload?.steps ??
+      0
+  );
+  const progressMax = Number(
+    progressPayload?.max ?? progressPayload?.total ?? progressPayload?.steps_total ?? 0
+  );
+  if (!Number.isFinite(progressValue) || !Number.isFinite(progressMax) || progressMax <= 0) {
+    return 0;
+  }
+  return (progressValue / progressMax) * 100;
+}
+
 function getOutputImage(historyItem) {
   const outputs =
     historyItem?.outputs ??
@@ -374,31 +394,15 @@ const server = http.createServer((req, res) => {
             ? `/api/gallery/image?type=output&name=${encodeURIComponent(`${captureId}.png`)}`
             : null;
         const socketProgress = progressByPrompt.get(promptId);
+        const socketPercent = Number.isFinite(socketProgress?.percent) ? socketProgress.percent : 0;
+        const socketFresh =
+          typeof socketProgress?.updatedAt === "number" &&
+          Date.now() - socketProgress.updatedAt < 10_000;
         const progressPayload = progressResult?.progress ?? progressResult ?? {};
-        let percent = socketProgress?.percent ?? 0;
-        if (!percent) {
-          if (typeof progressPayload === "number" && Number.isFinite(progressPayload)) {
-            percent = progressPayload <= 1 ? progressPayload * 100 : progressPayload;
-          } else {
-            const progressValue = Number(
-              progressPayload.value ??
-                progressPayload.current ??
-                progressPayload.step ??
-                progressPayload.steps ??
-                0
-            );
-            const progressMax = Number(
-              progressPayload.max ??
-                progressPayload.total ??
-                progressPayload.steps_total ??
-                0
-            );
-            percent =
-              Number.isFinite(progressValue) && Number.isFinite(progressMax) && progressMax > 0
-                ? (progressValue / progressMax) * 100
-                : 0;
-          }
-        }
+        const polledPercent = parseComfyProgressPercent(progressPayload);
+        let percent = socketFresh
+          ? Math.max(socketPercent, polledPercent)
+          : polledPercent || socketPercent;
         const completed =
           Boolean(socketProgress?.complete) ||
           Boolean(historyItem?.status?.completed) ||
