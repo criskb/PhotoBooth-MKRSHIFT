@@ -30,6 +30,7 @@ const comfyClientId = process.env.COMFY_CLIENT_ID ?? crypto.randomUUID();
 const progressByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
+let lastPromptId = null;
 
 function updateProgressFromSocket(payload) {
   if (!payload?.promptId) {
@@ -42,24 +43,40 @@ function updateProgressFromSocket(payload) {
   });
 }
 
+function resolvePromptIdFromSocket(data) {
+  return (
+    data?.prompt_id ??
+    data?.promptId ??
+    data?.prompt?.id ??
+    data?.prompt?.prompt_id ??
+    data?.prompt?.promptId ??
+    data?.extra_data?.prompt_id ??
+    data?.extra_data?.promptId ??
+    data?.metadata?.prompt_id ??
+    data?.metadata?.promptId ??
+    lastPromptId
+  );
+}
+
 function handleComfySocketMessage(message) {
   if (!message?.type || !message?.data) {
     return;
   }
+  const promptId = resolvePromptIdFromSocket(message.data);
   if (message.type === "progress_state" || message.type === "progress") {
     const value = Number(message.data.value ?? 0);
     const max = Number(message.data.max ?? 0);
     const percent =
       Number.isFinite(value) && Number.isFinite(max) && max > 0 ? (value / max) * 100 : 0;
     updateProgressFromSocket({
-      promptId: message.data.prompt_id,
+      promptId,
       percent,
     });
     return;
   }
   if (message.type === "executing" && message.data.node == null) {
     updateProgressFromSocket({
-      promptId: message.data.prompt_id,
+      promptId,
       percent: 100,
       complete: true,
     });
@@ -275,6 +292,7 @@ const server = http.createServer((req, res) => {
           });
           if (result?.prompt_id) {
             promptToCapture.set(result.prompt_id, safeId);
+            lastPromptId = result.prompt_id;
           }
           res.writeHead(202, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ status: "queued", promptId: result.prompt_id }));
