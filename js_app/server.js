@@ -14,6 +14,9 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const webDir = path.join(rootDir, "web_ui");
 const workflowDir = path.join(rootDir, "workflows");
+const galleryDir = path.join(rootDir, "gallery");
+const galleryInputDir = path.join(galleryDir, "input");
+const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
 const comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
@@ -22,6 +25,12 @@ const printerCommand = process.env.PRINTER_COMMAND ?? "";
 const comfyHistoryUrl = `${comfyServerUrl}/history`;
 const comfyProgressUrl = `${comfyServerUrl}/progress`;
 const comfyViewUrl = `${comfyServerUrl}/view`;
+
+fs.mkdirSync(galleryInputDir, { recursive: true });
+fs.mkdirSync(galleryOutputDir, { recursive: true });
+
+const promptToCapture = new Map();
+const outputSaved = new Set();
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -54,6 +63,7 @@ function writeBase64Image(dataUrl, outputPath) {
   const buffer = Buffer.from(match[1], "base64");
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, buffer);
+  return buffer;
 }
 
 async function fetchComfyJson(url) {
@@ -121,6 +131,21 @@ function runPrintCommand(command, printerName, filePath) {
   });
 }
 
+function safeFileName(value) {
+  return value.replace(/[^a-zA-Z0-9-_]/g, "_");
+}
+
+async function fetchComfyImageBuffer(image) {
+  const target = `${comfyViewUrl}?filename=${encodeURIComponent(image.filename)}&type=${encodeURIComponent(
+    image.type ?? "output"
+  )}&subfolder=${encodeURIComponent(image.subfolder ?? "")}`;
+  const response = await fetch(target);
+  if (!response.ok) {
+    throw new Error(`ComfyUI view error: ${response.status}`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
 const server = http.createServer((req, res) => {
   if (!req.url) {
     res.writeHead(400);
@@ -146,7 +171,11 @@ const server = http.createServer((req, res) => {
           return;
         }
         try {
-          writeBase64Image(image, comfyInputPath);
+          const captureId = `capture-${Date.now()}-${crypto.randomUUID()}`;
+          const safeId = safeFileName(captureId);
+          const captureName = `${safeId}.png`;
+          const buffer = writeBase64Image(image, comfyInputPath);
+          fs.writeFileSync(path.join(galleryInputDir, captureName), buffer);
           const result = await sendWorkflow({
             workflowDir,
             styleName: style,
@@ -154,6 +183,9 @@ const server = http.createServer((req, res) => {
             inputImagePath: comfyInputPath,
             serverUrl: comfyServerUrl,
           });
+          if (result?.prompt_id) {
+            promptToCapture.set(result.prompt_id, safeId);
+          }
           res.writeHead(202, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ status: "queued", promptId: result.prompt_id }));
         } catch (error) {
@@ -188,6 +220,14 @@ const server = http.createServer((req, res) => {
           historyResult?.history?.[promptId] ??
           historyResult;
         const outputImage = getOutputImage(historyItem);
+        const captureId = promptToCapture.get(promptId);
+        const fallbackOutputPath = captureId
+          ? path.join(galleryOutputDir, `${captureId}.png`)
+          : null;
+        const fallbackOutputUrl =
+          fallbackOutputPath && fs.existsSync(fallbackOutputPath)
+            ? `/api/gallery/image?type=output&name=${encodeURIComponent(`${captureId}.png`)}`
+            : null;
         const progressPayload = progressResult?.progress ?? progressResult ?? {};
         const progressValue =
           progressPayload.value ??
@@ -214,8 +254,16 @@ const server = http.createServer((req, res) => {
             ? `/api/output?filename=${encodeURIComponent(outputImage.filename)}&type=${
                 outputImage.type ?? "output"
               }&subfolder=${encodeURIComponent(outputImage.subfolder ?? "")}`
-            : null,
+            : fallbackOutputUrl,
         };
+        if (captureId && outputImage && !outputSaved.has(promptId)) {
+          fetchComfyImageBuffer(outputImage)
+            .then((buffer) => {
+              fs.writeFileSync(path.join(galleryOutputDir, `${captureId}.png`), buffer);
+              outputSaved.add(promptId);
+            })
+            .catch(() => {});
+        }
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(responsePayload));
       })
@@ -252,6 +300,63 @@ const server = http.createServer((req, res) => {
         res.writeHead(500);
         res.end(`Output fetch failed: ${error.message}`);
       });
+    return;
+  }
+
+  if (req.url.startsWith("/api/gallery/image")) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const name = url.searchParams.get("name");
+    const type = url.searchParams.get("type");
+    if (!name || !type) {
+      res.writeHead(400);
+      res.end("Missing name or type");
+      return;
+    }
+    const baseDir = type === "input" ? galleryInputDir : type === "output" ? galleryOutputDir : null;
+    if (!baseDir) {
+      res.writeHead(400);
+      res.end("Invalid type");
+      return;
+    }
+    const resolved = path.join(baseDir, path.basename(name));
+    if (!resolved.startsWith(baseDir)) {
+      res.writeHead(403);
+      res.end("Forbidden");
+      return;
+    }
+    fs.readFile(resolved, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end("Not found");
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "image/png" });
+      res.end(data);
+    });
+    return;
+  }
+
+  if (req.url.startsWith("/api/gallery")) {
+    const outputFiles = fs.readdirSync(galleryOutputDir).filter((file) => file.endsWith(".png"));
+    const entries = outputFiles
+      .map((file) => {
+        const inputPath = path.join(galleryInputDir, file);
+        const outputPath = path.join(galleryOutputDir, file);
+        if (!fs.existsSync(inputPath)) {
+          return null;
+        }
+        const stat = fs.statSync(outputPath);
+        return {
+          id: path.basename(file, ".png"),
+          inputUrl: `/api/gallery/image?type=input&name=${encodeURIComponent(file)}`,
+          outputUrl: `/api/gallery/image?type=output&name=${encodeURIComponent(file)}`,
+          updatedAt: stat.mtimeMs,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ items: entries }));
     return;
   }
 

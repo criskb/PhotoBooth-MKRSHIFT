@@ -42,6 +42,8 @@
       </div>
     </div>
 
+    <button class="gallery-toggle" aria-label="Open gallery">🖼️</button>
+
     <div class="progress-overlay" aria-live="polite">
       <div class="progress-card">
         <div class="progress__meta">
@@ -78,6 +80,30 @@
         <div class="settings-actions">
           <button class="settings-action settings-action--save">Save</button>
           <button class="settings-action settings-action--close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="gallery-modal" role="dialog" aria-modal="true" aria-labelledby="gallery-title">
+      <div class="gallery-card">
+        <div class="gallery-header">
+          <h2 id="gallery-title">Gallery</h2>
+          <button class="gallery-close" aria-label="Close gallery">Close</button>
+        </div>
+        <div class="gallery-body">
+          <div class="gallery-list"></div>
+          <div class="gallery-detail">
+            <div class="gallery-pair">
+              <div class="gallery-panel">
+                <span class="gallery-label">Input</span>
+                <img class="gallery-image gallery-image--input" alt="Input image" />
+              </div>
+              <div class="gallery-panel">
+                <span class="gallery-label">Output</span>
+                <img class="gallery-image gallery-image--output" alt="Output image" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

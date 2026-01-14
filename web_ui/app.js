@@ -19,6 +19,12 @@ const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
+const galleryToggle = document.querySelector(".gallery-toggle");
+const galleryModal = document.querySelector(".gallery-modal");
+const galleryClose = document.querySelector(".gallery-close");
+const galleryList = document.querySelector(".gallery-list");
+const galleryInputImage = document.querySelector(".gallery-image--input");
+const galleryOutputImage = document.querySelector(".gallery-image--output");
 
 let selectedStyle = null;
 let isQueueing = false;
@@ -225,8 +231,8 @@ function setBusy(isBusy) {
     return;
   }
   appRoot.classList.remove("app--busy");
-  progressLabel.textContent = "Idle";
-  progressValue.textContent = "0%";
+  progressLabel.textContent = "";
+  progressValue.textContent = "";
   progressFill.style.width = "0%";
   progressPreview.src = "";
   progressPreview.style.display = "none";
@@ -274,6 +280,57 @@ function openSettings() {
 
 function closeSettings() {
   settingsModal.classList.remove("settings-modal--open");
+}
+
+function openGallery() {
+  galleryModal.classList.add("gallery-modal--open");
+  loadGallery();
+}
+
+function closeGallery() {
+  galleryModal.classList.remove("gallery-modal--open");
+}
+
+function renderGalleryItems(items) {
+  galleryList.innerHTML = "";
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.textContent = "No results yet.";
+    empty.style.opacity = "0.6";
+    galleryList.appendChild(empty);
+    return;
+  }
+  items.forEach((item) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "gallery-item";
+    const thumb = document.createElement("img");
+    thumb.src = item.outputUrl;
+    const label = document.createElement("span");
+    label.textContent = item.id;
+    row.appendChild(thumb);
+    row.appendChild(label);
+    row.addEventListener("click", () => {
+      galleryInputImage.src = item.inputUrl;
+      galleryOutputImage.src = item.outputUrl;
+    });
+    galleryList.appendChild(row);
+  });
+  galleryInputImage.src = items[0].inputUrl;
+  galleryOutputImage.src = items[0].outputUrl;
+}
+
+async function loadGallery() {
+  try {
+    const response = await fetch("/api/gallery");
+    if (!response.ok) {
+      throw new Error("Gallery unavailable");
+    }
+    const data = await response.json();
+    renderGalleryItems(data.items ?? []);
+  } catch (error) {
+    renderGalleryItems([]);
+  }
 }
 
 async function uploadToImgur() {
@@ -368,6 +425,8 @@ settingsSave.addEventListener("click", () => {
   closeSettings();
 });
 settingsClose.addEventListener("click", closeSettings);
+galleryToggle.addEventListener("click", openGallery);
+galleryClose.addEventListener("click", closeGallery);
 uploadButton.addEventListener("click", uploadToImgur);
 printButton.addEventListener("click", sendToPrinter);
 doneButton.addEventListener("click", () => {
