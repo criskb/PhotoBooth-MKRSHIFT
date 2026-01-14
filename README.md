@@ -1,5 +1,4 @@
-!([photoboothscreenshotsmall.png])
-
+![photobooth](https://github.com/tvibitnmkt/PhotoBooth/blob/main/photoboothscreenshotsmall.png)
 <center><b>Welcome to PhotoBooth!</b><br>Strike a pose and have fun with AI-powered styles.</center>
 
 # PhotoBooth
