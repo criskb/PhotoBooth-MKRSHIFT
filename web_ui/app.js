@@ -3,11 +3,17 @@ const stylesContainer = document.querySelector(".styles");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
 const actionButton = document.querySelector(".action");
+const progressLabel = document.querySelector(".progress__label");
+const progressValue = document.querySelector(".progress__value");
+const progressFill = document.querySelector(".progress__fill");
+const progressPreview = document.querySelector(".progress__preview");
 
 let selectedStyle = null;
 let isQueueing = false;
 let lastShake = 0;
 let motionPermissionGranted = false;
+let currentPromptId = null;
+let progressPoller = null;
 
 function toTitleCase(value) {
   return value
@@ -66,6 +72,16 @@ async function queueSelfie(source = "tap") {
   }
 
   isQueueing = true;
+  currentPromptId = null;
+  if (progressPoller) {
+    clearInterval(progressPoller);
+    progressPoller = null;
+  }
+  progressLabel.textContent = "Queueing";
+  progressValue.textContent = "0%";
+  progressFill.style.width = "0%";
+  progressPreview.src = "";
+  progressPreview.style.display = "none";
   statusLabel.textContent = "Queueing";
   statusMeta.textContent = `Sending ${toTitleCase(selectedStyle)} to ComfyUI (${source})`;
   try {
@@ -78,11 +94,17 @@ async function queueSelfie(source = "tap") {
       const message = await response.text();
       throw new Error(message || "Failed to queue");
     }
+    const data = await response.json();
+    currentPromptId = data.promptId ?? null;
     statusLabel.textContent = "Queued";
     statusMeta.textContent = "Workflow sent to ComfyUI.";
+    startProgressPolling();
   } catch (error) {
     statusLabel.textContent = "Queue Failed";
     statusMeta.textContent = "Unable to send workflow to ComfyUI.";
+    progressLabel.textContent = "Error";
+    progressValue.textContent = "0%";
+    progressFill.style.width = "0%";
   } finally {
     isQueueing = false;
   }
@@ -129,6 +151,43 @@ function handleShake(event) {
     lastShake = now;
     queueSelfie("shake");
   }
+}
+
+function updateProgress(progress) {
+  const percent = Math.max(0, Math.min(100, Math.round(progress.percent ?? 0)));
+  progressLabel.textContent = progress.label ?? "Sampling";
+  progressValue.textContent = `${percent}%`;
+  progressFill.style.width = `${percent}%`;
+  if (progress.outputUrl) {
+    progressPreview.src = progress.outputUrl;
+    progressPreview.style.display = "block";
+  }
+}
+
+function startProgressPolling() {
+  if (!currentPromptId) {
+    return;
+  }
+  progressLabel.textContent = "Sampling";
+  progressValue.textContent = "0%";
+  progressFill.style.width = "0%";
+  progressPoller = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/progress?promptId=${encodeURIComponent(currentPromptId)}`);
+      if (!response.ok) {
+        throw new Error("Progress unavailable");
+      }
+      const data = await response.json();
+      updateProgress(data);
+      if (data.complete) {
+        clearInterval(progressPoller);
+        progressPoller = null;
+        progressLabel.textContent = "Complete";
+      }
+    } catch (error) {
+      progressLabel.textContent = "Waiting";
+    }
+  }, 1200);
 }
 
 async function loadStyles() {

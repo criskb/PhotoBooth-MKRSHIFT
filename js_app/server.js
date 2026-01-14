@@ -14,6 +14,9 @@ const workflowDir = path.join(rootDir, "workflows");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
 const comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+const comfyHistoryUrl = `${comfyServerUrl}/history`;
+const comfyProgressUrl = `${comfyServerUrl}/progress`;
+const comfyViewUrl = `${comfyServerUrl}/view`;
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -48,6 +51,26 @@ function writeBase64Image(dataUrl, outputPath) {
   fs.writeFileSync(outputPath, buffer);
 }
 
+async function fetchComfyJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`ComfyUI error: ${response.status}`);
+  }
+  return response.json();
+}
+
+function getOutputImage(historyItem) {
+  if (!historyItem?.outputs) {
+    return null;
+  }
+  for (const output of Object.values(historyItem.outputs)) {
+    if (output?.images?.length) {
+      return output.images[0];
+    }
+  }
+  return null;
+}
+
 const server = http.createServer((req, res) => {
   if (!req.url) {
     res.writeHead(400);
@@ -74,7 +97,7 @@ const server = http.createServer((req, res) => {
         }
         try {
           writeBase64Image(image, comfyInputPath);
-          await sendWorkflow({
+          const result = await sendWorkflow({
             workflowDir,
             styleName: style,
             stylePrompt: null,
@@ -82,7 +105,7 @@ const server = http.createServer((req, res) => {
             serverUrl: comfyServerUrl,
           });
           res.writeHead(202, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ status: "queued" }));
+          res.end(JSON.stringify({ status: "queued", promptId: result.prompt_id }));
         } catch (error) {
           res.writeHead(500);
           res.end(`Queue failed: ${error.message}`);
@@ -91,6 +114,78 @@ const server = http.createServer((req, res) => {
       .catch((error) => {
         res.writeHead(400);
         res.end(`Invalid request: ${error.message}`);
+      });
+    return;
+  }
+
+  if (req.url.startsWith("/api/progress")) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const promptId = url.searchParams.get("promptId");
+    if (!promptId) {
+      res.writeHead(400);
+      res.end("Missing promptId");
+      return;
+    }
+    Promise.allSettled([
+      fetchComfyJson(`${comfyProgressUrl}?prompt_id=${encodeURIComponent(promptId)}`),
+      fetchComfyJson(`${comfyHistoryUrl}/${encodeURIComponent(promptId)}`),
+    ])
+      .then((results) => {
+        const progressResult = results[0].status === "fulfilled" ? results[0].value : null;
+        const historyResult = results[1].status === "fulfilled" ? results[1].value : null;
+        const historyItem = historyResult?.[promptId];
+        const outputImage = getOutputImage(historyItem);
+        const percent =
+          progressResult && typeof progressResult.value === "number" && progressResult.max
+            ? (progressResult.value / progressResult.max) * 100
+            : historyItem?.status?.completed
+              ? 100
+              : 0;
+        const responsePayload = {
+          percent,
+          label: historyItem?.status?.completed ? "Complete" : "Sampling",
+          complete: Boolean(historyItem?.status?.completed),
+          outputUrl: outputImage
+            ? `/api/output?filename=${encodeURIComponent(outputImage.filename)}&type=${
+                outputImage.type ?? "output"
+              }&subfolder=${encodeURIComponent(outputImage.subfolder ?? "")}`
+            : null,
+        };
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(responsePayload));
+      })
+      .catch((error) => {
+        res.writeHead(500);
+        res.end(`Progress failed: ${error.message}`);
+      });
+    return;
+  }
+
+  if (req.url.startsWith("/api/output")) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const filename = url.searchParams.get("filename");
+    if (!filename) {
+      res.writeHead(400);
+      res.end("Missing filename");
+      return;
+    }
+    const type = url.searchParams.get("type") ?? "output";
+    const subfolder = url.searchParams.get("subfolder") ?? "";
+    const target = `${comfyViewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
+      type
+    )}&subfolder=${encodeURIComponent(subfolder)}`;
+    fetch(target)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`ComfyUI view error: ${response.status}`);
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        res.writeHead(200, { "Content-Type": response.headers.get("content-type") ?? "image/png" });
+        res.end(buffer);
+      })
+      .catch((error) => {
+        res.writeHead(500);
+        res.end(`Output fetch failed: ${error.message}`);
       });
     return;
   }
