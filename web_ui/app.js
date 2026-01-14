@@ -7,8 +7,18 @@ const progressLabel = document.querySelector(".progress__label");
 const progressValue = document.querySelector(".progress__value");
 const progressFill = document.querySelector(".progress__fill");
 const progressPreview = document.querySelector(".progress__preview");
-const progressClose = document.querySelector(".progress-card__close");
+const uploadButton = document.querySelector(".progress-action--upload");
+const printButton = document.querySelector(".progress-action--print");
+const doneButton = document.querySelector(".progress-action--done");
+const qrContainer = document.querySelector(".progress__qr");
+const qrImage = document.querySelector(".progress__qr-image");
 const appRoot = document.querySelector(".app");
+const settingsToggle = document.querySelector(".settings-toggle");
+const settingsModal = document.querySelector(".settings-modal");
+const settingsPrinterInput = document.querySelector(".settings-input--printer");
+const settingsEnabledInput = document.querySelector(".settings-input--enabled");
+const settingsSave = document.querySelector(".settings-action--save");
+const settingsClose = document.querySelector(".settings-action--close");
 
 let selectedStyle = null;
 let isQueueing = false;
@@ -16,6 +26,9 @@ let lastShake = 0;
 let motionPermissionGranted = false;
 let currentPromptId = null;
 let progressPoller = null;
+let outputReady = false;
+let lastOutputUrl = null;
+let printerConfig = { name: "", enabled: false };
 
 function toTitleCase(value) {
   return value
@@ -75,6 +88,8 @@ async function queueSelfie(source = "tap") {
 
   isQueueing = true;
   setBusy(true);
+  outputReady = false;
+  lastOutputUrl = null;
   currentPromptId = null;
   if (progressPoller) {
     clearInterval(progressPoller);
@@ -85,6 +100,11 @@ async function queueSelfie(source = "tap") {
   progressFill.style.width = "0%";
   progressPreview.src = "";
   progressPreview.style.display = "none";
+  qrContainer.style.display = "none";
+  qrImage.src = "";
+  uploadButton.disabled = true;
+  printButton.disabled = true;
+  doneButton.disabled = true;
   statusLabel.textContent = "Queueing";
   statusMeta.textContent = `Sending ${toTitleCase(selectedStyle)} to ComfyUI (${source})`;
   try {
@@ -163,6 +183,7 @@ function updateProgress(progress) {
   progressValue.textContent = `${percent}%`;
   progressFill.style.width = `${percent}%`;
   if (progress.outputUrl) {
+    lastOutputUrl = progress.outputUrl;
     progressPreview.src = progress.outputUrl;
     progressPreview.style.display = "block";
   }
@@ -187,6 +208,10 @@ function startProgressPolling() {
         clearInterval(progressPoller);
         progressPoller = null;
         progressLabel.textContent = "Complete";
+        outputReady = true;
+        uploadButton.disabled = false;
+        printButton.disabled = !printerConfig.enabled || !printerConfig.name;
+        doneButton.disabled = false;
       }
     } catch (error) {
       progressLabel.textContent = "Waiting";
@@ -205,11 +230,104 @@ function setBusy(isBusy) {
   progressFill.style.width = "0%";
   progressPreview.src = "";
   progressPreview.style.display = "none";
+  qrContainer.style.display = "none";
+  qrImage.src = "";
+  uploadButton.disabled = true;
+  printButton.disabled = true;
+  doneButton.disabled = true;
   if (progressPoller) {
     clearInterval(progressPoller);
     progressPoller = null;
   }
   currentPromptId = null;
+  outputReady = false;
+  lastOutputUrl = null;
+}
+
+function loadPrinterConfig() {
+  try {
+    const raw = localStorage.getItem("printerConfig");
+    if (raw) {
+      printerConfig = JSON.parse(raw);
+    }
+  } catch (error) {
+    printerConfig = { name: "", enabled: false };
+  }
+  settingsPrinterInput.value = printerConfig.name || "";
+  settingsEnabledInput.checked = Boolean(printerConfig.enabled);
+  printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+}
+
+function savePrinterConfig() {
+  printerConfig = {
+    name: settingsPrinterInput.value.trim(),
+    enabled: settingsEnabledInput.checked,
+  };
+  localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+}
+
+function openSettings() {
+  settingsModal.classList.add("settings-modal--open");
+  settingsClose.disabled = false;
+}
+
+function closeSettings() {
+  settingsModal.classList.remove("settings-modal--open");
+}
+
+async function uploadToImgur() {
+  if (!lastOutputUrl) {
+    return;
+  }
+  uploadButton.disabled = true;
+  try {
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: lastOutputUrl }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const data = await response.json();
+    if (data.qrUrl) {
+      qrImage.src = data.qrUrl;
+      qrContainer.style.display = "flex";
+    }
+  } catch (error) {
+    statusLabel.textContent = "Upload Failed";
+    statusMeta.textContent = "Unable to upload to Imgur.";
+  } finally {
+    uploadButton.disabled = false;
+  }
+}
+
+async function sendToPrinter() {
+  if (!lastOutputUrl || !printerConfig.enabled || !printerConfig.name) {
+    return;
+  }
+  printButton.disabled = true;
+  try {
+    const response = await fetch("/api/print", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageUrl: lastOutputUrl,
+        printerName: printerConfig.name,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    statusLabel.textContent = "Print Sent";
+    statusMeta.textContent = `Sent to printer ${printerConfig.name}`;
+  } catch (error) {
+    statusLabel.textContent = "Print Failed";
+    statusMeta.textContent = "Printer not configured or unavailable.";
+  } finally {
+    printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  }
 }
 
 async function loadStyles() {
@@ -244,7 +362,18 @@ actionButton.addEventListener("click", async () => {
   await ensureMotionPermission();
   queueSelfie("tap");
 });
-progressClose.addEventListener("click", () => {
+settingsToggle.addEventListener("click", () => openSettings());
+settingsSave.addEventListener("click", () => {
+  savePrinterConfig();
+  closeSettings();
+});
+settingsClose.addEventListener("click", closeSettings);
+uploadButton.addEventListener("click", uploadToImgur);
+printButton.addEventListener("click", sendToPrinter);
+doneButton.addEventListener("click", () => {
+  if (!outputReady) {
+    return;
+  }
   setBusy(false);
   statusLabel.textContent = "Ready";
   statusMeta.textContent = "Select a style, then tap or shake to shoot";
@@ -253,3 +382,7 @@ window.addEventListener("devicemotion", handleShake);
 
 startCamera();
 loadStyles();
+loadPrinterConfig();
+if (!printerConfig.name) {
+  openSettings();
+}

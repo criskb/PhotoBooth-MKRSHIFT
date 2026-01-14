@@ -1,6 +1,9 @@
 import http from "node:http";
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
+import crypto from "node:crypto";
+import { exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadWorkflowStyles } from "./workflowLoader.js";
 import { sendWorkflow } from "./comfyClient.js";
@@ -14,6 +17,8 @@ const workflowDir = path.join(rootDir, "workflows");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
 const comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+const imgurClientId = process.env.IMGUR_CLIENT_ID ?? "";
+const printerCommand = process.env.PRINTER_COMMAND ?? "";
 const comfyHistoryUrl = `${comfyServerUrl}/history`;
 const comfyProgressUrl = `${comfyServerUrl}/progress`;
 const comfyViewUrl = `${comfyServerUrl}/view`;
@@ -69,6 +74,50 @@ function getOutputImage(historyItem) {
     }
   }
   return null;
+}
+
+async function readImageAsBase64(imageUrl) {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`Image fetch failed: ${response.status}`);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return buffer.toString("base64");
+}
+
+function buildLocalUrl(req, imageUrl) {
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+  return new URL(imageUrl, `http://${req.headers.host}`).toString();
+}
+
+async function saveTempImage(imageUrl, req) {
+  const localUrl = buildLocalUrl(req, imageUrl);
+  const response = await fetch(localUrl);
+  if (!response.ok) {
+    throw new Error(`Image fetch failed: ${response.status}`);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const fileName = `photobooth-${crypto.randomUUID()}.png`;
+  const filePath = path.join(os.tmpdir(), fileName);
+  fs.writeFileSync(filePath, buffer);
+  return filePath;
+}
+
+function runPrintCommand(command, printerName, filePath) {
+  const cmd = command
+    .replace("{printer}", printerName)
+    .replace("{file}", filePath);
+  return new Promise((resolve, reject) => {
+    exec(cmd, (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 }
 
 const server = http.createServer((req, res) => {
@@ -198,6 +247,79 @@ const server = http.createServer((req, res) => {
       .catch((error) => {
         res.writeHead(500);
         res.end(`Output fetch failed: ${error.message}`);
+      });
+    return;
+  }
+
+  if (req.url.startsWith("/api/upload") && req.method === "POST") {
+    if (!imgurClientId) {
+      res.writeHead(501);
+      res.end("IMGUR_CLIENT_ID not configured");
+      return;
+    }
+    readJsonBody(req)
+      .then(async (payload) => {
+        const imageUrl = payload.imageUrl;
+        if (!imageUrl) {
+          res.writeHead(400);
+          res.end("Missing imageUrl");
+          return;
+        }
+        const resolvedUrl = buildLocalUrl(req, imageUrl);
+        const base64 = await readImageAsBase64(resolvedUrl);
+        const imgurResponse = await fetch("https://api.imgur.com/3/image", {
+          method: "POST",
+          headers: {
+            Authorization: `Client-ID ${imgurClientId}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image: base64, type: "base64" }),
+        });
+        if (!imgurResponse.ok) {
+          const message = await imgurResponse.text();
+          throw new Error(message || "Imgur upload failed");
+        }
+        const result = await imgurResponse.json();
+        const link = result?.data?.link;
+        if (!link) {
+          throw new Error("Missing Imgur link");
+        }
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+          link
+        )}`;
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ link, qrUrl }));
+      })
+      .catch((error) => {
+        res.writeHead(500);
+        res.end(`Upload failed: ${error.message}`);
+      });
+    return;
+  }
+
+  if (req.url.startsWith("/api/print") && req.method === "POST") {
+    if (!printerCommand) {
+      res.writeHead(501);
+      res.end("PRINTER_COMMAND not configured");
+      return;
+    }
+    readJsonBody(req)
+      .then(async (payload) => {
+        const imageUrl = payload.imageUrl;
+        const printerName = payload.printerName;
+        if (!imageUrl || !printerName) {
+          res.writeHead(400);
+          res.end("Missing imageUrl or printerName");
+          return;
+        }
+        const filePath = await saveTempImage(imageUrl, req);
+        await runPrintCommand(printerCommand, printerName, filePath);
+        res.writeHead(202, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ status: "sent" }));
+      })
+      .catch((error) => {
+        res.writeHead(500);
+        res.end(`Print failed: ${error.message}`);
       });
     return;
   }

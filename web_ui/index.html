@@ -16,6 +16,7 @@
         <span class="status__label">Ready</span>
         <span class="status__meta">Select a style, then tap or shake to shoot</span>
       </div>
+      <button class="settings-toggle" aria-label="Settings">⚙️</button>
     </div>
 
     <video id="camera" autoplay playsinline muted></video>
@@ -43,7 +44,6 @@
 
     <div class="progress-overlay" aria-live="polite">
       <div class="progress-card">
-        <button class="progress-card__close" aria-label="Close preview">×</button>
         <div class="progress__meta">
           <span class="progress__label">Idle</span>
           <span class="progress__value">0%</span>
@@ -52,6 +52,33 @@
           <span class="progress__fill"></span>
         </div>
         <img class="progress__preview" alt="Latest generated output" />
+        <div class="progress__actions">
+          <button class="progress-action progress-action--upload" disabled>Upload</button>
+          <button class="progress-action progress-action--print" disabled>Print</button>
+          <button class="progress-action progress-action--done" disabled>Back to Capture</button>
+        </div>
+        <div class="progress__qr">
+          <span class="progress__qr-label">Upload QR</span>
+          <img class="progress__qr-image" alt="QR code for uploaded image" />
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="settings-card">
+        <h2 id="settings-title">Printer Settings</h2>
+        <label class="settings-field">
+          Printer Name
+          <input class="settings-input settings-input--printer" type="text" placeholder="Office_Printer_1" />
+        </label>
+        <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--enabled" type="checkbox" />
+          Enable printing
+        </label>
+        <div class="settings-actions">
+          <button class="settings-action settings-action--save">Save</button>
+          <button class="settings-action settings-action--close">Close</button>
+        </div>
       </div>
     </div>
   </div>
