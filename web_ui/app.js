@@ -14,8 +14,10 @@ const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const appRoot = document.querySelector(".app");
 const settingsToggle = document.querySelector(".settings-toggle");
+const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
+const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
@@ -35,6 +37,7 @@ let progressPoller = null;
 let outputReady = false;
 let lastOutputUrl = null;
 let printerConfig = { name: "", enabled: false };
+let freeimageApiKey = "";
 
 function toTitleCase(value) {
   return value
@@ -297,11 +300,17 @@ function loadPrinterConfig() {
     if (raw) {
       printerConfig = JSON.parse(raw);
     }
+    const freeimageRaw = localStorage.getItem("freeimageApiKey");
+    if (freeimageRaw) {
+      freeimageApiKey = freeimageRaw;
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false };
+    freeimageApiKey = "";
   }
   settingsPrinterInput.value = printerConfig.name || "";
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
+  settingsFreeimageInput.value = freeimageApiKey || "";
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
 }
 
@@ -311,6 +320,8 @@ function savePrinterConfig() {
     enabled: settingsEnabledInput.checked,
   };
   localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  freeimageApiKey = settingsFreeimageInput.value.trim();
+  localStorage.setItem("freeimageApiKey", freeimageApiKey);
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
 }
 
@@ -330,6 +341,14 @@ function openGallery() {
 
 function closeGallery() {
   galleryModal.classList.remove("gallery-modal--open");
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    return;
+  }
+  document.exitFullscreen?.().catch(() => {});
 }
 
 function renderGalleryItems(items) {
@@ -374,7 +393,7 @@ async function loadGallery() {
   }
 }
 
-async function uploadToImgur() {
+async function uploadToFreeimage() {
   if (!lastOutputUrl) {
     return;
   }
@@ -383,19 +402,22 @@ async function uploadToImgur() {
     const response = await fetch("/api/upload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: lastOutputUrl }),
+      body: JSON.stringify({ imageUrl: lastOutputUrl, apiKey: freeimageApiKey }),
     });
     if (!response.ok) {
-      throw new Error(await response.text());
+      const message = await response.text();
+      throw new Error(message || "Upload failed");
     }
     const data = await response.json();
     if (data.qrUrl) {
       qrImage.src = data.qrUrl;
       qrContainer.style.display = "flex";
     }
+    statusLabel.textContent = "Upload Complete";
+    statusMeta.textContent = "Scan the QR code to view the image.";
   } catch (error) {
     statusLabel.textContent = "Upload Failed";
-    statusMeta.textContent = "Unable to upload to Imgur.";
+    statusMeta.textContent = error?.message || "Unable to upload the image.";
   } finally {
     uploadButton.disabled = false;
   }
@@ -461,6 +483,7 @@ actionButton.addEventListener("click", async () => {
   queueSelfie("tap");
 });
 settingsToggle.addEventListener("click", () => openSettings());
+fullscreenToggle.addEventListener("click", toggleFullscreen);
 settingsSave.addEventListener("click", () => {
   savePrinterConfig();
   closeSettings();
@@ -468,7 +491,7 @@ settingsSave.addEventListener("click", () => {
 settingsClose.addEventListener("click", closeSettings);
 galleryToggle.addEventListener("click", openGallery);
 galleryClose.addEventListener("click", closeGallery);
-uploadButton.addEventListener("click", uploadToImgur);
+uploadButton.addEventListener("click", uploadToFreeimage);
 printButton.addEventListener("click", sendToPrinter);
 doneButton.addEventListener("click", () => {
   if (!outputReady) {
