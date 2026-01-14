@@ -56,6 +56,14 @@ function toTitleCase(value) {
     .join(" ");
 }
 
+function getOrientationDegrees(value) {
+  const orientation = Number(value) || 0;
+  if (orientation === 270) {
+    return -90;
+  }
+  return orientation;
+}
+
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
     statusLabel.textContent = "Camera Unsupported";
@@ -81,9 +89,9 @@ function captureFrame() {
   if (!video.videoWidth || !video.videoHeight) {
     return null;
   }
-  const orientation = Number(cameraOrientation) || 0;
+  const orientation = getOrientationDegrees(cameraOrientation);
   const canvas = document.createElement("canvas");
-  const needsSwap = orientation === 90 || orientation === 270;
+  const needsSwap = Math.abs(orientation) === 90;
   canvas.width = needsSwap ? video.videoHeight : video.videoWidth;
   canvas.height = needsSwap ? video.videoWidth : video.videoHeight;
   const context = canvas.getContext("2d");
@@ -412,11 +420,11 @@ function setGallerySelection(item) {
 }
 
 function applyCameraOrientation() {
-  const orientation = Number(cameraOrientation) || 0;
+  const orientation = getOrientationDegrees(cameraOrientation);
   const container = appRoot.getBoundingClientRect();
   const containerRatio =
     container.width && container.height ? container.width / container.height : 1;
-  const rotated = orientation === 90 || orientation === 270;
+  const rotated = Math.abs(orientation) === 90;
   const scale = rotated ? Math.min(containerRatio, 1 / containerRatio) : 1;
   if (orientation) {
     video.style.transform = `rotate(${orientation}deg) scale(${scale})`;
