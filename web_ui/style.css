@@ -280,6 +280,61 @@ html {
   background: transparent;
 }
 
+.idle-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(25, 30, 46, 0.95), rgba(6, 8, 14, 0.98));
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  transition: opacity 0.6s ease;
+  opacity: 1;
+}
+
+.idle-overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.idle-overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.idle-overlay__image {
+  width: min(620px, 80vw);
+  height: min(620px, 80vw);
+  object-fit: cover;
+  border-radius: 1.25rem;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.idle-overlay__image--visible {
+  opacity: 1;
+}
+
+.idle-overlay__title {
+  margin: 0;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.idle-overlay__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(247, 247, 251, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
 .settings-modal {
   position: absolute;
   inset: 0;

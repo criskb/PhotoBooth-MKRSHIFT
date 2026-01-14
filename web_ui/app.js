@@ -13,6 +13,8 @@ const doneButton = document.querySelector(".progress-action--done");
 const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const appRoot = document.querySelector(".app");
+const idleOverlay = document.querySelector(".idle-overlay");
+const idleImage = document.querySelector(".idle-overlay__image");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
@@ -51,6 +53,21 @@ const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let watermarkEnabled = false;
+const idleTimeoutMs = 5 * 60 * 1000;
+const idleSlideMs = 6000;
+const idleImages = [
+  "./idle_pictures/001.png",
+  "./idle_pictures/002.png",
+  "./idle_pictures/003.png",
+  "./idle_pictures/004.png",
+  "./idle_pictures/005.png",
+  "./idle_pictures/006.png",
+  "./idle_pictures/007.png",
+  "./idle_pictures/008.png",
+];
+let idleTimer = null;
+let idleSlideTimer = null;
+let idleIndex = 0;
 
 function toTitleCase(value) {
   return value
@@ -65,6 +82,67 @@ function getOrientationDegrees(value) {
     return -90;
   }
   return orientation;
+}
+
+function setIdleImage(index) {
+  if (!idleImage || !idleImages.length) {
+    return;
+  }
+  idleImage.classList.remove("idle-overlay__image--visible");
+  const nextIndex = ((index % idleImages.length) + idleImages.length) % idleImages.length;
+  idleImage.onload = () => {
+    idleImage.classList.add("idle-overlay__image--visible");
+  };
+  idleImage.src = idleImages[nextIndex];
+  idleIndex = nextIndex;
+}
+
+function startIdleSlideshow() {
+  if (!idleImages.length) {
+    return;
+  }
+  if (idleSlideTimer) {
+    return;
+  }
+  setIdleImage(idleIndex);
+  idleSlideTimer = setInterval(() => {
+    setIdleImage(idleIndex + 1);
+  }, idleSlideMs);
+}
+
+function stopIdleSlideshow() {
+  if (idleSlideTimer) {
+    clearInterval(idleSlideTimer);
+    idleSlideTimer = null;
+  }
+}
+
+function showIdleOverlay() {
+  if (!idleOverlay) {
+    return;
+  }
+  idleOverlay.classList.remove("idle-overlay--hidden");
+  startIdleSlideshow();
+}
+
+function hideIdleOverlay() {
+  if (!idleOverlay) {
+    return;
+  }
+  idleOverlay.classList.add("idle-overlay--hidden");
+  stopIdleSlideshow();
+}
+
+function resetIdleTimer() {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+  }
+  if (!idleOverlay?.classList.contains("idle-overlay--hidden")) {
+    hideIdleOverlay();
+  }
+  idleTimer = setTimeout(() => {
+    showIdleOverlay();
+  }, idleTimeoutMs);
 }
 
 async function startCamera() {
@@ -691,7 +769,12 @@ doneButton.addEventListener("click", () => {
 });
 window.addEventListener("devicemotion", handleShake);
 window.addEventListener("resize", applyCameraOrientation);
+["pointerdown", "mousemove", "keydown", "touchstart", "wheel"].forEach((eventName) => {
+  window.addEventListener(eventName, resetIdleTimer, { passive: true });
+});
 
 startCamera();
 loadStyles();
 loadPrinterConfig();
+showIdleOverlay();
+resetIdleTimer();
