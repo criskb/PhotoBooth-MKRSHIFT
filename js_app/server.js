@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
-import { loadWorkflowStyles } from "./workflowLoader.js";
+import { loadWorkflowJson, loadWorkflowStyles } from "./workflowLoader.js";
 import { sendWorkflow } from "./comfyClient.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +28,7 @@ const comfyProgressUrl = `${comfyServerUrl}/progress`;
 const comfyViewUrl = `${comfyServerUrl}/view`;
 const comfyClientId = process.env.COMFY_CLIENT_ID ?? crypto.randomUUID();
 const progressByPrompt = new Map();
+const progressMetaByPrompt = new Map();
 const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
@@ -42,6 +43,53 @@ function updateProgressFromSocket(payload) {
     complete: Boolean(payload.complete),
     updatedAt: Date.now(),
   });
+}
+
+function buildWorkflowStepMeta(workflow) {
+  const nodeSteps = new Map();
+  let totalSteps = 0;
+  Object.entries(workflow ?? {}).forEach(([nodeId, node]) => {
+    const steps = node?.inputs?.steps;
+    if (typeof steps === "number" && Number.isFinite(steps) && steps > 0) {
+      nodeSteps.set(nodeId, steps);
+      totalSteps += steps;
+    }
+  });
+  return {
+    nodeSteps,
+    totalSteps,
+    nodeProgress: new Map(),
+  };
+}
+
+function updateProgressFromNode(promptId, nodeId, value, max) {
+  if (!promptId || !nodeId) {
+    return null;
+  }
+  const meta = progressMetaByPrompt.get(promptId);
+  if (!meta) {
+    return null;
+  }
+  const nodeTotal = meta.nodeSteps.get(String(nodeId));
+  if (!nodeTotal) {
+    return null;
+  }
+  const rawValue = Number(value ?? 0);
+  if (!Number.isFinite(rawValue)) {
+    return null;
+  }
+  let normalizedValue = rawValue;
+  const maxValue = Number(max ?? 0);
+  if (Number.isFinite(maxValue) && maxValue > 0 && maxValue !== nodeTotal) {
+    normalizedValue = (rawValue / maxValue) * nodeTotal;
+  }
+  const clamped = Math.max(0, Math.min(nodeTotal, normalizedValue));
+  meta.nodeProgress.set(String(nodeId), clamped);
+  const done = Array.from(meta.nodeProgress.values()).reduce((sum, entry) => sum + entry, 0);
+  if (!meta.totalSteps) {
+    return null;
+  }
+  return (done / meta.totalSteps) * 100;
 }
 
 function resolvePromptIdFromSocket(message) {
@@ -73,7 +121,8 @@ function handleComfySocketMessage(message) {
     const value = Number(message.data.value ?? 0);
     const max = Number(message.data.max ?? 0);
     const percent =
-      Number.isFinite(value) && Number.isFinite(max) && max > 0 ? (value / max) * 100 : 0;
+      updateProgressFromNode(promptId, message.data.node, value, max) ??
+      (Number.isFinite(value) && Number.isFinite(max) && max > 0 ? (value / max) * 100 : 0);
     updateProgressFromSocket({
       promptId,
       percent,
@@ -330,6 +379,7 @@ const server = http.createServer((req, res) => {
           fs.writeFileSync(path.join(galleryInputDir, captureName), buffer);
           console.info(`Queueing ComfyUI prompt (clientId: ${comfyClientId}).`);
           const promptId = crypto.randomUUID();
+          const workflow = loadWorkflowJson(workflowDir, style);
           const result = await sendWorkflow({
             workflowDir,
             styleName: style,
@@ -339,18 +389,15 @@ const server = http.createServer((req, res) => {
             clientId: comfyClientId,
             promptId,
           });
-          if (result?.prompt_id) {
-            promptToCapture.set(result.prompt_id, safeId);
-            lastPromptId = result.prompt_id;
-          } else {
-            promptToCapture.set(promptId, safeId);
-            lastPromptId = promptId;
-          }
+          const resolvedPromptId = result?.prompt_id ?? promptId;
+          promptToCapture.set(resolvedPromptId, safeId);
+          lastPromptId = resolvedPromptId;
+          progressMetaByPrompt.set(resolvedPromptId, buildWorkflowStepMeta(workflow));
           res.writeHead(202, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
               status: "queued",
-              promptId: result.prompt_id ?? promptId,
+              promptId: resolvedPromptId,
             })
           );
         } catch (error) {
@@ -408,6 +455,9 @@ const server = http.createServer((req, res) => {
           Boolean(historyItem?.status?.completed) ||
           Boolean(historyItem?.status?.status_str === "success") ||
           Boolean(outputImage);
+        if (completed) {
+          progressMetaByPrompt.delete(promptId);
+        }
         if (!Number.isFinite(percent) || percent <= 0) {
           percent = completed ? 100 : 0;
         }
