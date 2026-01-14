@@ -598,19 +598,33 @@ const server = http.createServer((req, res) => {
         }
         const resolvedUrl = buildLocalUrl(req, imageUrl);
         const base64 = await readImageAsBase64(resolvedUrl);
+        const formData = new FormData();
+        formData.append("image", base64);
+        formData.append("type", "base64");
         const imgurResponse = await fetch("https://api.imgur.com/3/image", {
           method: "POST",
           headers: {
             Authorization: `Client-ID ${imgurClientId}`,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ image: base64, type: "base64" }),
+          body: formData,
         });
+        let result = null;
+        try {
+          result = await imgurResponse.json();
+        } catch (error) {
+          // ignore parse errors
+        }
         if (!imgurResponse.ok) {
-          const message = await imgurResponse.text();
+          const message =
+            result?.data?.error ??
+            result?.error ??
+            (await imgurResponse.text().catch(() => "")) ??
+            "";
           throw new Error(message || "Imgur upload failed");
         }
-        const result = await imgurResponse.json();
+        if (!result) {
+          throw new Error("Imgur response missing JSON");
+        }
         const link = result?.data?.link;
         if (!link) {
           throw new Error("Missing Imgur link");

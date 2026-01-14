@@ -386,16 +386,19 @@ async function uploadToImgur() {
       body: JSON.stringify({ imageUrl: lastOutputUrl }),
     });
     if (!response.ok) {
-      throw new Error(await response.text());
+      const message = await response.text();
+      throw new Error(message || "Upload failed");
     }
     const data = await response.json();
     if (data.qrUrl) {
       qrImage.src = data.qrUrl;
       qrContainer.style.display = "flex";
     }
+    statusLabel.textContent = "Upload Complete";
+    statusMeta.textContent = "Scan the QR code to view the image.";
   } catch (error) {
     statusLabel.textContent = "Upload Failed";
-    statusMeta.textContent = "Unable to upload to Imgur.";
+    statusMeta.textContent = error?.message || "Unable to upload to Imgur.";
   } finally {
     uploadButton.disabled = false;
   }
