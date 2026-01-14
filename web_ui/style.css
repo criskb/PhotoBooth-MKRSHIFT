@@ -301,14 +301,23 @@ html {
 
 .idle-overlay__track {
   position: absolute;
-  inset: -50%;
+  inset: -75%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  transform-origin: center;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
   gap: 0;
-  animation: idle-scroll 40s linear infinite;
-  transform: rotate(45deg);
-  transform-origin: center;
+  will-change: transform;
+}
+
+.idle-overlay__track-inner {
+  --idle-grid-width: calc(var(--idle-tile-width) * 12);
+  display: flex;
+  gap: 0;
+  animation: idle-scroll 35s linear infinite;
   will-change: transform;
 }
 
@@ -357,10 +366,10 @@ html {
 
 @keyframes idle-scroll {
   0% {
-    transform: rotate(45deg) translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
   }
   100% {
-    transform: rotate(45deg) translate3d(-50%, 0, 0);
+    transform: translate3d(calc(-1 * var(--idle-grid-width)), 0, 0);
   }
 }
 
