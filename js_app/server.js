@@ -28,6 +28,7 @@ const comfyProgressUrl = `${comfyServerUrl}/progress`;
 const comfyViewUrl = `${comfyServerUrl}/view`;
 const comfyClientId = process.env.COMFY_CLIENT_ID ?? crypto.randomUUID();
 const progressByPrompt = new Map();
+const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
 let lastPromptId = null;
@@ -43,27 +44,32 @@ function updateProgressFromSocket(payload) {
   });
 }
 
-function resolvePromptIdFromSocket(data) {
+function resolvePromptIdFromSocket(message) {
   return (
-    data?.prompt_id ??
-    data?.promptId ??
-    data?.prompt?.id ??
-    data?.prompt?.prompt_id ??
-    data?.prompt?.promptId ??
-    data?.extra_data?.prompt_id ??
-    data?.extra_data?.promptId ??
-    data?.metadata?.prompt_id ??
-    data?.metadata?.promptId ??
+    message?.prompt_id ??
+    message?.promptId ??
+    message?.data?.prompt_id ??
+    message?.data?.promptId ??
+    message?.data?.prompt?.id ??
+    message?.data?.prompt?.prompt_id ??
+    message?.data?.prompt?.promptId ??
+    message?.data?.extra_data?.prompt_id ??
+    message?.data?.extra_data?.promptId ??
+    message?.data?.metadata?.prompt_id ??
+    message?.data?.metadata?.promptId ??
     lastPromptId
   );
 }
 
 function handleComfySocketMessage(message) {
-  if (!message?.type || !message?.data) {
+  if (!message?.type) {
     return;
   }
-  const promptId = resolvePromptIdFromSocket(message.data);
+  const promptId = resolvePromptIdFromSocket(message);
   if (message.type === "progress_state" || message.type === "progress") {
+    if (!message.data) {
+      return;
+    }
     const value = Number(message.data.value ?? 0);
     const max = Number(message.data.max ?? 0);
     const percent =
@@ -73,6 +79,12 @@ function handleComfySocketMessage(message) {
       percent,
     });
     return;
+  }
+  if (message.type === "executed" && promptId && message.data?.output) {
+    const socketOutput = getOutputImage(message.data.output);
+    if (socketOutput) {
+      outputByPrompt.set(promptId, socketOutput);
+    }
   }
   if (message.type === "executing" && message.data.node == null) {
     updateProgressFromSocket({
@@ -185,6 +197,9 @@ function getOutputImage(historyItem) {
     historyItem?.result?.outputs ??
     historyItem?.result?.output ??
     historyItem?.output;
+  if (historyItem?.images?.length) {
+    return historyItem.images[0];
+  }
   if (!outputs) {
     return null;
   }
@@ -341,7 +356,7 @@ const server = http.createServer((req, res) => {
           historyResult?.[promptId] ??
           historyResult?.history?.[promptId] ??
           historyResult;
-        const outputImage = getOutputImage(historyItem);
+        const outputImage = outputByPrompt.get(promptId) ?? getOutputImage(historyItem);
         const captureId = promptToCapture.get(promptId);
         const fallbackOutputPath = captureId
           ? path.join(galleryOutputDir, `${captureId}.png`)
