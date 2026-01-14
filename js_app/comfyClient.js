@@ -43,15 +43,21 @@ export async function sendWorkflow({
   inputImagePath,
   serverUrl,
   clientId,
+  promptId,
 }) {
   const workflow = loadWorkflowJson(workflowDir, styleName);
   const payload = applyPromptOverrides(workflow, stylePrompt, inputImagePath);
   const resolvedClientId = clientId ?? crypto.randomUUID();
+  const resolvedPromptId = promptId ?? crypto.randomUUID();
 
   const response = await fetch(`${serverUrl}/prompt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: payload, client_id: resolvedClientId }),
+    body: JSON.stringify({
+      prompt: payload,
+      client_id: resolvedClientId,
+      prompt_id: resolvedPromptId,
+    }),
   });
 
   if (!response.ok) {
@@ -59,5 +65,9 @@ export async function sendWorkflow({
     throw new Error(`ComfyUI error: ${response.status} ${message}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  return {
+    ...result,
+    prompt_id: result?.prompt_id ?? resolvedPromptId,
+  };
 }
