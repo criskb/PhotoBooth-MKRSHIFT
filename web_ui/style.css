@@ -339,6 +339,33 @@ html {
   justify-content: flex-end;
 }
 
+.settings-about {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: rgba(247, 247, 251, 0.75);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.settings-about__title {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: rgba(247, 247, 251, 0.55);
+  margin: 0;
+}
+
+.settings-about__text {
+  margin: 0;
+}
+
+.settings-about a {
+  color: rgba(120, 209, 255, 0.9);
+}
+
 .settings-action {
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
