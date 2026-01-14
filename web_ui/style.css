@@ -110,8 +110,16 @@ html {
   gap: 0.35rem;
 }
 
+.brand-card {
+  padding: 0.85rem 1.35rem;
+  background: rgba(18, 22, 33, 0.6);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+}
+
 .brand__title {
-  font-size: clamp(2rem, 4vw, 3.75rem);
+  font-size: clamp(1.65rem, 3.4vw, 3.1rem);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -122,6 +130,16 @@ html {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(247, 247, 251, 0.65);
+}
+
+.brand__subtitle-accent {
+  color: #58d36e;
+  font-weight: 700;
+}
+
+.brand__subtitle-neutral {
+  color: #f7f7fb;
+  font-weight: 600;
 }
 .status {
   text-align: right;
