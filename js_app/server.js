@@ -101,12 +101,16 @@ function connectComfyWebsocket() {
     comfySocketReady = true;
     console.info("ComfyUI WebSocket connected.");
   });
-  comfySocket.on("message", (data) => {
-    if (typeof data !== "string") {
+  comfySocket.on("message", (data, isBinary) => {
+    if (isBinary) {
+      return;
+    }
+    const raw = typeof data === "string" ? data : data?.toString?.("utf8");
+    if (!raw) {
       return;
     }
     try {
-      const message = JSON.parse(data);
+      const message = JSON.parse(raw);
       handleComfySocketMessage(message);
     } catch (error) {
       // ignore malformed messages
