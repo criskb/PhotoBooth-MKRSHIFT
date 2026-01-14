@@ -42,15 +42,16 @@ export async function sendWorkflow({
   stylePrompt,
   inputImagePath,
   serverUrl,
+  clientId,
 }) {
   const workflow = loadWorkflowJson(workflowDir, styleName);
   const payload = applyPromptOverrides(workflow, stylePrompt, inputImagePath);
-  const clientId = crypto.randomUUID();
+  const resolvedClientId = clientId ?? crypto.randomUUID();
 
   const response = await fetch(`${serverUrl}/prompt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: payload, client_id: clientId }),
+    body: JSON.stringify({ prompt: payload, client_id: resolvedClientId }),
   });
 
   if (!response.ok) {

@@ -25,6 +25,89 @@ const printerCommand = process.env.PRINTER_COMMAND ?? "";
 const comfyHistoryUrl = `${comfyServerUrl}/history`;
 const comfyProgressUrl = `${comfyServerUrl}/progress`;
 const comfyViewUrl = `${comfyServerUrl}/view`;
+const comfyClientId = crypto.randomUUID();
+const progressByPrompt = new Map();
+let comfySocket = null;
+let comfySocketReady = false;
+
+function updateProgressFromSocket(payload) {
+  if (!payload?.promptId) {
+    return;
+  }
+  progressByPrompt.set(payload.promptId, {
+    percent: payload.percent ?? 0,
+    complete: Boolean(payload.complete),
+    updatedAt: Date.now(),
+  });
+}
+
+function handleComfySocketMessage(message) {
+  if (!message?.type || !message?.data) {
+    return;
+  }
+  if (message.type === "progress_state") {
+    const value = Number(message.data.value ?? 0);
+    const max = Number(message.data.max ?? 0);
+    const percent =
+      Number.isFinite(value) && Number.isFinite(max) && max > 0 ? (value / max) * 100 : 0;
+    updateProgressFromSocket({
+      promptId: message.data.prompt_id,
+      percent,
+    });
+    return;
+  }
+  if (message.type === "executing" && message.data.node == null) {
+    updateProgressFromSocket({
+      promptId: message.data.prompt_id,
+      percent: 100,
+      complete: true,
+    });
+  }
+}
+
+function connectComfyWebsocket() {
+  if (typeof WebSocket === "undefined") {
+    console.warn("WebSocket is not available; falling back to polling progress.");
+    return;
+  }
+  if (comfySocket) {
+    try {
+      comfySocket.close();
+    } catch (error) {
+      // noop
+    }
+  }
+  const wsUrl = `${comfyServerUrl.replace(/^http/, "ws")}/ws?clientId=${encodeURIComponent(
+    comfyClientId
+  )}`;
+  comfySocket = new WebSocket(wsUrl);
+  comfySocketReady = false;
+  comfySocket.addEventListener("open", () => {
+    comfySocketReady = true;
+  });
+  comfySocket.addEventListener("message", (event) => {
+    if (typeof event.data !== "string") {
+      return;
+    }
+    try {
+      const message = JSON.parse(event.data);
+      handleComfySocketMessage(message);
+    } catch (error) {
+      // ignore malformed messages
+    }
+  });
+  comfySocket.addEventListener("close", () => {
+    comfySocketReady = false;
+    setTimeout(() => {
+      connectComfyWebsocket();
+    }, 1500);
+  });
+  comfySocket.addEventListener("error", () => {
+    comfySocketReady = false;
+  });
+}
+
+connectComfyWebsocket();
 
 fs.mkdirSync(galleryInputDir, { recursive: true });
 fs.mkdirSync(galleryOutputDir, { recursive: true });
@@ -186,6 +269,7 @@ const server = http.createServer((req, res) => {
             stylePrompt: null,
             inputImagePath: comfyInputPath,
             serverUrl: comfyServerUrl,
+            clientId: comfyClientId,
           });
           if (result?.prompt_id) {
             promptToCapture.set(result.prompt_id, safeId);
@@ -232,30 +316,41 @@ const server = http.createServer((req, res) => {
           fallbackOutputPath && fs.existsSync(fallbackOutputPath)
             ? `/api/gallery/image?type=output&name=${encodeURIComponent(`${captureId}.png`)}`
             : null;
+        const socketProgress = progressByPrompt.get(promptId);
         const progressPayload = progressResult?.progress ?? progressResult ?? {};
-        const progressValue = Number(
-          progressPayload.value ??
-            progressPayload.current ??
-            progressPayload.step ??
-            progressPayload.steps ??
-            0
-        );
-        const progressMax = Number(
-          progressPayload.max ??
-            progressPayload.total ??
-            progressPayload.steps_total ??
-            0
-        );
-        const percent =
-          Number.isFinite(progressValue) && Number.isFinite(progressMax) && progressMax > 0
-            ? (progressValue / progressMax) * 100
-            : historyItem?.status?.completed
-              ? 100
-              : 0;
+        let percent = socketProgress?.percent ?? 0;
+        if (!percent) {
+          if (typeof progressPayload === "number" && Number.isFinite(progressPayload)) {
+            percent = progressPayload <= 1 ? progressPayload * 100 : progressPayload;
+          } else {
+            const progressValue = Number(
+              progressPayload.value ??
+                progressPayload.current ??
+                progressPayload.step ??
+                progressPayload.steps ??
+                0
+            );
+            const progressMax = Number(
+              progressPayload.max ??
+                progressPayload.total ??
+                progressPayload.steps_total ??
+                0
+            );
+            percent =
+              Number.isFinite(progressValue) && Number.isFinite(progressMax) && progressMax > 0
+                ? (progressValue / progressMax) * 100
+                : 0;
+          }
+        }
+        const completed =
+          Boolean(socketProgress?.complete) || Boolean(historyItem?.status?.completed);
+        if (!Number.isFinite(percent) || percent <= 0) {
+          percent = completed ? 100 : 0;
+        }
         const responsePayload = {
           percent,
-          label: historyItem?.status?.completed ? "Complete" : "Sampling",
-          complete: Boolean(historyItem?.status?.completed),
+          label: completed ? "Complete" : "Sampling",
+          complete: completed,
           outputUrl: outputImage
             ? `/api/output?filename=${encodeURIComponent(outputImage.filename)}&type=${
                 outputImage.type ?? "output"
