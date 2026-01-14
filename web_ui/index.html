@@ -10,13 +10,13 @@
   <div class="app">
     <div class="hud">
       <div class="brand">
-        <span class="brand__title">Photo Booth</span>
+        <span class="brand__title">AI PHOTOBOOTH</span>
+        <span class="brand__subtitle">MKRShift</span>
       </div>
       <div class="status">
         <span class="status__label">Ready</span>
         <span class="status__meta">Select a style, then tap or shake to shoot</span>
       </div>
-      <button class="settings-toggle" aria-label="Settings">⚙️</button>
     </div>
 
     <video id="camera" autoplay playsinline muted></video>
@@ -40,6 +40,11 @@
         <button class="style">Cyberpunk</button>
         <button class="style">Pixel Art</button>
       </div>
+    </div>
+
+    <div class="utility-controls">
+      <button class="settings-toggle" aria-label="Settings">⚙️</button>
+      <button class="fullscreen-toggle" aria-label="Toggle fullscreen">⛶</button>
     </div>
 
     <button class="gallery-toggle" aria-label="Open gallery">🖼️</button>
@@ -68,10 +73,27 @@
 
     <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="settings-card">
-        <h2 id="settings-title">Printer Settings</h2>
+        <h2 id="settings-title">Settings</h2>
+        <label class="settings-field">
+          ComfyUI API Endpoint
+          <input class="settings-input settings-input--comfy" type="url" placeholder="http://127.0.0.1:8188" />
+        </label>
+        <label class="settings-field">
+          Camera Orientation
+          <select class="settings-input settings-input--orientation">
+            <option value="0">0° (Normal)</option>
+            <option value="90">90°</option>
+            <option value="180">180°</option>
+            <option value="270">270°</option>
+          </select>
+        </label>
         <label class="settings-field">
           Printer Name
           <input class="settings-input settings-input--printer" type="text" placeholder="Office_Printer_1" />
+        </label>
+        <label class="settings-field">
+          Freeimage API Key
+          <input class="settings-input settings-input--freeimage" type="text" placeholder="Freeimage API Key" />
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--enabled" type="checkbox" />
@@ -102,6 +124,14 @@
                 <span class="gallery-label">Output</span>
                 <img class="gallery-image gallery-image--output" alt="Output image" />
               </div>
+            </div>
+            <div class="gallery-actions">
+              <button class="gallery-action gallery-action--upload">Upload Selected</button>
+              <span class="gallery-upload-status" aria-live="polite"></span>
+            </div>
+            <div class="gallery-qr">
+              <span class="gallery-qr-label">Upload QR</span>
+              <img class="gallery-qr-image" alt="QR code for uploaded image" />
             </div>
           </div>
         </div>
