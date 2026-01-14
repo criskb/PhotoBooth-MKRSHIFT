@@ -124,7 +124,7 @@ async function queueSelfie(source = "tap") {
       throw new Error(message || "Failed to queue");
     }
     const data = await response.json();
-    currentPromptId = data.promptId ?? null;
+    currentPromptId = data.promptId ?? data.prompt_id ?? null;
     statusLabel.textContent = "Queued";
     statusMeta.textContent = "Workflow sent to ComfyUI.";
     startProgressPolling();

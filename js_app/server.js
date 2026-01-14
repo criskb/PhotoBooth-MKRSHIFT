@@ -75,7 +75,11 @@ async function fetchComfyJson(url) {
 }
 
 function getOutputImage(historyItem) {
-  const outputs = historyItem?.outputs ?? historyItem?.result?.outputs;
+  const outputs =
+    historyItem?.outputs ??
+    historyItem?.result?.outputs ??
+    historyItem?.result?.output ??
+    historyItem?.output;
   if (!outputs) {
     return null;
   }
@@ -229,19 +233,21 @@ const server = http.createServer((req, res) => {
             ? `/api/gallery/image?type=output&name=${encodeURIComponent(`${captureId}.png`)}`
             : null;
         const progressPayload = progressResult?.progress ?? progressResult ?? {};
-        const progressValue =
+        const progressValue = Number(
           progressPayload.value ??
-          progressPayload.current ??
-          progressPayload.step ??
-          progressPayload.steps ??
-          0;
-        const progressMax =
+            progressPayload.current ??
+            progressPayload.step ??
+            progressPayload.steps ??
+            0
+        );
+        const progressMax = Number(
           progressPayload.max ??
-          progressPayload.total ??
-          progressPayload.steps_total ??
-          0;
+            progressPayload.total ??
+            progressPayload.steps_total ??
+            0
+        );
         const percent =
-          typeof progressValue === "number" && typeof progressMax === "number" && progressMax > 0
+          Number.isFinite(progressValue) && Number.isFinite(progressMax) && progressMax > 0
             ? (progressValue / progressMax) * 100
             : historyItem?.status?.completed
               ? 100
