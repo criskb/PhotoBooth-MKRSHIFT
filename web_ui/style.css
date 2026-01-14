@@ -275,9 +275,64 @@ html {
 .progress__qr-image {
   width: 160px;
   height: 160px;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(12, 15, 22, 0.8);
+  border-radius: 0;
+  border: none;
+  background: transparent;
+}
+
+.idle-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(25, 30, 46, 0.95), rgba(6, 8, 14, 0.98));
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  transition: opacity 0.6s ease;
+  opacity: 1;
+}
+
+.idle-overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.idle-overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.idle-overlay__image {
+  width: min(620px, 80vw);
+  height: min(620px, 80vw);
+  object-fit: cover;
+  border-radius: 1.25rem;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.idle-overlay__image--visible {
+  opacity: 1;
+}
+
+.idle-overlay__title {
+  margin: 0;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.idle-overlay__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(247, 247, 251, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
 }
 
 .settings-modal {
@@ -337,6 +392,33 @@ html {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+}
+
+.settings-about {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: rgba(247, 247, 251, 0.75);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.settings-about__title {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: rgba(247, 247, 251, 0.55);
+  margin: 0;
+}
+
+.settings-about__text {
+  margin: 0;
+}
+
+.settings-about a {
+  color: rgba(120, 209, 255, 0.9);
 }
 
 .settings-action {
@@ -491,9 +573,9 @@ html {
 .gallery-qr-image {
   width: 160px;
   height: 160px;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(12, 15, 22, 0.3);
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .gallery-pair {

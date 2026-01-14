@@ -13,14 +13,18 @@ const doneButton = document.querySelector(".progress-action--done");
 const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const appRoot = document.querySelector(".app");
+const idleOverlay = document.querySelector(".idle-overlay");
+const idleImage = document.querySelector(".idle-overlay__image");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
+const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
+const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
 const galleryToggle = document.querySelector(".gallery-toggle");
@@ -42,12 +46,28 @@ let currentPromptId = null;
 let progressPoller = null;
 let outputReady = false;
 let lastOutputUrl = null;
-let printerConfig = { name: "", enabled: false };
+let printerConfig = { name: "", enabled: false, copies: 1 };
 let freeimageApiKey = "";
 let selectedGalleryUrl = "";
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
+let watermarkEnabled = false;
+const idleTimeoutMs = 5 * 60 * 1000;
+const idleSlideMs = 6000;
+const idleImages = [
+  "./idle_pictures/001.png",
+  "./idle_pictures/002.png",
+  "./idle_pictures/003.png",
+  "./idle_pictures/004.png",
+  "./idle_pictures/005.png",
+  "./idle_pictures/006.png",
+  "./idle_pictures/007.png",
+  "./idle_pictures/008.png",
+];
+let idleTimer = null;
+let idleSlideTimer = null;
+let idleIndex = 0;
 
 function toTitleCase(value) {
   return value
@@ -62,6 +82,67 @@ function getOrientationDegrees(value) {
     return -90;
   }
   return orientation;
+}
+
+function setIdleImage(index) {
+  if (!idleImage || !idleImages.length) {
+    return;
+  }
+  idleImage.classList.remove("idle-overlay__image--visible");
+  const nextIndex = ((index % idleImages.length) + idleImages.length) % idleImages.length;
+  idleImage.onload = () => {
+    idleImage.classList.add("idle-overlay__image--visible");
+  };
+  idleImage.src = idleImages[nextIndex];
+  idleIndex = nextIndex;
+}
+
+function startIdleSlideshow() {
+  if (!idleImages.length) {
+    return;
+  }
+  if (idleSlideTimer) {
+    return;
+  }
+  setIdleImage(idleIndex);
+  idleSlideTimer = setInterval(() => {
+    setIdleImage(idleIndex + 1);
+  }, idleSlideMs);
+}
+
+function stopIdleSlideshow() {
+  if (idleSlideTimer) {
+    clearInterval(idleSlideTimer);
+    idleSlideTimer = null;
+  }
+}
+
+function showIdleOverlay() {
+  if (!idleOverlay) {
+    return;
+  }
+  idleOverlay.classList.remove("idle-overlay--hidden");
+  startIdleSlideshow();
+}
+
+function hideIdleOverlay() {
+  if (!idleOverlay) {
+    return;
+  }
+  idleOverlay.classList.add("idle-overlay--hidden");
+  stopIdleSlideshow();
+}
+
+function resetIdleTimer() {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+  }
+  if (!idleOverlay?.classList.contains("idle-overlay--hidden")) {
+    hideIdleOverlay();
+  }
+  idleTimer = setTimeout(() => {
+    showIdleOverlay();
+  }, idleTimeoutMs);
 }
 
 async function startCamera() {
@@ -343,6 +424,9 @@ function loadPrinterConfig() {
     if (raw) {
       printerConfig = JSON.parse(raw);
     }
+    if (!Number.isFinite(Number(printerConfig.copies)) || Number(printerConfig.copies) <= 0) {
+      printerConfig.copies = 1;
+    }
     const freeimageRaw = localStorage.getItem("freeimageApiKey");
     if (freeimageRaw) {
       freeimageApiKey = freeimageRaw;
@@ -355,25 +439,34 @@ function loadPrinterConfig() {
     if (orientationRaw) {
       cameraOrientation = Number(orientationRaw) || 0;
     }
+    const watermarkRaw = localStorage.getItem("watermarkEnabled");
+    if (watermarkRaw !== null) {
+      watermarkEnabled = watermarkRaw === "true";
+    }
   } catch (error) {
-    printerConfig = { name: "", enabled: false };
+    printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
     comfyServerUrl = defaultComfyServerUrl;
     cameraOrientation = 0;
+    watermarkEnabled = false;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsOrientationInput.value = String(cameraOrientation || 0);
   settingsPrinterInput.value = printerConfig.name || "";
+  settingsPrinterCopiesInput.value = String(printerConfig.copies || 1);
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
   settingsFreeimageInput.value = freeimageApiKey || "";
+  settingsWatermarkInput.checked = watermarkEnabled;
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
 }
 
 function savePrinterConfig() {
+  const copies = Number(settingsPrinterCopiesInput.value) || 1;
   printerConfig = {
     name: settingsPrinterInput.value.trim(),
     enabled: settingsEnabledInput.checked,
+    copies: Math.max(1, Math.floor(copies)),
   };
   localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
   freeimageApiKey = settingsFreeimageInput.value.trim();
@@ -382,6 +475,8 @@ function savePrinterConfig() {
   localStorage.setItem("comfyServerUrl", comfyServerUrl);
   cameraOrientation = Number(settingsOrientationInput.value) || 0;
   localStorage.setItem("cameraOrientation", String(cameraOrientation));
+  watermarkEnabled = settingsWatermarkInput.checked;
+  localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
 }
@@ -506,13 +601,56 @@ async function uploadImage(imageUrl) {
   return response.json();
 }
 
+function loadImageElement(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Unable to load image"));
+    img.src = src;
+  });
+}
+
+async function buildWatermarkedImageUrl(imageUrl) {
+  const image = await loadImageElement(imageUrl);
+  const canvas = document.createElement("canvas");
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(image, 0, 0, width, height);
+  const fontSize = Math.max(18, Math.round(width * 0.045));
+  ctx.font = `600 ${fontSize}px "Inter", sans-serif`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+  ctx.shadowBlur = Math.round(fontSize * 0.4);
+  const margin = Math.round(fontSize * 0.6);
+  ctx.fillText("MKRSHIFT", width - margin, height - margin);
+  return canvas.toDataURL("image/png");
+}
+
+async function resolveShareImageUrl(imageUrl) {
+  if (!watermarkEnabled) {
+    return imageUrl;
+  }
+  try {
+    return await buildWatermarkedImageUrl(imageUrl);
+  } catch (error) {
+    return imageUrl;
+  }
+}
+
 async function uploadToFreeimage() {
   if (!lastOutputUrl) {
     return;
   }
   uploadButton.disabled = true;
   try {
-    const data = await uploadImage(lastOutputUrl);
+    const imageUrl = await resolveShareImageUrl(lastOutputUrl);
+    const data = await uploadImage(imageUrl);
     if (data.qrUrl) {
       qrImage.src = data.qrUrl;
       qrContainer.style.display = "flex";
@@ -534,7 +672,8 @@ async function uploadGallerySelection() {
   galleryUploadButton.disabled = true;
   galleryUploadStatus.textContent = "Uploading...";
   try {
-    const data = await uploadImage(selectedGalleryUrl);
+    const imageUrl = await resolveShareImageUrl(selectedGalleryUrl);
+    const data = await uploadImage(imageUrl);
     if (data.qrUrl) {
       galleryQrImage.src = data.qrUrl;
       galleryQr.style.display = "flex";
@@ -553,12 +692,14 @@ async function sendToPrinter() {
   }
   printButton.disabled = true;
   try {
+    const imageUrl = await resolveShareImageUrl(lastOutputUrl);
     const response = await fetch("/api/print", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        imageUrl: lastOutputUrl,
+        imageUrl,
         printerName: printerConfig.name,
+        copies: printerConfig.copies,
       }),
     });
     if (!response.ok) {
@@ -628,7 +769,12 @@ doneButton.addEventListener("click", () => {
 });
 window.addEventListener("devicemotion", handleShake);
 window.addEventListener("resize", applyCameraOrientation);
+["pointerdown", "mousemove", "keydown", "touchstart", "wheel"].forEach((eventName) => {
+  window.addEventListener(eventName, resetIdleTimer, { passive: true });
+});
 
 startCamera();
 loadStyles();
 loadPrinterConfig();
+showIdleOverlay();
+resetIdleTimer();
