@@ -1,9 +1,21 @@
 import crypto from "node:crypto";
 import { loadWorkflowJson } from "./workflowLoader.js";
 
-function applyPromptOverrides(workflow, stylePrompt) {
+function applyPromptOverrides(workflow, stylePrompt, inputImagePath) {
   if (!stylePrompt) {
-    return workflow;
+    const updated = JSON.parse(JSON.stringify(workflow));
+    Object.values(updated).forEach((node) => {
+      const classType = node.class_type ?? "";
+      const inputs = node.inputs ?? {};
+      if (classType === "LoadImage" && inputImagePath) {
+        inputs.image = inputImagePath;
+      }
+      if (classType === "SaveImage" && !inputs.filename_prefix) {
+        inputs.filename_prefix = "output";
+      }
+      node.inputs = inputs;
+    });
+    return updated;
   }
   const updated = JSON.parse(JSON.stringify(workflow));
   Object.values(updated).forEach((node) => {
@@ -12,6 +24,12 @@ function applyPromptOverrides(workflow, stylePrompt) {
     const normalized = classType.toLowerCase().replace(/\s/g, "");
     if (["textmultiline", "textmultilinewidget", "textmultilineprompt"].includes(normalized)) {
       inputs.text = stylePrompt;
+    }
+    if (classType === "LoadImage" && inputImagePath) {
+      inputs.image = inputImagePath;
+    }
+    if (classType === "SaveImage" && !inputs.filename_prefix) {
+      inputs.filename_prefix = "output";
     }
     node.inputs = inputs;
   });
@@ -26,7 +44,7 @@ export async function sendWorkflow({
   serverUrl,
 }) {
   const workflow = loadWorkflowJson(workflowDir, styleName);
-  const payload = applyPromptOverrides(workflow, stylePrompt);
+  const payload = applyPromptOverrides(workflow, stylePrompt, inputImagePath);
   const clientId = crypto.randomUUID();
 
   const response = await fetch(`${serverUrl}/prompt`, {
