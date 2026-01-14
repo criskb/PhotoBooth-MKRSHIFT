@@ -11,15 +11,14 @@
     <div class="hud">
       <div class="brand">
         <span class="brand__title">Photo Booth</span>
-        <span class="brand__tag">3D Experience</span>
       </div>
       <div class="status">
         <span class="status__label">Ready</span>
-        <span class="status__meta">Select a style to begin</span>
+        <span class="status__meta">Select a style, then tap or shake to shoot</span>
       </div>
     </div>
 
-    <canvas id="scene"></canvas>
+    <video id="camera" autoplay playsinline muted></video>
 
     <div class="controls">
       <button class="action">Take Selfie</button>

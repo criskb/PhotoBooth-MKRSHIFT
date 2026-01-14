@@ -1,121 +1,134 @@
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-
-const canvas = document.querySelector("#scene");
+const video = document.querySelector("#camera");
 const stylesContainer = document.querySelector(".styles");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
+const actionButton = document.querySelector(".action");
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x0b0e16, 8, 18);
-
-const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 2.4, 9);
-
-const ambient = new THREE.AmbientLight(0xffffff, 0.65);
-scene.add(ambient);
-
-const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
-keyLight.position.set(5, 6, 4);
-scene.add(keyLight);
-
-const rimLight = new THREE.DirectionalLight(0x5fd3ff, 0.7);
-rimLight.position.set(-5, 2, -4);
-scene.add(rimLight);
-
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(30, 30),
-  new THREE.MeshStandardMaterial({ color: 0x0d111a, roughness: 0.7, metalness: 0.1 })
-);
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = -1.1;
-scene.add(floor);
-
-const stripGroup = new THREE.Group();
-
-const stripMaterial = new THREE.MeshStandardMaterial({
-  color: 0x1c2333,
-  roughness: 0.35,
-  metalness: 0.5,
-});
-const strip = new THREE.Mesh(new THREE.BoxGeometry(5.4, 2.8, 0.25), stripMaterial);
-stripGroup.add(strip);
-
-const frameMaterial = new THREE.MeshStandardMaterial({
-  color: 0x0f141f,
-  roughness: 0.45,
-  metalness: 0.2,
-});
-
-const photoMaterial = new THREE.MeshStandardMaterial({
-  color: 0xf7a35c,
-  roughness: 0.25,
-  metalness: 0.05,
-  emissive: 0x1a1207,
-});
-
-const framePositions = [-1.7, 0, 1.7];
-framePositions.forEach((x, index) => {
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2, 0.3), frameMaterial);
-  frame.position.set(x, 0, 0.1);
-  stripGroup.add(frame);
-
-  const photo = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.7), photoMaterial.clone());
-  photo.position.set(x, 0, 0.27);
-  photo.material.color.setHSL(0.08 + index * 0.08, 0.65, 0.6);
-  stripGroup.add(photo);
-});
-
-stripGroup.position.set(0, 0.4, 0);
-scene.add(stripGroup);
-
-const glowRing = new THREE.Mesh(
-  new THREE.RingGeometry(2.6, 2.9, 64),
-  new THREE.MeshBasicMaterial({ color: 0x5fd3ff, transparent: true, opacity: 0.35 })
-);
-glowRing.rotation.x = -Math.PI / 2;
-glowRing.position.y = -0.95;
-scene.add(glowRing);
-
-const mouse = { x: 0, y: 0 };
-
-window.addEventListener("mousemove", (event) => {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = (event.clientY / window.innerHeight) * 2 - 1;
-});
-
-function resize() {
-  const { innerWidth, innerHeight } = window;
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-}
-
-window.addEventListener("resize", resize);
-resize();
-
-const clock = new THREE.Clock();
-
-function animate() {
-  const elapsed = clock.getElapsedTime();
-  stripGroup.rotation.y = THREE.MathUtils.lerp(stripGroup.rotation.y, mouse.x * 0.35, 0.08);
-  stripGroup.rotation.x = THREE.MathUtils.lerp(stripGroup.rotation.x, -mouse.y * 0.15, 0.08);
-  stripGroup.position.y = 0.4 + Math.sin(elapsed * 1.2) * 0.08;
-  glowRing.material.opacity = 0.3 + Math.sin(elapsed * 1.4) * 0.08;
-
-  renderer.render(scene, camera);
-  requestAnimationFrame(animate);
-}
-
-animate();
+let selectedStyle = null;
+let isQueueing = false;
+let lastShake = 0;
+let motionPermissionGranted = false;
 
 function toTitleCase(value) {
   return value
     .split(" ")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+async function startCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    statusLabel.textContent = "Camera Unsupported";
+    statusMeta.textContent = "This browser cannot access the camera.";
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: false,
+    });
+    video.srcObject = stream;
+    statusLabel.textContent = "Camera Ready";
+    statusMeta.textContent = "Select a style, then tap or shake to shoot";
+  } catch (error) {
+    statusLabel.textContent = "Camera Blocked";
+    statusMeta.textContent = "Allow camera access to continue.";
+  }
+}
+
+function captureFrame() {
+  if (!video.videoWidth || !video.videoHeight) {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext("2d");
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/png");
+}
+
+async function queueSelfie(source = "tap") {
+  if (isQueueing) {
+    return;
+  }
+  if (!selectedStyle) {
+    statusLabel.textContent = "Pick a Style";
+    statusMeta.textContent = "Select a style before taking a selfie.";
+    return;
+  }
+  const imageData = captureFrame();
+  if (!imageData) {
+    statusLabel.textContent = "Camera Warming Up";
+    statusMeta.textContent = "Please wait for the camera feed.";
+    return;
+  }
+
+  isQueueing = true;
+  statusLabel.textContent = "Queueing";
+  statusMeta.textContent = `Sending ${toTitleCase(selectedStyle)} to ComfyUI (${source})`;
+  try {
+    const response = await fetch("/api/selfie", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ style: selectedStyle, image: imageData }),
+    });
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || "Failed to queue");
+    }
+    statusLabel.textContent = "Queued";
+    statusMeta.textContent = "Workflow sent to ComfyUI.";
+  } catch (error) {
+    statusLabel.textContent = "Queue Failed";
+    statusMeta.textContent = "Unable to send workflow to ComfyUI.";
+  } finally {
+    isQueueing = false;
+  }
+}
+
+async function ensureMotionPermission() {
+  if (motionPermissionGranted) {
+    return true;
+  }
+  if (typeof DeviceMotionEvent === "undefined") {
+    return false;
+  }
+  if (typeof DeviceMotionEvent.requestPermission !== "function") {
+    motionPermissionGranted = true;
+    return true;
+  }
+  try {
+    const state = await DeviceMotionEvent.requestPermission();
+    motionPermissionGranted = state === "granted";
+    if (!motionPermissionGranted) {
+      statusLabel.textContent = "Motion Blocked";
+      statusMeta.textContent = "Enable motion access to use shake selfie.";
+    }
+    return motionPermissionGranted;
+  } catch (error) {
+    statusLabel.textContent = "Motion Blocked";
+    statusMeta.textContent = "Enable motion access to use shake selfie.";
+    return false;
+  }
+}
+
+function handleShake(event) {
+  const acceleration = event.accelerationIncludingGravity;
+  if (!acceleration) {
+    return;
+  }
+  const magnitude = Math.sqrt(
+    (acceleration.x || 0) ** 2 +
+      (acceleration.y || 0) ** 2 +
+      (acceleration.z || 0) ** 2
+  );
+  const now = Date.now();
+  if (magnitude > 22 && now - lastShake > 2000) {
+    lastShake = now;
+    queueSelfie("shake");
+  }
 }
 
 async function loadStyles() {
@@ -134,6 +147,7 @@ async function loadStyles() {
       button.addEventListener("click", () => {
         document.querySelectorAll(".style").forEach((el) => el.classList.remove("style--active"));
         button.classList.add("style--active");
+        selectedStyle = style;
         statusLabel.textContent = "Style Selected";
         statusMeta.textContent = `${toTitleCase(style)} ready to shoot`;
       });
@@ -145,4 +159,11 @@ async function loadStyles() {
   }
 }
 
+actionButton.addEventListener("click", async () => {
+  await ensureMotionPermission();
+  queueSelfie("tap");
+});
+window.addEventListener("devicemotion", handleShake);
+
+startCamera();
 loadStyles();
