@@ -14,7 +14,7 @@ const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const appRoot = document.querySelector(".app");
 const idleOverlay = document.querySelector(".idle-overlay");
-const idleImage = document.querySelector(".idle-overlay__image");
+const idleGrid = document.querySelector(".idle-overlay__grid");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
@@ -54,20 +54,7 @@ let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let watermarkEnabled = false;
 const idleTimeoutMs = 5 * 60 * 1000;
-const idleSlideMs = 6000;
-const idleImages = [
-  "./idle_pictures/001.png",
-  "./idle_pictures/002.png",
-  "./idle_pictures/003.png",
-  "./idle_pictures/004.png",
-  "./idle_pictures/005.png",
-  "./idle_pictures/006.png",
-  "./idle_pictures/007.png",
-  "./idle_pictures/008.png",
-];
 let idleTimer = null;
-let idleSlideTimer = null;
-let idleIndex = 0;
 
 function toTitleCase(value) {
   return value
@@ -84,36 +71,31 @@ function getOrientationDegrees(value) {
   return orientation;
 }
 
-function setIdleImage(index) {
-  if (!idleImage || !idleImages.length) {
+async function loadIdleImages() {
+  if (!idleGrid) {
     return;
   }
-  idleImage.classList.remove("idle-overlay__image--visible");
-  const nextIndex = ((index % idleImages.length) + idleImages.length) % idleImages.length;
-  idleImage.onload = () => {
-    idleImage.classList.add("idle-overlay__image--visible");
-  };
-  idleImage.src = idleImages[nextIndex];
-  idleIndex = nextIndex;
-}
-
-function startIdleSlideshow() {
-  if (!idleImages.length) {
-    return;
-  }
-  if (idleSlideTimer) {
-    return;
-  }
-  setIdleImage(idleIndex);
-  idleSlideTimer = setInterval(() => {
-    setIdleImage(idleIndex + 1);
-  }, idleSlideMs);
-}
-
-function stopIdleSlideshow() {
-  if (idleSlideTimer) {
-    clearInterval(idleSlideTimer);
-    idleSlideTimer = null;
+  try {
+    const response = await fetch("/api/idle-images");
+    if (!response.ok) {
+      throw new Error("Idle images unavailable");
+    }
+    const data = await response.json();
+    const images = data.images ?? [];
+    const fragment = document.createDocumentFragment();
+    images.forEach((src) => {
+      const tile = document.createElement("div");
+      tile.className = "idle-overlay__tile";
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = "";
+      tile.appendChild(img);
+      fragment.appendChild(tile);
+    });
+    idleGrid.innerHTML = "";
+    idleGrid.appendChild(fragment);
+  } catch (error) {
+    idleGrid.innerHTML = "";
   }
 }
 
@@ -122,7 +104,6 @@ function showIdleOverlay() {
     return;
   }
   idleOverlay.classList.remove("idle-overlay--hidden");
-  startIdleSlideshow();
 }
 
 function hideIdleOverlay() {
@@ -130,7 +111,6 @@ function hideIdleOverlay() {
     return;
   }
   idleOverlay.classList.add("idle-overlay--hidden");
-  stopIdleSlideshow();
 }
 
 function scheduleIdleTimer() {
@@ -780,5 +760,6 @@ window.addEventListener("resize", applyCameraOrientation);
 startCamera();
 loadStyles();
 loadPrinterConfig();
+loadIdleImages();
 showIdleOverlay();
 scheduleIdleTimer();

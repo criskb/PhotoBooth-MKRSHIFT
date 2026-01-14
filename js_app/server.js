@@ -682,6 +682,23 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url.startsWith("/api/idle-images")) {
+    const idleDir = path.join(webDir, "idle_pictures");
+    let items = [];
+    try {
+      items = fs
+        .readdirSync(idleDir)
+        .filter((file) => file.toLowerCase().endsWith(".png"))
+        .sort()
+        .map((file) => `/idle_pictures/${encodeURIComponent(file)}`);
+    } catch (error) {
+      items = [];
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ images: items }));
+    return;
+  }
+
   if (req.url.startsWith("/api/upload") && req.method === "POST") {
     readJsonBody(req)
       .then(async (payload) => {
