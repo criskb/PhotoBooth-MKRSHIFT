@@ -14,7 +14,8 @@ const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const appRoot = document.querySelector(".app");
 const idleOverlay = document.querySelector(".idle-overlay");
-const idleGrid = document.querySelector(".idle-overlay__grid");
+const idlePrimaryGrid = document.querySelector(".idle-overlay__grid--primary");
+const idleSecondaryGrid = document.querySelector(".idle-overlay__grid--secondary");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
@@ -72,7 +73,7 @@ function getOrientationDegrees(value) {
 }
 
 async function loadIdleImages() {
-  if (!idleGrid) {
+  if (!idlePrimaryGrid || !idleSecondaryGrid) {
     return;
   }
   try {
@@ -81,21 +82,34 @@ async function loadIdleImages() {
       throw new Error("Idle images unavailable");
     }
     const data = await response.json();
-    const images = data.images ?? [];
-    const fragment = document.createDocumentFragment();
-    images.forEach((src) => {
-      const tile = document.createElement("div");
-      tile.className = "idle-overlay__tile";
-      const img = document.createElement("img");
-      img.src = src;
-      img.alt = "";
-      tile.appendChild(img);
-      fragment.appendChild(tile);
-    });
-    idleGrid.innerHTML = "";
-    idleGrid.appendChild(fragment);
+    const images = Array.from(data.images ?? []);
+    for (let i = images.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [images[i], images[j]] = [images[j], images[i]];
+    }
+    const minTiles = 96;
+    const tiles = images.length
+      ? Array.from({ length: minTiles }, (_, index) => images[index % images.length])
+      : [];
+    const buildGrid = (grid) => {
+      const fragment = document.createDocumentFragment();
+      tiles.forEach((src) => {
+        const tile = document.createElement("div");
+        tile.className = "idle-overlay__tile";
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = "";
+        tile.appendChild(img);
+        fragment.appendChild(tile);
+      });
+      grid.innerHTML = "";
+      grid.appendChild(fragment);
+    };
+    buildGrid(idlePrimaryGrid);
+    buildGrid(idleSecondaryGrid);
   } catch (error) {
-    idleGrid.innerHTML = "";
+    idlePrimaryGrid.innerHTML = "";
+    idleSecondaryGrid.innerHTML = "";
   }
 }
 
