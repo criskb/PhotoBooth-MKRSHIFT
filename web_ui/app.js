@@ -17,6 +17,7 @@ const printButton = document.querySelector(".progress-action--print");
 const doneButton = document.querySelector(".progress-action--done");
 const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
+const progressCloseButton = document.querySelector(".progress-close");
 const appRoot = document.querySelector(".app");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
@@ -29,6 +30,7 @@ const settingsFreeimageInput = document.querySelector(".settings-input--freeimag
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
+const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
 const galleryToggle = document.querySelector(".gallery-toggle");
@@ -61,6 +63,7 @@ let countdownTimer = null;
 let countdownActive = false;
 let remoteSocket = null;
 let remoteSocketReconnect = null;
+let lastRemoteProgress = { status: "ready", label: "Ready", percent: 0, complete: false };
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
@@ -167,6 +170,11 @@ function connectRemoteSocket() {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const wsUrl = `${protocol}://${window.location.host}/remote-ws`;
   remoteSocket = new WebSocket(wsUrl);
+  remoteSocket.addEventListener("open", () => {
+    if (selectedStyle) {
+      sendRemoteMessage({ type: "style", style: selectedStyle, source: "booth" });
+    }
+  });
   remoteSocket.addEventListener("message", (event) => {
     if (!event?.data) {
       return;
@@ -179,6 +187,17 @@ function connectRemoteSocket() {
         );
         startCountdown(delay, payload.source ?? "remote");
       }
+      if (payload?.type === "style" && typeof payload.style === "string") {
+        applyStyleSelection(payload.style, { source: payload.source ?? "remote" });
+      }
+      if (payload?.type === "status-request") {
+        if (selectedStyle) {
+          sendRemoteMessage({ type: "style", style: selectedStyle, source: "booth" });
+        }
+        if (lastRemoteProgress) {
+          sendRemoteMessage({ type: "progress", ...lastRemoteProgress, source: "booth" });
+        }
+      }
     } catch (error) {
       // ignore malformed messages
     }
@@ -189,6 +208,74 @@ function connectRemoteSocket() {
   remoteSocket.addEventListener("error", () => {
     remoteSocketReconnect = setTimeout(connectRemoteSocket, 1500);
   });
+}
+
+function sendRemoteMessage(payload) {
+  if (!remoteSocket || remoteSocket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  remoteSocket.send(JSON.stringify(payload));
+}
+
+function applyStyleSelection(style, { source = "booth", announce = true } = {}) {
+  const trimmed = typeof style === "string" ? style.trim() : "";
+  if (!trimmed) {
+    return;
+  }
+  selectedStyle = trimmed;
+  updateActionButtonState();
+  let matched = false;
+  document.querySelectorAll(".style").forEach((button) => {
+    const isMatch = button.dataset.style === trimmed;
+    button.classList.toggle("style--active", isMatch);
+    if (isMatch) {
+      matched = true;
+    }
+  });
+  if (announce) {
+    statusLabel.textContent = "Style Selected";
+    statusMeta.textContent =
+      source === "remote"
+        ? `${toTitleCase(trimmed)} selected on remote`
+        : `${toTitleCase(trimmed)} ready to shoot`;
+  }
+  return matched;
+}
+
+function updateRemoteProgress(payload) {
+  const promptId = payload.promptId ?? currentPromptId ?? lastRemoteProgress?.promptId ?? null;
+  lastRemoteProgress = { ...payload, promptId, comfyServerUrl };
+  sendRemoteMessage({
+    type: "progress",
+    ...payload,
+    promptId,
+    comfyServerUrl,
+    source: "booth",
+  });
+}
+
+async function updateRemoteInfo() {
+  let remoteUrl = new URL("/remote.html", window.location.origin).toString();
+  try {
+    const response = await fetch("/api/remote-info");
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.remoteUrl) {
+        remoteUrl = data.remoteUrl;
+      }
+    }
+  } catch (error) {
+    // ignore fetch errors
+  }
+  if (settingsRemoteQr) {
+    settingsRemoteQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+      remoteUrl
+    )}`;
+  }
+  if (settingsRemoteLink) {
+    settingsRemoteLink.textContent = remoteUrl;
+    settingsRemoteLink.href = remoteUrl;
+  }
 }
 
 
@@ -282,8 +369,15 @@ async function queueSelfie(source = "tap") {
   uploadButton.disabled = true;
   printButton.disabled = true;
   doneButton.disabled = true;
+  progressCloseButton.disabled = true;
   statusLabel.textContent = "Queueing";
   statusMeta.textContent = `Sending ${toTitleCase(selectedStyle)} to ComfyUI (${source})`;
+  updateRemoteProgress({
+    status: "queueing",
+    label: "Queueing",
+    percent: 0,
+    complete: false,
+  });
   try {
     const response = await fetch("/api/selfie", {
       method: "POST",
@@ -302,6 +396,12 @@ async function queueSelfie(source = "tap") {
     currentPromptId = data.promptId ?? data.prompt_id ?? null;
     statusLabel.textContent = "Queued";
     statusMeta.textContent = "Workflow sent to ComfyUI.";
+    updateRemoteProgress({
+      status: "queued",
+      label: "Queued",
+      percent: 0,
+      complete: false,
+    });
     startProgressPolling();
   } catch (error) {
     statusLabel.textContent = "Queue Failed";
@@ -316,6 +416,12 @@ async function queueSelfie(source = "tap") {
       element.style.width = "0%";
     });
     setBusy(false);
+    updateRemoteProgress({
+      status: "error",
+      label: "Error",
+      percent: 0,
+      complete: false,
+    });
   } finally {
     isQueueing = false;
   }
@@ -386,6 +492,12 @@ function updateProgress(progress) {
       element.style.display = "block";
     });
   }
+  updateRemoteProgress({
+    status: progress.complete ? "complete" : "generating",
+    label,
+    percent,
+    complete: Boolean(progress.complete),
+  });
 }
 
 function startProgressPolling() {
@@ -423,10 +535,23 @@ function startProgressPolling() {
         uploadButton.disabled = false;
         printButton.disabled = !printerConfig.enabled || !printerConfig.name;
         doneButton.disabled = false;
+        progressCloseButton.disabled = false;
+        updateRemoteProgress({
+          status: "complete",
+          label: "Complete",
+          percent: 100,
+          complete: true,
+        });
       }
     } catch (error) {
       progressLabels.forEach((element) => {
         element.textContent = "Waiting";
+      });
+      updateRemoteProgress({
+        status: "waiting",
+        label: "Waiting",
+        percent: 0,
+        complete: false,
       });
     }
   }, 1200);
@@ -435,6 +560,12 @@ function startProgressPolling() {
 function setBusy(isBusy) {
   if (isBusy) {
     appRoot.classList.add("app--busy");
+    updateRemoteProgress({
+      status: "busy",
+      label: "Processing",
+      percent: 0,
+      complete: false,
+    });
     return;
   }
   appRoot.classList.remove("app--busy");
@@ -456,6 +587,7 @@ function setBusy(isBusy) {
   uploadButton.disabled = true;
   printButton.disabled = true;
   doneButton.disabled = true;
+  progressCloseButton.disabled = true;
   if (progressPoller) {
     clearInterval(progressPoller);
     progressPoller = null;
@@ -463,6 +595,13 @@ function setBusy(isBusy) {
   currentPromptId = null;
   outputReady = false;
   lastOutputUrl = null;
+  lastRemoteProgress = {
+    status: "ready",
+    label: "Ready",
+    percent: 0,
+    complete: false,
+  };
+  updateRemoteProgress(lastRemoteProgress);
 }
 
 function loadPrinterConfig() {
@@ -506,12 +645,7 @@ function loadPrinterConfig() {
   settingsWatermarkInput.checked = watermarkEnabled;
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
-  if (settingsRemoteQr) {
-    const remoteUrl = new URL("/remote.html", window.location.origin).toString();
-    settingsRemoteQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
-      remoteUrl
-    )}`;
-  }
+  updateRemoteInfo();
 }
 
 function savePrinterConfig() {
@@ -781,16 +915,16 @@ async function loadStyles() {
       const button = document.createElement("button");
       button.className = "style";
       button.textContent = toTitleCase(style);
+      button.dataset.style = style;
       button.addEventListener("click", () => {
-        document.querySelectorAll(".style").forEach((el) => el.classList.remove("style--active"));
-        button.classList.add("style--active");
-        selectedStyle = style;
-        updateActionButtonState();
-        statusLabel.textContent = "Style Selected";
-        statusMeta.textContent = `${toTitleCase(style)} ready to shoot`;
+        applyStyleSelection(style, { source: "booth" });
+        sendRemoteMessage({ type: "style", style, source: "booth" });
       });
       stylesContainer.appendChild(button);
     });
+    if (selectedStyle) {
+      applyStyleSelection(selectedStyle, { announce: false });
+    }
   } catch (error) {
     statusLabel.textContent = "Offline";
     statusMeta.textContent = "Unable to load styles";
@@ -830,12 +964,10 @@ galleryUploadButton.addEventListener("click", uploadGallerySelection);
 uploadButton.addEventListener("click", uploadToFreeimage);
 printButton.addEventListener("click", sendToPrinter);
 doneButton.addEventListener("click", () => {
-  if (!outputReady) {
-    return;
-  }
-  setBusy(false);
-  statusLabel.textContent = "Ready";
-  statusMeta.textContent = "Select a style, then tap or shake to shoot";
+  handleDoneAction();
+});
+progressCloseButton.addEventListener("click", () => {
+  handleDoneAction();
 });
 window.addEventListener("devicemotion", handleShake);
 window.addEventListener("resize", applyCameraOrientation);
@@ -848,7 +980,17 @@ loadStyles();
 loadPrinterConfig();
 updateTimerLabel();
 updateActionButtonState();
+progressCloseButton.disabled = true;
 connectRemoteSocket();
 idleController.loadImages();
 idleController.show();
 idleController.schedule();
+
+function handleDoneAction() {
+  if (!outputReady) {
+    return;
+  }
+  setBusy(false);
+  statusLabel.textContent = "Ready";
+  statusMeta.textContent = "Select a style, then tap or shake to shoot";
+}
