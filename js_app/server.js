@@ -396,6 +396,48 @@ function buildLocalUrl(req, imageUrl) {
   return new URL(imageUrl, `http://${req.headers.host}`).toString();
 }
 
+function getLanAddress() {
+  const networks = os.networkInterfaces();
+  for (const addresses of Object.values(networks)) {
+    if (!addresses) {
+      continue;
+    }
+    for (const address of addresses) {
+      if (address.family === "IPv4" && !address.internal) {
+        return address.address;
+      }
+    }
+  }
+  return null;
+}
+
+function resolveRemoteBaseUrl(req) {
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const protocol = typeof forwardedProto === "string" && forwardedProto.length > 0
+    ? forwardedProto.split(",")[0].trim()
+    : "http";
+  const hostHeader = req.headers.host ?? "";
+  let hostname = "localhost";
+  let port = "";
+  if (hostHeader) {
+    try {
+      const parsed = new URL(`${protocol}://${hostHeader}`);
+      hostname = parsed.hostname;
+      port = parsed.port;
+    } catch (error) {
+      hostname = hostHeader;
+    }
+  }
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+    const lanAddress = getLanAddress();
+    if (lanAddress) {
+      hostname = lanAddress;
+    }
+  }
+  const portSegment = port ? `:${port}` : "";
+  return `${protocol}://${hostname}${portSegment}`;
+}
+
 async function saveTempImage(imageUrl, req) {
   const localUrl = buildLocalUrl(req, imageUrl);
   const response = await fetch(localUrl);
@@ -460,6 +502,18 @@ const server = http.createServer((req, res) => {
     const styles = loadWorkflowStyles(workflowDir);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ styles }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/remote-info")) {
+    const baseUrl = resolveRemoteBaseUrl(req);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        baseUrl,
+        remoteUrl: `${baseUrl}/remote.html`,
+      })
+    );
     return;
   }
 
@@ -850,6 +904,18 @@ remoteWss.on("connection", (socket) => {
         broadcastRemote({
           type: "capture",
           delaySeconds,
+          source: payload.source ?? "remote",
+        });
+        return;
+      }
+      if (payload?.type === "style" && typeof payload.style === "string") {
+        const style = payload.style.trim();
+        if (!style) {
+          return;
+        }
+        broadcastRemote({
+          type: "style",
+          style,
           source: payload.source ?? "remote",
         });
       }

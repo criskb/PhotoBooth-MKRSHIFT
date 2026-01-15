@@ -29,6 +29,7 @@ const settingsFreeimageInput = document.querySelector(".settings-input--freeimag
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
+const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
 const galleryToggle = document.querySelector(".gallery-toggle");
@@ -167,6 +168,11 @@ function connectRemoteSocket() {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const wsUrl = `${protocol}://${window.location.host}/remote-ws`;
   remoteSocket = new WebSocket(wsUrl);
+  remoteSocket.addEventListener("open", () => {
+    if (selectedStyle) {
+      sendRemoteMessage({ type: "style", style: selectedStyle, source: "booth" });
+    }
+  });
   remoteSocket.addEventListener("message", (event) => {
     if (!event?.data) {
       return;
@@ -179,6 +185,9 @@ function connectRemoteSocket() {
         );
         startCountdown(delay, payload.source ?? "remote");
       }
+      if (payload?.type === "style" && typeof payload.style === "string") {
+        applyStyleSelection(payload.style, { source: payload.source ?? "remote" });
+      }
     } catch (error) {
       // ignore malformed messages
     }
@@ -189,6 +198,62 @@ function connectRemoteSocket() {
   remoteSocket.addEventListener("error", () => {
     remoteSocketReconnect = setTimeout(connectRemoteSocket, 1500);
   });
+}
+
+function sendRemoteMessage(payload) {
+  if (!remoteSocket || remoteSocket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  remoteSocket.send(JSON.stringify(payload));
+}
+
+function applyStyleSelection(style, { source = "booth", announce = true } = {}) {
+  const trimmed = typeof style === "string" ? style.trim() : "";
+  if (!trimmed) {
+    return;
+  }
+  selectedStyle = trimmed;
+  updateActionButtonState();
+  let matched = false;
+  document.querySelectorAll(".style").forEach((button) => {
+    const isMatch = button.dataset.style === trimmed;
+    button.classList.toggle("style--active", isMatch);
+    if (isMatch) {
+      matched = true;
+    }
+  });
+  if (announce) {
+    statusLabel.textContent = "Style Selected";
+    statusMeta.textContent =
+      source === "remote"
+        ? `${toTitleCase(trimmed)} selected on remote`
+        : `${toTitleCase(trimmed)} ready to shoot`;
+  }
+  return matched;
+}
+
+async function updateRemoteInfo() {
+  let remoteUrl = new URL("/remote.html", window.location.origin).toString();
+  try {
+    const response = await fetch("/api/remote-info");
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.remoteUrl) {
+        remoteUrl = data.remoteUrl;
+      }
+    }
+  } catch (error) {
+    // ignore fetch errors
+  }
+  if (settingsRemoteQr) {
+    settingsRemoteQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+      remoteUrl
+    )}`;
+  }
+  if (settingsRemoteLink) {
+    settingsRemoteLink.textContent = remoteUrl;
+    settingsRemoteLink.href = remoteUrl;
+  }
 }
 
 
@@ -506,12 +571,7 @@ function loadPrinterConfig() {
   settingsWatermarkInput.checked = watermarkEnabled;
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
-  if (settingsRemoteQr) {
-    const remoteUrl = new URL("/remote.html", window.location.origin).toString();
-    settingsRemoteQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
-      remoteUrl
-    )}`;
-  }
+  updateRemoteInfo();
 }
 
 function savePrinterConfig() {
@@ -781,16 +841,16 @@ async function loadStyles() {
       const button = document.createElement("button");
       button.className = "style";
       button.textContent = toTitleCase(style);
+      button.dataset.style = style;
       button.addEventListener("click", () => {
-        document.querySelectorAll(".style").forEach((el) => el.classList.remove("style--active"));
-        button.classList.add("style--active");
-        selectedStyle = style;
-        updateActionButtonState();
-        statusLabel.textContent = "Style Selected";
-        statusMeta.textContent = `${toTitleCase(style)} ready to shoot`;
+        applyStyleSelection(style, { source: "booth" });
+        sendRemoteMessage({ type: "style", style, source: "booth" });
       });
       stylesContainer.appendChild(button);
     });
+    if (selectedStyle) {
+      applyStyleSelection(selectedStyle, { announce: false });
+    }
   } catch (error) {
     statusLabel.textContent = "Offline";
     statusMeta.textContent = "Unable to load styles";
