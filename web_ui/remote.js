@@ -12,6 +12,9 @@ let socket = null;
 let reconnectTimer = null;
 let selectedStyle = null;
 let remoteBusy = false;
+let currentPromptId = null;
+let progressPoller = null;
+let comfyServerUrl = "";
 
 function setStatus(message) {
   statusLabel.textContent = message;
@@ -53,6 +56,10 @@ function setRemoteBusy(isBusy) {
     }
     button.disabled = remoteBusy;
   });
+  if (!remoteBusy && progressPoller) {
+    clearInterval(progressPoller);
+    progressPoller = null;
+  }
 }
 
 function updateProgressDisplay({ label, percent }) {
@@ -65,6 +72,39 @@ function updateProgressDisplay({ label, percent }) {
   if (progressFill) {
     progressFill.style.width = `${percent}%`;
   }
+}
+
+function startProgressPolling(promptId) {
+  if (!promptId) {
+    return;
+  }
+  if (progressPoller) {
+    clearInterval(progressPoller);
+  }
+  progressPoller = setInterval(async () => {
+    try {
+      const query = new URLSearchParams({ promptId });
+      if (comfyServerUrl) {
+        query.set("comfyServerUrl", comfyServerUrl);
+      }
+      const response = await fetch(
+        `/api/progress?${query.toString()}`
+      );
+      if (!response.ok) {
+        throw new Error("Progress unavailable");
+      }
+      const data = await response.json();
+      const percent = Math.max(0, Math.min(100, Math.round(data.percent ?? 0)));
+      const label = data.label ?? "Sampling";
+      updateProgressDisplay({ label, percent });
+      if (data.complete) {
+        setRemoteBusy(false);
+        currentPromptId = null;
+      }
+    } catch (error) {
+      updateProgressDisplay({ label: "Waiting", percent: 0 });
+    }
+  }, 1500);
 }
 
 function connectSocket() {
@@ -105,37 +145,15 @@ function connectSocket() {
         const percent = Math.max(0, Math.min(100, Math.round(payload.percent ?? 0)));
         const label = payload.label ?? "Working";
         updateProgressDisplay({ label, percent });
-        if (payload.complete) {
-          setRemoteBusy(false);
-        } else {
-          setRemoteBusy(
-            payload.status === "queueing" ||
-              payload.status === "queued" ||
-              payload.status === "generating" ||
-              payload.status === "busy" ||
-              payload.status === "waiting"
-          );
+        if (payload.promptId) {
+          currentPromptId = payload.promptId;
         }
-      }
-    } catch (error) {
-      // ignore malformed messages
-    }
-  });
-  socket.addEventListener("message", (event) => {
-    if (!event?.data) {
-      return;
-    }
-    try {
-      const payload = JSON.parse(event.data);
-      if (payload?.type === "style" && typeof payload.style === "string") {
-        setSelectedStyle(payload.style, { announce: false });
-      }
-      if (payload?.type === "progress") {
-        const percent = Math.max(0, Math.min(100, Math.round(payload.percent ?? 0)));
-        const label = payload.label ?? "Working";
-        updateProgressDisplay({ label, percent });
+        if (payload.comfyServerUrl) {
+          comfyServerUrl = payload.comfyServerUrl;
+        }
         if (payload.complete) {
           setRemoteBusy(false);
+          currentPromptId = null;
         } else {
           setRemoteBusy(
             payload.status === "queueing" ||
@@ -144,6 +162,9 @@ function connectSocket() {
               payload.status === "busy" ||
               payload.status === "waiting"
           );
+          if (currentPromptId) {
+            startProgressPolling(currentPromptId);
+          }
         }
       }
     } catch (error) {

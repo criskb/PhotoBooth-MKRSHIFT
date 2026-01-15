@@ -243,8 +243,15 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
 }
 
 function updateRemoteProgress(payload) {
-  lastRemoteProgress = { ...payload };
-  sendRemoteMessage({ type: "progress", ...payload, source: "booth" });
+  const promptId = payload.promptId ?? currentPromptId ?? lastRemoteProgress?.promptId ?? null;
+  lastRemoteProgress = { ...payload, promptId, comfyServerUrl };
+  sendRemoteMessage({
+    type: "progress",
+    ...payload,
+    promptId,
+    comfyServerUrl,
+    source: "booth",
+  });
 }
 
 async function updateRemoteInfo() {
