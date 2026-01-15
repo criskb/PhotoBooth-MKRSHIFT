@@ -746,6 +746,16 @@ function openSettings() {
   loadPrinters(printerConfig.name);
 }
 
+function handlePrinterSelection() {
+  const selectedName = settingsPrinterInput.value.trim();
+  printerConfig = {
+    ...printerConfig,
+    name: selectedName,
+  };
+  localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+}
+
 function closeSettings() {
   settingsModal.classList.remove("settings-modal--open");
 }
@@ -1032,6 +1042,7 @@ document.addEventListener("click", () => {
 });
 settingsToggle.addEventListener("click", () => openSettings());
 fullscreenToggle.addEventListener("click", toggleFullscreen);
+settingsPrinterInput.addEventListener("change", handlePrinterSelection);
 settingsSave.addEventListener("click", () => {
   savePrinterConfig();
   closeSettings();
