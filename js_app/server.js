@@ -23,6 +23,7 @@ const comfyInputPath =
 let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 const printerCommand = process.env.PRINTER_COMMAND ?? "";
+const printerListCommand = process.env.PRINTER_LIST_COMMAND ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
 let comfyProgressUrl = `${comfyServerUrl}/progress`;
 let comfyViewUrl = `${comfyServerUrl}/view`;
@@ -467,6 +468,42 @@ function runPrintCommand(command, printerName, filePath, copies = 1) {
   });
 }
 
+function parsePrinterList(output) {
+  if (!output) {
+    return [];
+  }
+  const names = output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (line.startsWith("printer ")) {
+        const parts = line.split(/\s+/);
+        return parts[1] ?? "";
+      }
+      return line.split(/\s+/)[0] ?? "";
+    })
+    .filter(Boolean);
+  return Array.from(new Set(names));
+}
+
+function listPrinters() {
+  const command =
+    printerListCommand ||
+    (process.platform === "win32"
+      ? 'powershell -NoProfile -Command "Get-Printer | Select-Object -ExpandProperty Name"'
+      : "lpstat -a");
+  return new Promise((resolve) => {
+    exec(command, (error, stdout) => {
+      if (error) {
+        resolve([]);
+        return;
+      }
+      resolve(parsePrinterList(stdout));
+    });
+  });
+}
+
 function safeFileName(value) {
   return value.replace(/[^a-zA-Z0-9-_]/g, "_");
 }
@@ -514,6 +551,19 @@ const server = http.createServer((req, res) => {
         remoteUrl: `${baseUrl}/remote.html`,
       })
     );
+    return;
+  }
+
+  if (req.url.startsWith("/api/printers")) {
+    listPrinters()
+      .then((printers) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ printers }));
+      })
+      .catch(() => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ printers: [] }));
+      });
     return;
   }
 
