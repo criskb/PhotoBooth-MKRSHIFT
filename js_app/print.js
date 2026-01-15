@@ -63,11 +63,11 @@ function listPrinters(listCommand) {
 }
 
 export function getPrintCommand() {
-  return process.env.PRINTER_COMMAND ?? "" || getDefaultPrintCommand();
+  return process.env.PRINTER_COMMAND || getDefaultPrintCommand();
 }
 
 export function getPrinterListCommand() {
-  return process.env.PRINTER_LIST_COMMAND ?? "" || getDefaultPrinterListCommand();
+  return process.env.PRINTER_LIST_COMMAND || getDefaultPrinterListCommand();
 }
 
 export function fetchPrinters() {
