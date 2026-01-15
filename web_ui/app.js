@@ -17,6 +17,7 @@ const printButton = document.querySelector(".progress-action--print");
 const doneButton = document.querySelector(".progress-action--done");
 const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
+const progressCloseButton = document.querySelector(".progress-close");
 const appRoot = document.querySelector(".app");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
@@ -232,6 +233,10 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
   return matched;
 }
 
+function updateRemoteProgress(payload) {
+  sendRemoteMessage({ type: "progress", ...payload, source: "booth" });
+}
+
 async function updateRemoteInfo() {
   let remoteUrl = new URL("/remote.html", window.location.origin).toString();
   try {
@@ -347,8 +352,15 @@ async function queueSelfie(source = "tap") {
   uploadButton.disabled = true;
   printButton.disabled = true;
   doneButton.disabled = true;
+  progressCloseButton.disabled = true;
   statusLabel.textContent = "Queueing";
   statusMeta.textContent = `Sending ${toTitleCase(selectedStyle)} to ComfyUI (${source})`;
+  updateRemoteProgress({
+    status: "queueing",
+    label: "Queueing",
+    percent: 0,
+    complete: false,
+  });
   try {
     const response = await fetch("/api/selfie", {
       method: "POST",
@@ -367,6 +379,12 @@ async function queueSelfie(source = "tap") {
     currentPromptId = data.promptId ?? data.prompt_id ?? null;
     statusLabel.textContent = "Queued";
     statusMeta.textContent = "Workflow sent to ComfyUI.";
+    updateRemoteProgress({
+      status: "queued",
+      label: "Queued",
+      percent: 0,
+      complete: false,
+    });
     startProgressPolling();
   } catch (error) {
     statusLabel.textContent = "Queue Failed";
@@ -381,6 +399,12 @@ async function queueSelfie(source = "tap") {
       element.style.width = "0%";
     });
     setBusy(false);
+    updateRemoteProgress({
+      status: "error",
+      label: "Error",
+      percent: 0,
+      complete: false,
+    });
   } finally {
     isQueueing = false;
   }
@@ -451,6 +475,12 @@ function updateProgress(progress) {
       element.style.display = "block";
     });
   }
+  updateRemoteProgress({
+    status: progress.complete ? "complete" : "generating",
+    label,
+    percent,
+    complete: Boolean(progress.complete),
+  });
 }
 
 function startProgressPolling() {
@@ -488,10 +518,23 @@ function startProgressPolling() {
         uploadButton.disabled = false;
         printButton.disabled = !printerConfig.enabled || !printerConfig.name;
         doneButton.disabled = false;
+        progressCloseButton.disabled = false;
+        updateRemoteProgress({
+          status: "complete",
+          label: "Complete",
+          percent: 100,
+          complete: true,
+        });
       }
     } catch (error) {
       progressLabels.forEach((element) => {
         element.textContent = "Waiting";
+      });
+      updateRemoteProgress({
+        status: "waiting",
+        label: "Waiting",
+        percent: 0,
+        complete: false,
       });
     }
   }, 1200);
@@ -500,6 +543,12 @@ function startProgressPolling() {
 function setBusy(isBusy) {
   if (isBusy) {
     appRoot.classList.add("app--busy");
+    updateRemoteProgress({
+      status: "busy",
+      label: "Processing",
+      percent: 0,
+      complete: false,
+    });
     return;
   }
   appRoot.classList.remove("app--busy");
@@ -521,6 +570,7 @@ function setBusy(isBusy) {
   uploadButton.disabled = true;
   printButton.disabled = true;
   doneButton.disabled = true;
+  progressCloseButton.disabled = true;
   if (progressPoller) {
     clearInterval(progressPoller);
     progressPoller = null;
@@ -528,6 +578,12 @@ function setBusy(isBusy) {
   currentPromptId = null;
   outputReady = false;
   lastOutputUrl = null;
+  updateRemoteProgress({
+    status: "ready",
+    label: "Ready",
+    percent: 0,
+    complete: false,
+  });
 }
 
 function loadPrinterConfig() {
@@ -890,12 +946,10 @@ galleryUploadButton.addEventListener("click", uploadGallerySelection);
 uploadButton.addEventListener("click", uploadToFreeimage);
 printButton.addEventListener("click", sendToPrinter);
 doneButton.addEventListener("click", () => {
-  if (!outputReady) {
-    return;
-  }
-  setBusy(false);
-  statusLabel.textContent = "Ready";
-  statusMeta.textContent = "Select a style, then tap or shake to shoot";
+  handleDoneAction();
+});
+progressCloseButton.addEventListener("click", () => {
+  handleDoneAction();
 });
 window.addEventListener("devicemotion", handleShake);
 window.addEventListener("resize", applyCameraOrientation);
@@ -908,7 +962,17 @@ loadStyles();
 loadPrinterConfig();
 updateTimerLabel();
 updateActionButtonState();
+progressCloseButton.disabled = true;
 connectRemoteSocket();
 idleController.loadImages();
 idleController.show();
 idleController.schedule();
+
+function handleDoneAction() {
+  if (!outputReady) {
+    return;
+  }
+  setBusy(false);
+  statusLabel.textContent = "Ready";
+  statusMeta.textContent = "Select a style, then tap or shake to shoot";
+}

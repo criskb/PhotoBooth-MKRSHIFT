@@ -3,11 +3,15 @@ const actionButton = document.querySelector(".remote-action");
 const statusLabel = document.querySelector(".remote-status");
 const styleList = document.querySelector(".remote-style-list");
 const styleStatus = document.querySelector(".remote-style-status");
+const progressLabel = document.querySelector(".remote-progress__label");
+const progressValue = document.querySelector(".remote-progress__value");
+const progressFill = document.querySelector(".remote-progress__fill");
 
 let selectedDelay = 0;
 let socket = null;
 let reconnectTimer = null;
 let selectedStyle = null;
+let remoteBusy = false;
 
 function setStatus(message) {
   statusLabel.textContent = message;
@@ -34,6 +38,33 @@ function setSelectedDelay(value) {
       Number(button.dataset.delay) === value
     );
   });
+}
+
+function setRemoteBusy(isBusy) {
+  remoteBusy = isBusy;
+  const controls = [
+    ...timerButtons,
+    actionButton,
+    ...Array.from(document.querySelectorAll(".remote-style")),
+  ];
+  controls.forEach((button) => {
+    if (!button) {
+      return;
+    }
+    button.disabled = remoteBusy;
+  });
+}
+
+function updateProgressDisplay({ label, percent }) {
+  if (progressLabel) {
+    progressLabel.textContent = label;
+  }
+  if (progressValue) {
+    progressValue.textContent = `${percent}%`;
+  }
+  if (progressFill) {
+    progressFill.style.width = `${percent}%`;
+  }
 }
 
 function connectSocket() {
@@ -66,6 +97,22 @@ function connectSocket() {
       if (payload?.type === "style" && typeof payload.style === "string") {
         setSelectedStyle(payload.style, { announce: false });
       }
+      if (payload?.type === "progress") {
+        const percent = Math.max(0, Math.min(100, Math.round(payload.percent ?? 0)));
+        const label = payload.label ?? "Working";
+        updateProgressDisplay({ label, percent });
+        if (payload.complete) {
+          setRemoteBusy(false);
+        } else {
+          setRemoteBusy(
+            payload.status === "queueing" ||
+              payload.status === "queued" ||
+              payload.status === "generating" ||
+              payload.status === "busy" ||
+              payload.status === "waiting"
+          );
+        }
+      }
     } catch (error) {
       // ignore malformed messages
     }
@@ -77,6 +124,10 @@ function sendCapture() {
     setStatus("Not connected yet.");
     return;
   }
+  if (remoteBusy) {
+    setStatus("Please wait for the current photo.");
+    return;
+  }
   const payload = {
     type: "capture",
     delaySeconds: selectedDelay,
@@ -84,6 +135,77 @@ function sendCapture() {
   };
   socket.send(JSON.stringify(payload));
   setStatus(`Sent (${selectedDelay}s timer).`);
+  setRemoteBusy(true);
+}
+
+function sendStyle(style) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    setStatus("Not connected yet.");
+    return;
+  }
+  if (remoteBusy) {
+    setStatus("Please wait for the current photo.");
+    return;
+  }
+  socket.send(
+    JSON.stringify({
+      type: "style",
+      style,
+      source: "remote",
+    })
+  );
+  setStatus(`Style sent: ${toTitleCase(style)}`);
+}
+
+function setSelectedStyle(style, { announce = true } = {}) {
+  selectedStyle = style;
+  const styleButtons = Array.from(document.querySelectorAll(".remote-style"));
+  styleButtons.forEach((button) => {
+    button.classList.toggle("remote-style--active", button.dataset.style === style);
+  });
+  if (announce && style) {
+    setStyleStatus(`Selected: ${toTitleCase(style)}`);
+  }
+}
+
+async function loadStyles() {
+  if (!styleList) {
+    return;
+  }
+  setStyleStatus("Loading styles…");
+  try {
+    const response = await fetch("/api/styles");
+    if (!response.ok) {
+      throw new Error("Failed to load styles");
+    }
+    const data = await response.json();
+    const styles = data.styles ?? [];
+    styleList.innerHTML = "";
+    if (!styles.length) {
+      setStyleStatus("No styles available.");
+      return;
+    }
+    styles.forEach((style) => {
+      const button = document.createElement("button");
+      button.className = "remote-style";
+      button.textContent = toTitleCase(style);
+      button.dataset.style = style;
+      button.addEventListener("click", () => {
+        setSelectedStyle(style);
+        sendStyle(style);
+      });
+      styleList.appendChild(button);
+    });
+    setStyleStatus("Tap a style to select it.");
+    if (selectedStyle) {
+      setSelectedStyle(selectedStyle, { announce: false });
+    }
+    if (remoteBusy) {
+      setRemoteBusy(true);
+    }
+  } catch (error) {
+    setStyleStatus("Unable to load styles.");
+  }
 }
 
 function sendStyle(style) {
