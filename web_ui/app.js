@@ -28,6 +28,7 @@ const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
+const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
@@ -68,6 +69,8 @@ const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let watermarkEnabled = false;
+let uploadEnabled = true;
+let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
 
 function updateActionButtonState() {
@@ -503,6 +506,61 @@ function updateProgress(progress) {
   });
 }
 
+function renderPrinterOptions(printers, selectedName) {
+  const options = [];
+  const seen = new Set();
+  const sorted = [...printers].filter(Boolean).sort();
+  sorted.forEach((name) => {
+    if (seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    options.push({ name, label: name });
+  });
+  if (selectedName && !seen.has(selectedName)) {
+    options.unshift({ name: selectedName, label: `${selectedName} (saved)` });
+  }
+  settingsPrinterInput.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = options.length ? "Select a printer" : "No printers detected";
+  settingsPrinterInput.appendChild(placeholder);
+  options.forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.name;
+    option.textContent = entry.label;
+    settingsPrinterInput.appendChild(option);
+  });
+  settingsPrinterInput.value = selectedName || "";
+}
+
+async function loadPrinters(selectedName = printerConfig.name) {
+  try {
+    const response = await fetch("/api/printers");
+    if (!response.ok) {
+      throw new Error("Printer list unavailable");
+    }
+    const data = await response.json();
+    knownPrinters = Array.isArray(data.printers) ? data.printers : [];
+  } catch (error) {
+    knownPrinters = [];
+  }
+  renderPrinterOptions(knownPrinters, selectedName);
+}
+
+function applyUploadVisibility() {
+  document.body.classList.toggle("is-upload-hidden", !uploadEnabled);
+  uploadButton.disabled = !uploadEnabled || !outputReady;
+  galleryUploadButton.disabled = !uploadEnabled || !selectedGalleryUrl;
+  if (!uploadEnabled) {
+    qrContainer.style.display = "none";
+    qrImage.src = "";
+    galleryUploadStatus.textContent = "";
+    galleryQr.style.display = "none";
+    galleryQrImage.src = "";
+  }
+}
+
 function startProgressPolling() {
   if (!currentPromptId) {
     return;
@@ -535,7 +593,7 @@ function startProgressPolling() {
           element.textContent = "Complete";
         });
         outputReady = true;
-        uploadButton.disabled = false;
+        uploadButton.disabled = !uploadEnabled;
         printButton.disabled = !printerConfig.enabled || !printerConfig.name;
         doneButton.disabled = false;
         progressCloseButton.disabled = false;
@@ -632,12 +690,17 @@ function loadPrinterConfig() {
     if (watermarkRaw !== null) {
       watermarkEnabled = watermarkRaw === "true";
     }
+    const uploadRaw = localStorage.getItem("uploadEnabled");
+    if (uploadRaw !== null) {
+      uploadEnabled = uploadRaw === "true";
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
     comfyServerUrl = defaultComfyServerUrl;
     cameraOrientation = 0;
     watermarkEnabled = false;
+    uploadEnabled = true;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsOrientationInput.value = String(cameraOrientation || 0);
@@ -645,10 +708,13 @@ function loadPrinterConfig() {
   settingsPrinterCopiesInput.value = String(printerConfig.copies || 1);
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
   settingsFreeimageInput.value = freeimageApiKey || "";
+  settingsUploadsInput.checked = uploadEnabled;
   settingsWatermarkInput.checked = watermarkEnabled;
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
   updateRemoteInfo();
+  applyUploadVisibility();
+  loadPrinters(printerConfig.name);
 }
 
 function savePrinterConfig() {
@@ -667,13 +733,27 @@ function savePrinterConfig() {
   localStorage.setItem("cameraOrientation", String(cameraOrientation));
   watermarkEnabled = settingsWatermarkInput.checked;
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
+  uploadEnabled = settingsUploadsInput.checked;
+  localStorage.setItem("uploadEnabled", String(uploadEnabled));
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
+  applyUploadVisibility();
 }
 
 function openSettings() {
   settingsModal.classList.add("settings-modal--open");
   settingsClose.disabled = false;
+  loadPrinters(printerConfig.name);
+}
+
+function handlePrinterSelection() {
+  const selectedName = settingsPrinterInput.value.trim();
+  printerConfig = {
+    ...printerConfig,
+    name: selectedName,
+  };
+  localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
 }
 
 function closeSettings() {
@@ -701,7 +781,7 @@ function setGallerySelection(item) {
   selectedGalleryUrl = item.outputUrl;
   galleryInputImage.src = item.inputUrl;
   galleryOutputImage.src = item.outputUrl;
-  galleryUploadButton.disabled = false;
+  galleryUploadButton.disabled = !uploadEnabled;
   galleryUploadStatus.textContent = "";
   galleryQr.style.display = "none";
   galleryQrImage.src = "";
@@ -837,6 +917,9 @@ async function uploadToFreeimage() {
   if (!lastOutputUrl) {
     return;
   }
+  if (!uploadEnabled) {
+    return;
+  }
   uploadButton.disabled = true;
   try {
     const imageUrl = await resolveShareImageUrl(lastOutputUrl);
@@ -851,12 +934,15 @@ async function uploadToFreeimage() {
     statusLabel.textContent = "Upload Failed";
     statusMeta.textContent = error?.message || "Unable to upload the image.";
   } finally {
-    uploadButton.disabled = false;
+    uploadButton.disabled = !uploadEnabled || !outputReady;
   }
 }
 
 async function uploadGallerySelection() {
   if (!selectedGalleryUrl) {
+    return;
+  }
+  if (!uploadEnabled) {
     return;
   }
   galleryUploadButton.disabled = true;
@@ -872,7 +958,7 @@ async function uploadGallerySelection() {
   } catch (error) {
     galleryUploadStatus.textContent = error?.message || "Upload failed.";
   } finally {
-    galleryUploadButton.disabled = false;
+    galleryUploadButton.disabled = !uploadEnabled;
   }
 }
 
@@ -899,7 +985,7 @@ async function sendToPrinter() {
     statusMeta.textContent = `Sent to printer ${printerConfig.name}`;
   } catch (error) {
     statusLabel.textContent = "Print Failed";
-    statusMeta.textContent = "Printer not configured or unavailable.";
+    statusMeta.textContent = error?.message || "Printer not configured or unavailable.";
   } finally {
     printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   }
@@ -956,6 +1042,7 @@ document.addEventListener("click", () => {
 });
 settingsToggle.addEventListener("click", () => openSettings());
 fullscreenToggle.addEventListener("click", toggleFullscreen);
+settingsPrinterInput.addEventListener("change", handlePrinterSelection);
 settingsSave.addEventListener("click", () => {
   savePrinterConfig();
   closeSettings();

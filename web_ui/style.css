@@ -769,6 +769,11 @@ html {
   color: rgba(247, 247, 251, 0.75);
 }
 
+.is-upload-hidden .progress-action--upload,
+.is-upload-hidden .gallery-action--upload {
+  display: none;
+}
+
 .gallery-qr {
   display: none;
   align-items: center;

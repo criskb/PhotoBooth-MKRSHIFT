@@ -3,11 +3,11 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import crypto from "node:crypto";
-import { exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import WebSocket, { WebSocketServer } from "ws";
 import { loadWorkflowJson, loadWorkflowStyles } from "./workflowLoader.js";
 import { sendWorkflow } from "./comfyClient.js";
+import { fetchPrinters, sendToPrinter } from "./print.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +22,6 @@ const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
 let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
-const printerCommand = process.env.PRINTER_COMMAND ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
 let comfyProgressUrl = `${comfyServerUrl}/progress`;
 let comfyViewUrl = `${comfyServerUrl}/view`;
@@ -451,22 +450,6 @@ async function saveTempImage(imageUrl, req) {
   return filePath;
 }
 
-function runPrintCommand(command, printerName, filePath, copies = 1) {
-  const cmd = command
-    .replace("{printer}", printerName)
-    .replace("{file}", filePath)
-    .replace("{copies}", String(copies));
-  return new Promise((resolve, reject) => {
-    exec(cmd, (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
 function safeFileName(value) {
   return value.replace(/[^a-zA-Z0-9-_]/g, "_");
 }
@@ -514,6 +497,19 @@ const server = http.createServer((req, res) => {
         remoteUrl: `${baseUrl}/remote.html`,
       })
     );
+    return;
+  }
+
+  if (req.url.startsWith("/api/printers")) {
+    fetchPrinters()
+      .then((printers) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ printers }));
+      })
+      .catch(() => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ printers: [] }));
+      });
     return;
   }
 
@@ -831,11 +827,6 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.url.startsWith("/api/print") && req.method === "POST") {
-    if (!printerCommand) {
-      res.writeHead(501);
-      res.end("PRINTER_COMMAND not configured");
-      return;
-    }
     readJsonBody(req)
       .then(async (payload) => {
         const imageUrl = payload.imageUrl;
@@ -848,7 +839,7 @@ const server = http.createServer((req, res) => {
         }
         const filePath = await saveTempImage(imageUrl, req);
         const safeCopies = Number.isFinite(copies) && copies > 0 ? Math.floor(copies) : 1;
-        await runPrintCommand(printerCommand, printerName, filePath, safeCopies);
+        await sendToPrinter(printerName, filePath, safeCopies);
         res.writeHead(202, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ status: "sent" }));
       })
