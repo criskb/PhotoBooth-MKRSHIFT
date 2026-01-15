@@ -10,13 +10,27 @@
   <main class="remote-card">
     <header class="remote-header">
       <h1>Photo Booth Remote</h1>
-      <p>Choose a timer and tap capture to trigger the booth.</p>
+      <p>Choose a style, set a timer, and tap capture to trigger the booth.</p>
     </header>
+    <section class="remote-styles" aria-label="Style options">
+      <h2 class="remote-subtitle">Styles</h2>
+      <div class="remote-style-list"></div>
+      <p class="remote-style-status" aria-live="polite">Loading styles…</p>
+    </section>
     <section class="remote-timers" aria-label="Timer options">
       <button class="remote-timer remote-timer--active" data-delay="0">0s</button>
       <button class="remote-timer" data-delay="3">3s</button>
       <button class="remote-timer" data-delay="5">5s</button>
       <button class="remote-timer" data-delay="10">10s</button>
+    </section>
+    <section class="remote-progress" aria-live="polite">
+      <div class="remote-progress__meta">
+        <span class="remote-progress__label">Ready</span>
+        <span class="remote-progress__value">0%</span>
+      </div>
+      <div class="remote-progress__bar">
+        <span class="remote-progress__fill"></span>
+      </div>
     </section>
     <button class="remote-action">Take Selfie</button>
     <p class="remote-status" aria-live="polite">Connecting…</p>
