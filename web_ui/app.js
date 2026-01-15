@@ -28,6 +28,7 @@ const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
+const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
@@ -68,6 +69,7 @@ const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let watermarkEnabled = false;
+let uploadEnabled = true;
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
 
 function updateActionButtonState() {
@@ -503,6 +505,19 @@ function updateProgress(progress) {
   });
 }
 
+function applyUploadVisibility() {
+  document.body.classList.toggle("is-upload-hidden", !uploadEnabled);
+  uploadButton.disabled = !uploadEnabled || !outputReady;
+  galleryUploadButton.disabled = !uploadEnabled || !selectedGalleryUrl;
+  if (!uploadEnabled) {
+    qrContainer.style.display = "none";
+    qrImage.src = "";
+    galleryUploadStatus.textContent = "";
+    galleryQr.style.display = "none";
+    galleryQrImage.src = "";
+  }
+}
+
 function startProgressPolling() {
   if (!currentPromptId) {
     return;
@@ -535,7 +550,7 @@ function startProgressPolling() {
           element.textContent = "Complete";
         });
         outputReady = true;
-        uploadButton.disabled = false;
+        uploadButton.disabled = !uploadEnabled;
         printButton.disabled = !printerConfig.enabled || !printerConfig.name;
         doneButton.disabled = false;
         progressCloseButton.disabled = false;
@@ -632,12 +647,17 @@ function loadPrinterConfig() {
     if (watermarkRaw !== null) {
       watermarkEnabled = watermarkRaw === "true";
     }
+    const uploadRaw = localStorage.getItem("uploadEnabled");
+    if (uploadRaw !== null) {
+      uploadEnabled = uploadRaw === "true";
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
     comfyServerUrl = defaultComfyServerUrl;
     cameraOrientation = 0;
     watermarkEnabled = false;
+    uploadEnabled = true;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsOrientationInput.value = String(cameraOrientation || 0);
@@ -645,10 +665,12 @@ function loadPrinterConfig() {
   settingsPrinterCopiesInput.value = String(printerConfig.copies || 1);
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
   settingsFreeimageInput.value = freeimageApiKey || "";
+  settingsUploadsInput.checked = uploadEnabled;
   settingsWatermarkInput.checked = watermarkEnabled;
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
   updateRemoteInfo();
+  applyUploadVisibility();
 }
 
 function savePrinterConfig() {
@@ -667,8 +689,11 @@ function savePrinterConfig() {
   localStorage.setItem("cameraOrientation", String(cameraOrientation));
   watermarkEnabled = settingsWatermarkInput.checked;
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
+  uploadEnabled = settingsUploadsInput.checked;
+  localStorage.setItem("uploadEnabled", String(uploadEnabled));
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
+  applyUploadVisibility();
 }
 
 function openSettings() {
@@ -701,7 +726,7 @@ function setGallerySelection(item) {
   selectedGalleryUrl = item.outputUrl;
   galleryInputImage.src = item.inputUrl;
   galleryOutputImage.src = item.outputUrl;
-  galleryUploadButton.disabled = false;
+  galleryUploadButton.disabled = !uploadEnabled;
   galleryUploadStatus.textContent = "";
   galleryQr.style.display = "none";
   galleryQrImage.src = "";
@@ -837,6 +862,9 @@ async function uploadToFreeimage() {
   if (!lastOutputUrl) {
     return;
   }
+  if (!uploadEnabled) {
+    return;
+  }
   uploadButton.disabled = true;
   try {
     const imageUrl = await resolveShareImageUrl(lastOutputUrl);
@@ -851,12 +879,15 @@ async function uploadToFreeimage() {
     statusLabel.textContent = "Upload Failed";
     statusMeta.textContent = error?.message || "Unable to upload the image.";
   } finally {
-    uploadButton.disabled = false;
+    uploadButton.disabled = !uploadEnabled || !outputReady;
   }
 }
 
 async function uploadGallerySelection() {
   if (!selectedGalleryUrl) {
+    return;
+  }
+  if (!uploadEnabled) {
     return;
   }
   galleryUploadButton.disabled = true;
@@ -872,7 +903,7 @@ async function uploadGallerySelection() {
   } catch (error) {
     galleryUploadStatus.textContent = error?.message || "Upload failed.";
   } finally {
-    galleryUploadButton.disabled = false;
+    galleryUploadButton.disabled = !uploadEnabled;
   }
 }
 
