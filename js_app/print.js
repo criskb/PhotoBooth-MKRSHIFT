@@ -1,6 +1,6 @@
 import { exec } from "node:child_process";
 
-function parsePrinterList(output) {
+function parsePrinterList(output, { isWindows = false } = {}) {
   if (!output) {
     return [];
   }
@@ -9,6 +9,9 @@ function parsePrinterList(output) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
+      if (isWindows) {
+        return line;
+      }
       if (line.startsWith("printer ")) {
         const parts = line.split(/\s+/);
         return parts[1] ?? "";
@@ -21,7 +24,56 @@ function parsePrinterList(output) {
 
 function getDefaultPrintCommand() {
   if (process.platform === "win32") {
-    return 'powershell -NoProfile -Command "Start-Process -FilePath \\"{file}\\" -Verb PrintTo -ArgumentList \\"{printer}\\""';
+    return [
+      'powershell -NoProfile -WindowStyle Hidden -Command "',
+      "$ErrorActionPreference = 'Stop';",
+      "Add-Type -AssemblyName System.Drawing;",
+      "$printer = '{printer}';",
+      "$file = '{file}';",
+      "$copies = [int]{copies};",
+      "$img = [System.Drawing.Image]::FromFile($file);",
+      "$doc = New-Object System.Drawing.Printing.PrintDocument;",
+      "$doc.PrinterSettings.PrinterName = $printer;",
+      "if (-not $doc.PrinterSettings.IsValid) {",
+      "  $available = (Get-Printer | Select-Object -ExpandProperty Name) -join ', ';",
+      "  throw (\"Printer \" + $printer + \" is not valid. Available: \" + $available);",
+      "}",
+      "if (Get-Command Set-PrintConfiguration -ErrorAction SilentlyContinue) {",
+      "  Set-PrintConfiguration -PrinterName $printer -Color $true -ErrorAction SilentlyContinue;",
+      "}",
+      "$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController;",
+      "$doc.OriginAtMargins = $false;",
+      "$doc.DefaultPageSettings.Landscape = $false;",
+      "$doc.DefaultPageSettings.Color = $true;",
+      "$doc.PrinterSettings.DefaultPageSettings.Color = $true;",
+      "$doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0, 0, 0, 0);",
+      "$paper = New-Object System.Drawing.Printing.PaperSize('PostcardBorderless', 394, 583);",
+      "$doc.DefaultPageSettings.PaperSize = $paper;",
+      "$res = $doc.PrinterSettings.PrinterResolutions | Sort-Object X,Y -Descending | Select-Object -First 1;",
+      "if ($res) { $doc.DefaultPageSettings.PrinterResolution = $res; }",
+      "$doc.add_PrintPage({ param($sender, $e)",
+      "  $printImg = $img;",
+      "  if ($printImg.Width -gt $printImg.Height) {",
+      "    $printImg.RotateFlip([System.Drawing.RotateFlipType]::Rotate90FlipNone);",
+      "  }",
+      "  $e.Graphics.PageUnit = [System.Drawing.GraphicsUnit]::Pixel;",
+      "  $e.PageSettings.Color = $true;",
+      "  $e.Graphics.TranslateTransform(-$e.PageSettings.HardMarginX, -$e.PageSettings.HardMarginY);",
+      "  $bounds = $e.PageBounds;",
+      "  $pageWidth = $bounds.Width * $e.Graphics.DpiX / 100;",
+      "  $pageHeight = $bounds.Height * $e.Graphics.DpiY / 100;",
+      "  $ratio = [Math]::Max($pageWidth / $printImg.Width, $pageHeight / $printImg.Height);",
+      "  $w = [int]($printImg.Width * $ratio);",
+      "  $h = [int]($printImg.Height * $ratio);",
+      "  $x = [int](($pageWidth - $w) / 2);",
+      "  $y = [int](($pageHeight - $h) / 2);",
+      "  $e.Graphics.DrawImage($printImg, $x, $y, $w, $h);",
+      "  $e.HasMorePages = $false;",
+      "});",
+      "for ($i = 0; $i -lt $copies; $i++) { $doc.Print(); }",
+      "$img.Dispose();",
+      '"'
+    ].join(" ");
   }
   return 'lp -d "{printer}" -n {copies} "{file}"';
 }
@@ -57,7 +109,7 @@ function listPrinters(listCommand) {
         resolve([]);
         return;
       }
-      resolve(parsePrinterList(stdout));
+      resolve(parsePrinterList(stdout, { isWindows: process.platform === "win32" }));
     });
   });
 }
