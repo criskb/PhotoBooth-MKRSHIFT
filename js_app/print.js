@@ -33,7 +33,7 @@ function getDefaultPrintCommand() {
       "$doc.PrinterSettings.PrinterName = $printer;",
       "if (-not $doc.PrinterSettings.IsValid) {",
       "  $available = (Get-Printer | Select-Object -ExpandProperty Name) -join ', ';",
-      "  throw \"Printer '$printer' is not valid. Available: $available\";",
+      "  throw (\"Printer \" + $printer + \" is not valid. Available: \" + $available);",
       "}",
       "$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController;",
       "$doc.DefaultPageSettings.Landscape = $false;",
