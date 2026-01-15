@@ -985,7 +985,7 @@ async function sendToPrinter() {
     statusMeta.textContent = `Sent to printer ${printerConfig.name}`;
   } catch (error) {
     statusLabel.textContent = "Print Failed";
-    statusMeta.textContent = "Printer not configured or unavailable.";
+    statusMeta.textContent = error?.message || "Printer not configured or unavailable.";
   } finally {
     printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   }
