@@ -67,6 +67,10 @@ let cameraOrientation = 0;
 let watermarkEnabled = false;
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
 
+function updateActionButtonState() {
+  actionButton.disabled = !selectedStyle;
+}
+
 function toTitleCase(value) {
   return value
     .split(" ")
@@ -112,6 +116,12 @@ function triggerFlash() {
 
 function startCountdown(delaySeconds, source) {
   if (isQueueing || countdownActive) {
+    return;
+  }
+  if (!selectedStyle) {
+    statusLabel.textContent = "Pick a Style";
+    statusMeta.textContent = "Select a style before taking a selfie.";
+    updateActionButtonState();
     return;
   }
   const delay = Number(delaySeconds) || 0;
@@ -775,6 +785,7 @@ async function loadStyles() {
         document.querySelectorAll(".style").forEach((el) => el.classList.remove("style--active"));
         button.classList.add("style--active");
         selectedStyle = style;
+        updateActionButtonState();
         statusLabel.textContent = "Style Selected";
         statusMeta.textContent = `${toTitleCase(style)} ready to shoot`;
       });
@@ -836,6 +847,7 @@ startCamera();
 loadStyles();
 loadPrinterConfig();
 updateTimerLabel();
+updateActionButtonState();
 connectRemoteSocket();
 idleController.loadImages();
 idleController.show();

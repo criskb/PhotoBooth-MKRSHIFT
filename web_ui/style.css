@@ -815,6 +815,13 @@ html {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   box-shadow: 0 12px 30px rgba(36, 178, 107, 0.35);
+  cursor: pointer;
+}
+
+.action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .styles {
