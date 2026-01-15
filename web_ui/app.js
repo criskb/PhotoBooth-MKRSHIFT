@@ -190,6 +190,9 @@ function connectRemoteSocket() {
       if (payload?.type === "style" && typeof payload.style === "string") {
         applyStyleSelection(payload.style, { source: payload.source ?? "remote" });
       }
+      if (payload?.type === "exit") {
+        handleDoneAction();
+      }
       if (payload?.type === "status-request") {
         if (selectedStyle) {
           sendRemoteMessage({ type: "style", style: selectedStyle, source: "booth" });

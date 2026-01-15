@@ -1025,7 +1025,26 @@ html {
   box-shadow: 0 12px 30px rgba(36, 178, 107, 0.35);
 }
 
+.remote-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.remote-exit {
+  padding: 0.75rem 1.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(18, 22, 33, 0.7);
+  color: #f7f7fb;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .remote-action:disabled,
+.remote-exit:disabled,
 .remote-style:disabled,
 .remote-timer:disabled {
   opacity: 0.5;

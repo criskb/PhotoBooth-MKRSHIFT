@@ -934,6 +934,13 @@ remoteWss.on("connection", (socket) => {
         });
         return;
       }
+      if (payload?.type === "exit") {
+        broadcastRemote({
+          type: "exit",
+          source: payload.source ?? "remote",
+        });
+        return;
+      }
       if (payload?.type === "status-request") {
         broadcastRemote({
           type: "status-request",

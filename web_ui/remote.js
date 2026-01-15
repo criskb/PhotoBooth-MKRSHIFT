@@ -6,6 +6,7 @@ const styleStatus = document.querySelector(".remote-style-status");
 const progressLabel = document.querySelector(".remote-progress__label");
 const progressValue = document.querySelector(".remote-progress__value");
 const progressFill = document.querySelector(".remote-progress__fill");
+const exitButton = document.querySelector(".remote-exit");
 
 let selectedDelay = 0;
 let socket = null;
@@ -15,6 +16,7 @@ let remoteBusy = false;
 let currentPromptId = null;
 let progressPoller = null;
 let comfyServerUrl = "";
+let resultReady = false;
 
 function setStatus(message) {
   statusLabel.textContent = message;
@@ -56,6 +58,9 @@ function setRemoteBusy(isBusy) {
     }
     button.disabled = remoteBusy;
   });
+  if (exitButton) {
+    exitButton.disabled = !resultReady;
+  }
   if (!remoteBusy && progressPoller) {
     clearInterval(progressPoller);
     progressPoller = null;
@@ -71,6 +76,13 @@ function updateProgressDisplay({ label, percent }) {
   }
   if (progressFill) {
     progressFill.style.width = `${percent}%`;
+  }
+}
+
+function setResultReady(isReady) {
+  resultReady = isReady;
+  if (exitButton) {
+    exitButton.disabled = !resultReady;
   }
 }
 
@@ -98,7 +110,8 @@ function startProgressPolling(promptId) {
       const label = data.label ?? "Sampling";
       updateProgressDisplay({ label, percent });
       if (data.complete) {
-        setRemoteBusy(false);
+        setResultReady(true);
+        setRemoteBusy(true);
         currentPromptId = null;
       }
     } catch (error) {
@@ -126,6 +139,7 @@ function connectSocket() {
     setStatus("Disconnected. Reconnecting…");
     reconnectTimer = setTimeout(connectSocket, 1500);
     setRemoteBusy(false);
+    setResultReady(false);
     updateProgressDisplay({ label: "Disconnected", percent: 0 });
   });
   socket.addEventListener("error", () => {
@@ -152,9 +166,14 @@ function connectSocket() {
           comfyServerUrl = payload.comfyServerUrl;
         }
         if (payload.complete) {
-          setRemoteBusy(false);
+          setResultReady(true);
+          setRemoteBusy(true);
           currentPromptId = null;
+        } else if (payload.status === "ready") {
+          setResultReady(false);
+          setRemoteBusy(false);
         } else {
+          setResultReady(false);
           setRemoteBusy(
             payload.status === "queueing" ||
               payload.status === "queued" ||
@@ -189,6 +208,7 @@ function sendCapture() {
   };
   socket.send(JSON.stringify(payload));
   setStatus(`Sent (${selectedDelay}s timer).`);
+  setResultReady(false);
   setRemoteBusy(true);
 }
 
@@ -209,6 +229,21 @@ function sendStyle(style) {
     })
   );
   setStatus(`Style sent: ${toTitleCase(style)}`);
+}
+
+function sendExit() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    setStatus("Not connected yet.");
+    return;
+  }
+  if (!resultReady) {
+    return;
+  }
+  socket.send(JSON.stringify({ type: "exit", source: "remote" }));
+  setResultReady(false);
+  setRemoteBusy(false);
+  updateProgressDisplay({ label: "Ready", percent: 0 });
+  setStatus("Ready for a new photo.");
 }
 
 function setSelectedStyle(style, { announce = true } = {}) {
@@ -270,6 +305,9 @@ timerButtons.forEach((button) => {
 });
 
 actionButton.addEventListener("click", sendCapture);
+if (exitButton) {
+  exitButton.addEventListener("click", sendExit);
+}
 
 loadStyles();
 connectSocket();
