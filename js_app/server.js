@@ -488,7 +488,11 @@ function parsePrinterList(output) {
 }
 
 function listPrinters() {
-  const command = printerListCommand || "lpstat -a";
+  const command =
+    printerListCommand ||
+    (process.platform === "win32"
+      ? 'powershell -NoProfile -Command "Get-Printer | Select-Object -ExpandProperty Name"'
+      : "lpstat -a");
   return new Promise((resolve) => {
     exec(command, (error, stdout) => {
       if (error) {
