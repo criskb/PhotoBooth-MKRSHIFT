@@ -920,6 +920,20 @@ remoteWss.on("connection", (socket) => {
         });
         return;
       }
+      if (payload?.type === "progress") {
+        const percent = Number(payload.percent ?? 0);
+        broadcastRemote({
+          type: "progress",
+          status: payload.status ?? "generating",
+          label: payload.label ?? "Sampling",
+          percent: Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0,
+          complete: Boolean(payload.complete),
+          promptId: payload.promptId ?? null,
+          comfyServerUrl: payload.comfyServerUrl ?? null,
+          source: payload.source ?? "booth",
+        });
+        return;
+      }
       if (payload?.type === "status-request") {
         broadcastRemote({
           type: "status-request",
