@@ -25,7 +25,7 @@ function parsePrinterList(output, { isWindows = false } = {}) {
 function getDefaultPrintCommand() {
   if (process.platform === "win32") {
     return [
-      'powershell -NoProfile -Command "',
+      'powershell -NoProfile -WindowStyle Hidden -Command "',
       "$ErrorActionPreference = 'Stop';",
       "Add-Type -AssemblyName System.Drawing;",
       "$printer = '{printer}';",
@@ -39,6 +39,7 @@ function getDefaultPrintCommand() {
       "  throw (\"Printer \" + $printer + \" is not valid. Available: \" + $available);",
       "}",
       "$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController;",
+      "$doc.OriginAtMargins = $false;",
       "$doc.DefaultPageSettings.Landscape = $false;",
       "$doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0, 0, 0, 0);",
       "$paper = New-Object System.Drawing.Printing.PaperSize('PostcardBorderless', 394, 583);",
@@ -48,6 +49,8 @@ function getDefaultPrintCommand() {
       "  if ($printImg.Width -gt $printImg.Height) {",
       "    $printImg.RotateFlip([System.Drawing.RotateFlipType]::Rotate90FlipNone);",
       "  }",
+      "  $e.Graphics.PageUnit = [System.Drawing.GraphicsUnit]::Pixel;",
+      "  $e.Graphics.TranslateTransform(-$e.PageSettings.HardMarginX, -$e.PageSettings.HardMarginY);",
       "  $bounds = $e.PageBounds;",
       "  $ratio = [Math]::Min($bounds.Width / $printImg.Width, $bounds.Height / $printImg.Height);",
       "  $w = [int]($printImg.Width * $ratio);",
