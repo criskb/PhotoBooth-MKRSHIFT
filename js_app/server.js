@@ -336,6 +336,24 @@ function parseComfyProgressPercent(progressPayload) {
   if (typeof progressPayload === "number" && Number.isFinite(progressPayload)) {
     return progressPayload <= 1 ? progressPayload * 100 : progressPayload;
   }
+  const nestedProgress = progressPayload?.progress;
+  if (nestedProgress && typeof nestedProgress === "object") {
+    const nestedPercent = parseComfyProgressPercent(nestedProgress);
+    if (nestedPercent > 0) {
+      return nestedPercent;
+    }
+  }
+  const percentValue = Number(
+    progressPayload?.percent ??
+      progressPayload?.percentage ??
+      progressPayload?.progressPercent ??
+      progressPayload?.progress_percent ??
+      progressPayload?.ratio ??
+      0
+  );
+  if (Number.isFinite(percentValue) && percentValue > 0) {
+    return percentValue <= 1 ? percentValue * 100 : percentValue;
+  }
   const progressValue = Number(
     progressPayload?.value ??
       progressPayload?.current ??
