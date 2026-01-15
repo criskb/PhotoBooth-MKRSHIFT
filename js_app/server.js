@@ -5,7 +5,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import WebSocket from "ws";
+import WebSocket, { WebSocketServer } from "ws";
 import { loadWorkflowJson, loadWorkflowStyles } from "./workflowLoader.js";
 import { sendWorkflow } from "./comfyClient.js";
 
@@ -33,6 +33,7 @@ const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
 let lastPromptId = null;
+const remoteClients = new Set();
 
 function setComfyServerUrl(nextUrl) {
   if (!nextUrl || nextUrl === comfyServerUrl) {
@@ -439,6 +440,15 @@ async function fetchComfyImageBuffer(image) {
   return Buffer.from(await response.arrayBuffer());
 }
 
+function broadcastRemote(payload) {
+  const message = JSON.stringify(payload);
+  remoteClients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+}
+
 const server = http.createServer((req, res) => {
   if (!req.url) {
     res.writeHead(400);
@@ -818,6 +828,40 @@ const server = http.createServer((req, res) => {
     };
     res.writeHead(200, { "Content-Type": typeMap[ext] ?? "application/octet-stream" });
     res.end(data);
+  });
+});
+
+const remoteWss = new WebSocketServer({ server, path: "/remote-ws" });
+
+remoteWss.on("connection", (socket) => {
+  remoteClients.add(socket);
+  socket.on("message", (data, isBinary) => {
+    if (isBinary) {
+      return;
+    }
+    const raw = typeof data === "string" ? data : data?.toString?.("utf8");
+    if (!raw) {
+      return;
+    }
+    try {
+      const payload = JSON.parse(raw);
+      if (payload?.type === "capture") {
+        const delaySeconds = Number(payload.delaySeconds ?? payload.delay ?? payload.timer ?? 0) || 0;
+        broadcastRemote({
+          type: "capture",
+          delaySeconds,
+          source: payload.source ?? "remote",
+        });
+      }
+    } catch (error) {
+      // ignore malformed messages
+    }
+  });
+  socket.on("close", () => {
+    remoteClients.delete(socket);
+  });
+  socket.on("error", () => {
+    remoteClients.delete(socket);
   });
 });
 

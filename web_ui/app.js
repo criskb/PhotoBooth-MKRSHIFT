@@ -5,6 +5,9 @@ const stylesContainer = document.querySelector(".styles");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
 const actionButton = document.querySelector(".action");
+const timerToggle = document.querySelector(".timer-toggle");
+const timerMenu = document.querySelector(".timer-menu");
+const timerOptions = Array.from(document.querySelectorAll(".timer-option"));
 const progressLabels = Array.from(document.querySelectorAll(".progress__label"));
 const progressValues = Array.from(document.querySelectorAll(".progress__value"));
 const progressFills = Array.from(document.querySelectorAll(".progress__fill"));
@@ -25,6 +28,7 @@ const settingsPrinterCopiesInput = document.querySelector(".settings-input--prin
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
+const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
 const galleryToggle = document.querySelector(".gallery-toggle");
@@ -37,6 +41,9 @@ const galleryUploadButton = document.querySelector(".gallery-action--upload");
 const galleryUploadStatus = document.querySelector(".gallery-upload-status");
 const galleryQr = document.querySelector(".gallery-qr");
 const galleryQrImage = document.querySelector(".gallery-qr-image");
+const countdownOverlay = document.querySelector(".countdown-overlay");
+const countdownValue = document.querySelector(".countdown-value");
+const flashOverlay = document.querySelector(".flash-overlay");
 
 let selectedStyle = null;
 let isQueueing = false;
@@ -49,6 +56,11 @@ let lastOutputUrl = null;
 let printerConfig = { name: "", enabled: false, copies: 1 };
 let freeimageApiKey = "";
 let selectedGalleryUrl = "";
+let selectedDelay = 0;
+let countdownTimer = null;
+let countdownActive = false;
+let remoteSocket = null;
+let remoteSocketReconnect = null;
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
@@ -68,6 +80,105 @@ function getOrientationDegrees(value) {
     return -90;
   }
   return orientation;
+}
+
+function updateTimerLabel() {
+  timerToggle.textContent = `⏱️ ${selectedDelay}s`;
+  timerToggle.setAttribute("aria-expanded", String(timerMenu.classList.contains("timer-menu--open")));
+  timerOptions.forEach((option) => {
+    option.classList.toggle(
+      "timer-option--active",
+      Number(option.dataset.delay) === selectedDelay
+    );
+  });
+}
+
+function closeTimerMenu() {
+  timerMenu.classList.remove("timer-menu--open");
+  updateTimerLabel();
+}
+
+function toggleTimerMenu() {
+  timerMenu.classList.toggle("timer-menu--open");
+  updateTimerLabel();
+}
+
+function triggerFlash() {
+  flashOverlay.classList.add("flash-overlay--active");
+  setTimeout(() => {
+    flashOverlay.classList.remove("flash-overlay--active");
+  }, 240);
+}
+
+function startCountdown(delaySeconds, source) {
+  if (isQueueing || countdownActive) {
+    return;
+  }
+  const delay = Number(delaySeconds) || 0;
+  if (delay <= 0) {
+    triggerFlash();
+    setTimeout(() => {
+      queueSelfie(source);
+    }, 140);
+    return;
+  }
+  countdownActive = true;
+  let remaining = delay;
+  countdownValue.textContent = String(remaining);
+  countdownOverlay.classList.add("countdown-overlay--active");
+  statusLabel.textContent = "Countdown";
+  statusMeta.textContent = `Taking photo in ${remaining}s`;
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+  }
+  countdownTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+      countdownOverlay.classList.remove("countdown-overlay--active");
+      countdownActive = false;
+      triggerFlash();
+      setTimeout(() => {
+        queueSelfie(source);
+      }, 140);
+      return;
+    }
+    countdownValue.textContent = String(remaining);
+    statusMeta.textContent = `Taking photo in ${remaining}s`;
+  }, 1000);
+}
+
+function connectRemoteSocket() {
+  if (remoteSocketReconnect) {
+    clearTimeout(remoteSocketReconnect);
+    remoteSocketReconnect = null;
+  }
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const wsUrl = `${protocol}://${window.location.host}/remote-ws`;
+  remoteSocket = new WebSocket(wsUrl);
+  remoteSocket.addEventListener("message", (event) => {
+    if (!event?.data) {
+      return;
+    }
+    try {
+      const payload = JSON.parse(event.data);
+      if (payload?.type === "capture") {
+        const delay = Number(
+          payload.delaySeconds ?? payload.delay ?? payload.timer ?? payload.seconds ?? 0
+        );
+        startCountdown(delay, payload.source ?? "remote");
+      }
+    } catch (error) {
+      // ignore malformed messages
+    }
+  });
+  remoteSocket.addEventListener("close", () => {
+    remoteSocketReconnect = setTimeout(connectRemoteSocket, 1500);
+  });
+  remoteSocket.addEventListener("error", () => {
+    remoteSocketReconnect = setTimeout(connectRemoteSocket, 1500);
+  });
 }
 
 
@@ -385,6 +496,12 @@ function loadPrinterConfig() {
   settingsWatermarkInput.checked = watermarkEnabled;
   printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
   applyCameraOrientation();
+  if (settingsRemoteQr) {
+    const remoteUrl = new URL("/remote.html", window.location.origin).toString();
+    settingsRemoteQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+      remoteUrl
+    )}`;
+  }
 }
 
 function savePrinterConfig() {
@@ -671,7 +788,23 @@ async function loadStyles() {
 
 actionButton.addEventListener("click", async () => {
   await ensureMotionPermission();
-  queueSelfie("tap");
+  startCountdown(selectedDelay, "tap");
+});
+timerToggle.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleTimerMenu();
+});
+timerOptions.forEach((option) => {
+  option.addEventListener("click", (event) => {
+    event.stopPropagation();
+    selectedDelay = Number(option.dataset.delay) || 0;
+    closeTimerMenu();
+  });
+});
+document.addEventListener("click", () => {
+  if (timerMenu.classList.contains("timer-menu--open")) {
+    closeTimerMenu();
+  }
 });
 settingsToggle.addEventListener("click", () => openSettings());
 fullscreenToggle.addEventListener("click", toggleFullscreen);
@@ -702,6 +835,8 @@ window.addEventListener("resize", applyCameraOrientation);
 startCamera();
 loadStyles();
 loadPrinterConfig();
+updateTimerLabel();
+connectRemoteSocket();
 idleController.loadImages();
 idleController.show();
 idleController.schedule();

@@ -173,6 +173,64 @@ html {
   align-items: center;
 }
 
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.timer-control {
+  position: relative;
+}
+
+.timer-toggle {
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(18, 22, 33, 0.7);
+  color: #f7f7fb;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.timer-menu {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  right: 0;
+  background: rgba(8, 11, 18, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  padding: 0.4rem;
+  display: none;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 90px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.timer-menu--open {
+  display: flex;
+}
+
+.timer-option {
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid transparent;
+  background: rgba(18, 22, 33, 0.8);
+  color: #f7f7fb;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.timer-option--active {
+  border-color: rgba(95, 211, 255, 0.7);
+  color: #5fd3ff;
+}
+
 .progress-overlay {
   position: absolute;
   inset: 0;
@@ -278,6 +336,49 @@ html {
   border-radius: 0;
   border: none;
   background: transparent;
+}
+
+.countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  font-size: clamp(4rem, 12vw, 10rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  color: #f7f7fb;
+}
+
+.countdown-overlay--active {
+  display: flex;
+}
+
+.flash-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.flash-overlay--active {
+  animation: flash-pulse 0.25s ease-out;
+}
+
+@keyframes flash-pulse {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .idle-overlay {
@@ -450,6 +551,35 @@ html {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+}
+
+.settings-remote {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  color: rgba(247, 247, 251, 0.75);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.settings-remote__title {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: rgba(247, 247, 251, 0.55);
+}
+
+.settings-remote__qr {
+  width: 180px;
+  height: 180px;
+  align-self: center;
+}
+
+.settings-remote__hint {
+  color: rgba(247, 247, 251, 0.55);
+  text-align: center;
 }
 
 .settings-about {
@@ -716,6 +846,82 @@ html {
 .action:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+}
+
+.remote-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: radial-gradient(circle at top, #1f2a44 0%, #0f1118 55%, #090b10 100%);
+}
+
+.remote-card {
+  width: min(420px, 92vw);
+  background: rgba(8, 11, 18, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.5rem;
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.remote-header h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.remote-header p {
+  color: rgba(247, 247, 251, 0.7);
+  font-size: 0.9rem;
+}
+
+.remote-timers {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.remote-timer {
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(18, 22, 33, 0.7);
+  color: #f7f7fb;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.remote-timer--active {
+  border-color: rgba(88, 214, 141, 0.8);
+  color: #58d68d;
+}
+
+.remote-action {
+  padding: 0.9rem 2.2rem;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #58d68d, #24b26b);
+  color: #071b11;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 12px 30px rgba(36, 178, 107, 0.35);
+}
+
+.remote-status {
+  font-size: 0.85rem;
+  color: rgba(247, 247, 251, 0.7);
 }
 
 @media (max-width: 768px) {

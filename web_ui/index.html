@@ -24,7 +24,18 @@
     <video id="camera" autoplay playsinline muted></video>
 
     <div class="controls">
-      <button class="action">Take Selfie</button>
+      <div class="action-row">
+        <button class="action">Take Selfie</button>
+        <div class="timer-control">
+          <button class="timer-toggle" aria-haspopup="true" aria-expanded="false">⏱️ 0s</button>
+          <div class="timer-menu" role="menu">
+            <button class="timer-option" data-delay="0" role="menuitem">0s</button>
+            <button class="timer-option" data-delay="3" role="menuitem">3s</button>
+            <button class="timer-option" data-delay="5" role="menuitem">5s</button>
+            <button class="timer-option" data-delay="10" role="menuitem">10s</button>
+          </div>
+        </div>
+      </div>
       <div class="styles">
         <button class="style">Clay</button>
         <button class="style">Comic</button>
@@ -118,6 +129,17 @@
           <button class="settings-action settings-action--save">Save</button>
           <button class="settings-action settings-action--close">Close</button>
         </div>
+        <div class="settings-remote">
+          <p class="settings-remote__title">Phone remote shutter</p>
+          <p class="settings-remote__text">
+            Scan the QR code to open the remote on your phone. Connect to the same Wi-Fi, choose a
+            timer, and tap capture to trigger the booth over the WebSocket.
+          </p>
+          <img class="settings-remote__qr" alt="QR code for the phone remote" />
+          <p class="settings-remote__hint">
+            Keep the booth screen open while you use the remote.
+          </p>
+        </div>
         <div class="settings-about">
           <p class="settings-about__title">About this project</p>
           <p class="settings-about__text">
@@ -162,6 +184,11 @@
         </div>
       </div>
     </div>
+
+    <div class="countdown-overlay" aria-live="assertive" aria-atomic="true">
+      <span class="countdown-value">3</span>
+    </div>
+    <div class="flash-overlay" aria-hidden="true"></div>
   </div>
 
   <script type="module" src="./app.js"></script>

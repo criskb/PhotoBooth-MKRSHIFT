@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Booth Remote</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="remote-body">
+  <main class="remote-card">
+    <header class="remote-header">
+      <h1>Photo Booth Remote</h1>
+      <p>Choose a timer and tap capture to trigger the booth.</p>
+    </header>
+    <section class="remote-timers" aria-label="Timer options">
+      <button class="remote-timer remote-timer--active" data-delay="0">0s</button>
+      <button class="remote-timer" data-delay="3">3s</button>
+      <button class="remote-timer" data-delay="5">5s</button>
+      <button class="remote-timer" data-delay="10">10s</button>
+    </section>
+    <button class="remote-action">Take Selfie</button>
+    <p class="remote-status" aria-live="polite">Connecting…</p>
+  </main>
+  <script type="module" src="./remote.js"></script>
+</body>
+</html>
