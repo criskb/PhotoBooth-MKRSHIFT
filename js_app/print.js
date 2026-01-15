@@ -41,6 +41,8 @@ function getDefaultPrintCommand() {
       "$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController;",
       "$doc.OriginAtMargins = $false;",
       "$doc.DefaultPageSettings.Landscape = $false;",
+      "$doc.DefaultPageSettings.Color = $true;",
+      "$doc.PrinterSettings.DefaultPageSettings.Color = $true;",
       "$doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0, 0, 0, 0);",
       "$paper = New-Object System.Drawing.Printing.PaperSize('PostcardBorderless', 394, 583);",
       "$doc.DefaultPageSettings.PaperSize = $paper;",
