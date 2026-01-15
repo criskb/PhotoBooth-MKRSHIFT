@@ -70,6 +70,7 @@ let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let watermarkEnabled = false;
 let uploadEnabled = true;
+let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
 
 function updateActionButtonState() {
@@ -505,6 +506,48 @@ function updateProgress(progress) {
   });
 }
 
+function renderPrinterOptions(printers, selectedName) {
+  const options = [];
+  const seen = new Set();
+  const sorted = [...printers].filter(Boolean).sort();
+  sorted.forEach((name) => {
+    if (seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    options.push({ name, label: name });
+  });
+  if (selectedName && !seen.has(selectedName)) {
+    options.unshift({ name: selectedName, label: `${selectedName} (saved)` });
+  }
+  settingsPrinterInput.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = options.length ? "Select a printer" : "No printers detected";
+  settingsPrinterInput.appendChild(placeholder);
+  options.forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.name;
+    option.textContent = entry.label;
+    settingsPrinterInput.appendChild(option);
+  });
+  settingsPrinterInput.value = selectedName || "";
+}
+
+async function loadPrinters(selectedName = printerConfig.name) {
+  try {
+    const response = await fetch("/api/printers");
+    if (!response.ok) {
+      throw new Error("Printer list unavailable");
+    }
+    const data = await response.json();
+    knownPrinters = Array.isArray(data.printers) ? data.printers : [];
+  } catch (error) {
+    knownPrinters = [];
+  }
+  renderPrinterOptions(knownPrinters, selectedName);
+}
+
 function applyUploadVisibility() {
   document.body.classList.toggle("is-upload-hidden", !uploadEnabled);
   uploadButton.disabled = !uploadEnabled || !outputReady;
@@ -671,6 +714,7 @@ function loadPrinterConfig() {
   applyCameraOrientation();
   updateRemoteInfo();
   applyUploadVisibility();
+  loadPrinters(printerConfig.name);
 }
 
 function savePrinterConfig() {
@@ -699,6 +743,7 @@ function savePrinterConfig() {
 function openSettings() {
   settingsModal.classList.add("settings-modal--open");
   settingsClose.disabled = false;
+  loadPrinters(printerConfig.name);
 }
 
 function closeSettings() {
