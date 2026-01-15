@@ -21,7 +21,38 @@ function parsePrinterList(output) {
 
 function getDefaultPrintCommand() {
   if (process.platform === "win32") {
-    return 'powershell -NoProfile -Command "Start-Process -FilePath \\"{file}\\" -Verb PrintTo -ArgumentList \\"{printer}\\""';
+    return [
+      'powershell -NoProfile -Command "',
+      "$ErrorActionPreference = 'Stop';",
+      "Add-Type -AssemblyName System.Drawing;",
+      "$printer = '{printer}';",
+      "$file = '{file}';",
+      "$copies = [int]{copies};",
+      "$img = [System.Drawing.Image]::FromFile($file);",
+      "$doc = New-Object System.Drawing.Printing.PrintDocument;",
+      "if ($printer) { $doc.PrinterSettings.PrinterName = $printer; }",
+      "if ($printer -and -not $doc.PrinterSettings.IsValid) {",
+      "  $default = Get-CimInstance Win32_Printer | Where-Object { $_.Default -eq $true } | Select-Object -First 1 -ExpandProperty Name;",
+      "  if ($default) { $doc.PrinterSettings.PrinterName = $default; }",
+      "}",
+      "if (-not $doc.PrinterSettings.IsValid) {",
+      "  $available = (Get-Printer | Select-Object -ExpandProperty Name) -join ', ';",
+      "  throw \"Printer '$printer' is not valid. Available: $available\";",
+      "}",
+      "$doc.add_PrintPage({ param($sender, $e)",
+      "  $bounds = $e.MarginBounds;",
+      "  $ratio = [Math]::Min($bounds.Width / $img.Width, $bounds.Height / $img.Height);",
+      "  $w = [int]($img.Width * $ratio);",
+      "  $h = [int]($img.Height * $ratio);",
+      "  $x = $bounds.Left + [int](($bounds.Width - $w) / 2);",
+      "  $y = $bounds.Top + [int](($bounds.Height - $h) / 2);",
+      "  $e.Graphics.DrawImage($img, $x, $y, $w, $h);",
+      "  $e.HasMorePages = $false;",
+      "});",
+      "for ($i = 0; $i -lt $copies; $i++) { $doc.Print(); }",
+      "$img.Dispose();",
+      '"'
+    ].join(" ");
   }
   return 'lp -d "{printer}" -n {copies} "{file}"';
 }
