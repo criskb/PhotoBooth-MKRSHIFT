@@ -255,7 +255,7 @@ button:focus-visible {
   border-radius: 2.5rem;
   background: rgba(8, 10, 16, 0.2);
   backdrop-filter: blur(8px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .action-row {
