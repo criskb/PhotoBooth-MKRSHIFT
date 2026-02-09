@@ -1413,15 +1413,18 @@ button:focus-visible {
 
 .remote-body {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 2rem 1.5rem;
   background: radial-gradient(circle at top, #1f2a44 0%, #0f1118 55%, #090b10 100%);
+  overflow-y: auto;
 }
 
 .remote-card {
   width: min(420px, 92vw);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
   background: rgba(8, 11, 18, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1.5rem;
