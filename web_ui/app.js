@@ -36,6 +36,7 @@ const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
+const settingsMirrorInput = document.querySelector(".settings-input--mirror");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
@@ -44,6 +45,10 @@ const settingsHidePrintInput = document.querySelector(".settings-input--hide-pri
 const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsHideQrInput = document.querySelector(".settings-input--hide-qr");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
+const settingsWatermarkPreview = document.querySelector(".settings-watermark__image");
+const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
+const settingsWatermarkFileInput = document.querySelector(".settings-input--watermark-file");
+const settingsWatermarkClear = document.querySelector(".settings-action--clear-watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const settingsSave = document.querySelector(".settings-action--save");
@@ -101,7 +106,11 @@ let selectedGalleryId = "";
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
+let cameraMirrored = false;
 let watermarkEnabled = false;
+let watermarkCustomDataUrl = "";
+let watermarkImageCache = { src: "", image: null };
+let watermarkText = "MKRShift";
 let uploadEnabled = true;
 let hidePrintEnabled = false;
 let hideQrEnabled = false;
@@ -320,7 +329,7 @@ function updateRemoteProgress(payload) {
 }
 
 async function updateRemoteInfo() {
-  let remoteUrl = new URL("/remote.html", window.location.origin).toString();
+  let remoteUrl = new URL("/remote", window.location.origin).toString();
   try {
     const response = await fetch("/api/remote-info");
     if (response.ok) {
@@ -840,9 +849,21 @@ function loadPrinterConfig() {
     if (orientationRaw) {
       cameraOrientation = Number(orientationRaw) || 0;
     }
+    const mirrorRaw = localStorage.getItem("cameraMirrored");
+    if (mirrorRaw !== null) {
+      cameraMirrored = mirrorRaw === "true";
+    }
     const watermarkRaw = localStorage.getItem("watermarkEnabled");
     if (watermarkRaw !== null) {
       watermarkEnabled = watermarkRaw === "true";
+    }
+    const watermarkCustomRaw = localStorage.getItem("watermarkCustomDataUrl");
+    if (watermarkCustomRaw) {
+      watermarkCustomDataUrl = watermarkCustomRaw;
+    }
+    const watermarkTextRaw = localStorage.getItem("watermarkText");
+    if (watermarkTextRaw) {
+      watermarkText = watermarkTextRaw;
     }
     const uploadRaw = localStorage.getItem("uploadEnabled");
     if (uploadRaw !== null) {
@@ -862,7 +883,11 @@ function loadPrinterConfig() {
     comfyApiKey = "";
     comfyServerUrl = defaultComfyServerUrl;
     cameraOrientation = 0;
+    cameraMirrored = false;
     watermarkEnabled = false;
+    watermarkCustomDataUrl = "";
+    watermarkImageCache = { src: "", image: null };
+    watermarkText = "MKRShift";
     uploadEnabled = true;
     hidePrintEnabled = false;
     hideQrEnabled = false;
@@ -870,6 +895,9 @@ function loadPrinterConfig() {
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
   settingsOrientationInput.value = String(cameraOrientation || 0);
+  if (settingsMirrorInput) {
+    settingsMirrorInput.checked = cameraMirrored;
+  }
   settingsPrinterInput.value = printerConfig.name || "";
   settingsPrinterCopiesInput.value = String(printerConfig.copies || 1);
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
@@ -882,6 +910,13 @@ function loadPrinterConfig() {
     settingsHideQrInput.checked = hideQrEnabled;
   }
   settingsWatermarkInput.checked = watermarkEnabled;
+  if (settingsWatermarkTextInput) {
+    settingsWatermarkTextInput.value = watermarkText || "MKRShift";
+  }
+  if (settingsWatermarkClear) {
+    settingsWatermarkClear.disabled = !watermarkCustomDataUrl;
+  }
+  renderWatermarkPreview();
   applyPrintVisibility();
   applyCameraOrientation();
   updateRemoteInfo();
@@ -922,8 +957,17 @@ function savePrinterConfig() {
   localStorage.setItem("comfyServerUrl", comfyServerUrl);
   cameraOrientation = Number(settingsOrientationInput.value) || 0;
   localStorage.setItem("cameraOrientation", String(cameraOrientation));
+  if (settingsMirrorInput) {
+    cameraMirrored = settingsMirrorInput.checked;
+    localStorage.setItem("cameraMirrored", String(cameraMirrored));
+  }
   watermarkEnabled = settingsWatermarkInput.checked;
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
+  if (settingsWatermarkTextInput) {
+    watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
+    localStorage.setItem("watermarkText", watermarkText);
+  }
+  renderWatermarkPreview();
   uploadEnabled = settingsUploadsInput.checked;
   localStorage.setItem("uploadEnabled", String(uploadEnabled));
   if (settingsHidePrintInput) {
@@ -1036,13 +1080,17 @@ function applyCameraOrientation() {
       video.style.width = `${container.height}px`;
       video.style.height = `${container.width}px`;
     }
-    video.style.transform = `translate(-50%, -50%) rotate(${orientation}deg)`;
   } else {
     video.style.top = "";
     video.style.left = "";
     video.style.width = "";
     video.style.height = "";
-    video.style.transform = "";
+  }
+  const mirrorValue = cameraMirrored ? " scaleX(-1)" : "";
+  if (orientation) {
+    video.style.transform = `translate(-50%, -50%) rotate(${orientation}deg)${mirrorValue}`;
+  } else {
+    video.style.transform = mirrorValue ? `scaleX(-1)` : "";
   }
   video.style.transformOrigin = "center";
 }
@@ -1148,6 +1196,160 @@ function loadImageElement(src) {
   });
 }
 
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+}
+
+async function getWatermarkImage() {
+  if (!watermarkCustomDataUrl) {
+    return null;
+  }
+  if (watermarkImageCache.src === watermarkCustomDataUrl && watermarkImageCache.image) {
+    return watermarkImageCache.image;
+  }
+  const image = await loadImageElement(watermarkCustomDataUrl);
+  watermarkImageCache = { src: watermarkCustomDataUrl, image };
+  return image;
+}
+
+async function drawWatermark(ctx, width, height, { opacity = 1 } = {}) {
+  const margin = Math.round(width * 0.035);
+  const boxFill = "rgba(0, 0, 0, 0.72)";
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  let useTextWatermark = !watermarkCustomDataUrl;
+  if (watermarkCustomDataUrl) {
+    try {
+      const watermarkImage = await getWatermarkImage();
+      if (watermarkImage) {
+        const maxWidth = width * 0.3;
+        const maxHeight = height * 0.18;
+        const scale = Math.min(
+          maxWidth / watermarkImage.width,
+          maxHeight / watermarkImage.height,
+          1,
+        );
+        const wmWidth = watermarkImage.width * scale;
+        const wmHeight = watermarkImage.height * scale;
+        const padding = Math.round(Math.max(wmWidth, wmHeight) * 0.12);
+        const boxWidth = wmWidth + padding * 2;
+        const boxHeight = wmHeight + padding * 2;
+        const x = width - margin - boxWidth;
+        const y = height - margin - boxHeight;
+        drawRoundedRect(ctx, x, y, boxWidth, boxHeight, Math.round(boxHeight * 0.3));
+        ctx.fillStyle = boxFill;
+        ctx.fill();
+        ctx.drawImage(watermarkImage, x + padding, y + padding, wmWidth, wmHeight);
+        useTextWatermark = false;
+      } else {
+        useTextWatermark = true;
+      }
+    } catch (error) {
+      useTextWatermark = true;
+    }
+  }
+  if (useTextWatermark) {
+    const text = watermarkText || "MKRShift";
+    const fontSize = Math.max(18, Math.round(width * 0.045));
+    ctx.font = `600 ${fontSize}px "Inter", sans-serif`;
+    const metrics = ctx.measureText(text);
+    const textHeight =
+      metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent || fontSize;
+    const paddingX = Math.round(fontSize * 0.7);
+    const paddingY = Math.round(fontSize * 0.5);
+    const boxWidth = metrics.width + paddingX * 2;
+    const boxHeight = textHeight + paddingY * 2;
+    const x = width - margin - boxWidth;
+    const y = height - margin - boxHeight;
+    drawRoundedRect(ctx, x, y, boxWidth, boxHeight, Math.round(boxHeight * 0.3));
+    ctx.fillStyle = boxFill;
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(text, x + paddingX, y + paddingY + (metrics.actualBoundingBoxAscent || fontSize));
+  }
+  ctx.restore();
+}
+
+function renderWatermarkPreview() {
+  if (!settingsWatermarkPreview) {
+    return;
+  }
+  const width = 420;
+  const height = 240;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#1a2130");
+  gradient.addColorStop(1, "#0b0f16");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(12, 12, width - 24, height - 24);
+  const opacity = watermarkEnabled ? 1 : 0.45;
+  drawWatermark(ctx, width, height, { opacity })
+    .catch(() => {})
+    .finally(() => {
+      settingsWatermarkPreview.src = canvas.toDataURL("image/png");
+    });
+}
+
+function setWatermarkCustomDataUrl(value) {
+  watermarkCustomDataUrl = value;
+  watermarkImageCache = { src: "", image: null };
+  if (watermarkCustomDataUrl) {
+    localStorage.setItem("watermarkCustomDataUrl", watermarkCustomDataUrl);
+  } else {
+    localStorage.removeItem("watermarkCustomDataUrl");
+  }
+  if (settingsWatermarkClear) {
+    settingsWatermarkClear.disabled = !watermarkCustomDataUrl;
+  }
+  renderWatermarkPreview();
+}
+
+function handleWatermarkFileChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result === "string") {
+      setWatermarkCustomDataUrl(reader.result);
+      if (settingsWatermarkFileInput) {
+        settingsWatermarkFileInput.value = "";
+      }
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCustomWatermark() {
+  setWatermarkCustomDataUrl("");
+  if (settingsWatermarkFileInput) {
+    settingsWatermarkFileInput.value = "";
+  }
+}
+
 async function buildWatermarkedImageUrl(imageUrl) {
   const image = await loadImageElement(imageUrl);
   const canvas = document.createElement("canvas");
@@ -1157,15 +1359,7 @@ async function buildWatermarkedImageUrl(imageUrl) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(image, 0, 0, width, height);
-  const fontSize = Math.max(18, Math.round(width * 0.045));
-  ctx.font = `600 ${fontSize}px "Inter", sans-serif`;
-  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.textAlign = "right";
-  ctx.textBaseline = "bottom";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
-  ctx.shadowBlur = Math.round(fontSize * 0.4);
-  const margin = Math.round(fontSize * 0.6);
-  ctx.fillText("MKRSHIFT", width - margin, height - margin);
+  await drawWatermark(ctx, width, height, { opacity: 1 });
   return canvas.toDataURL("image/png");
 }
 
@@ -1378,6 +1572,19 @@ settingsToggle?.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
 fullscreenToggle?.addEventListener("click", toggleFullscreen);
 settingsPrinterInput?.addEventListener("change", handlePrinterSelection);
+settingsMirrorInput?.addEventListener("change", () => {
+  cameraMirrored = settingsMirrorInput.checked;
+  localStorage.setItem("cameraMirrored", String(cameraMirrored));
+  applyCameraOrientation();
+});
+settingsWatermarkInput?.addEventListener("change", renderWatermarkPreview);
+settingsWatermarkTextInput?.addEventListener("input", () => {
+  watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
+  localStorage.setItem("watermarkText", watermarkText);
+  renderWatermarkPreview();
+});
+settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
+settingsWatermarkClear?.addEventListener("click", clearCustomWatermark);
 settingsSave?.addEventListener("click", () => {
   savePrinterConfig();
   closeSettings();
