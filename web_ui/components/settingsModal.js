@@ -78,6 +78,15 @@ export function renderSettingsModal() {
           <div class="settings-watermark__preview">
             <img class="settings-watermark__image" alt="Watermark preview" />
           </div>
+          <label class="settings-field settings-field--compact">
+            Watermark text
+            <input
+              class="settings-input form-input settings-input--watermark-text"
+              type="text"
+              value="MKRShift"
+              maxlength="48"
+            />
+          </label>
           <label class="settings-field settings-field--file">
             Custom signature watermark
             <input class="settings-input form-input settings-input--watermark-file" type="file" accept="image/*" />

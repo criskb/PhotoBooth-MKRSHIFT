@@ -250,7 +250,7 @@ button:focus-visible {
   gap: 1.25rem;
   z-index: 2;
   align-items: center;
-  padding: 0.4rem 0.8rem;
+  padding: 1.8rem 1.8rem;
   border-radius: 2.5rem;
   background: rgba(8, 10, 16, 0.2);
   backdrop-filter: blur(8px);
@@ -870,6 +870,8 @@ button:focus-visible {
 
 .settings-card {
   width: min(480px, 90vw);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
   background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.4rem;
@@ -901,6 +903,10 @@ button:focus-visible {
 
 .settings-field--file {
   gap: 0.4rem;
+}
+
+.settings-field--compact {
+  gap: 0.35rem;
 }
 
 .form-input {

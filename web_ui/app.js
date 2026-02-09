@@ -45,6 +45,7 @@ const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsHideQrInput = document.querySelector(".settings-input--hide-qr");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsWatermarkPreview = document.querySelector(".settings-watermark__image");
+const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
 const settingsWatermarkFileInput = document.querySelector(".settings-input--watermark-file");
 const settingsWatermarkClear = document.querySelector(".settings-action--clear-watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
@@ -107,6 +108,7 @@ let cameraOrientation = 0;
 let watermarkEnabled = false;
 let watermarkCustomDataUrl = "";
 let watermarkImageCache = { src: "", image: null };
+let watermarkText = "MKRShift";
 let uploadEnabled = true;
 let hidePrintEnabled = false;
 let hideQrEnabled = false;
@@ -853,6 +855,10 @@ function loadPrinterConfig() {
     if (watermarkCustomRaw) {
       watermarkCustomDataUrl = watermarkCustomRaw;
     }
+    const watermarkTextRaw = localStorage.getItem("watermarkText");
+    if (watermarkTextRaw) {
+      watermarkText = watermarkTextRaw;
+    }
     const uploadRaw = localStorage.getItem("uploadEnabled");
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
@@ -874,6 +880,7 @@ function loadPrinterConfig() {
     watermarkEnabled = false;
     watermarkCustomDataUrl = "";
     watermarkImageCache = { src: "", image: null };
+    watermarkText = "MKRShift";
     uploadEnabled = true;
     hidePrintEnabled = false;
     hideQrEnabled = false;
@@ -893,6 +900,9 @@ function loadPrinterConfig() {
     settingsHideQrInput.checked = hideQrEnabled;
   }
   settingsWatermarkInput.checked = watermarkEnabled;
+  if (settingsWatermarkTextInput) {
+    settingsWatermarkTextInput.value = watermarkText || "MKRShift";
+  }
   if (settingsWatermarkClear) {
     settingsWatermarkClear.disabled = !watermarkCustomDataUrl;
   }
@@ -939,6 +949,10 @@ function savePrinterConfig() {
   localStorage.setItem("cameraOrientation", String(cameraOrientation));
   watermarkEnabled = settingsWatermarkInput.checked;
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
+  if (settingsWatermarkTextInput) {
+    watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
+    localStorage.setItem("watermarkText", watermarkText);
+  }
   renderWatermarkPreview();
   uploadEnabled = settingsUploadsInput.checked;
   localStorage.setItem("uploadEnabled", String(uploadEnabled));
@@ -1228,7 +1242,7 @@ async function drawWatermark(ctx, width, height, { opacity = 1 } = {}) {
     }
   }
   if (useTextWatermark) {
-    const text = "MKRSHIFT";
+    const text = watermarkText || "MKRShift";
     const fontSize = Math.max(18, Math.round(width * 0.045));
     ctx.font = `600 ${fontSize}px "Inter", sans-serif`;
     const metrics = ctx.measureText(text);
@@ -1541,6 +1555,11 @@ diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
 fullscreenToggle?.addEventListener("click", toggleFullscreen);
 settingsPrinterInput?.addEventListener("change", handlePrinterSelection);
 settingsWatermarkInput?.addEventListener("change", renderWatermarkPreview);
+settingsWatermarkTextInput?.addEventListener("input", () => {
+  watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
+  localStorage.setItem("watermarkText", watermarkText);
+  renderWatermarkPreview();
+});
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
 settingsWatermarkClear?.addEventListener("click", clearCustomWatermark);
 settingsSave?.addEventListener("click", () => {
