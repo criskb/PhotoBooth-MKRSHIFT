@@ -39,7 +39,7 @@
       "package.json"
     ],
     "asarUnpack": [
-      "js_app/node_modules/**"
+      "js_app/**"
     ],
     "mac": {
       "category": "public.app-category.photo-video",

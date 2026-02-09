@@ -11,7 +11,10 @@ const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = app.isPackaged ? app.getAppPath() : path.resolve(__dirname, "..");
-const serverScript = path.join(repoRoot, "js_app", "server.js");
+const jsAppRoot = app.isPackaged
+  ? path.join(process.resourcesPath, "app.asar.unpacked", "js_app")
+  : path.join(repoRoot, "js_app");
+const serverScript = path.join(jsAppRoot, "server.js");
 const repoUrl = "git@github.com:criskb/PhotoBooth-MKRSHIFT.git";
 const serverPort = Number(process.env.PORT ?? 8080);
 const appIconPath = path.join(repoRoot, "assets", "icon.png");
@@ -29,7 +32,7 @@ async function ensureJsDependencies() {
   if (app.isPackaged) {
     return;
   }
-  const wsPath = path.join(repoRoot, "js_app", "node_modules", "ws");
+  const wsPath = path.join(jsAppRoot, "node_modules", "ws");
   try {
     await fsPromises.access(wsPath);
     return;
