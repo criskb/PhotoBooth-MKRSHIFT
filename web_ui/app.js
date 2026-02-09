@@ -329,7 +329,7 @@ function updateRemoteProgress(payload) {
 }
 
 async function updateRemoteInfo() {
-  let remoteUrl = new URL("/remote.html", window.location.origin).toString();
+  let remoteUrl = new URL("/remote", window.location.origin).toString();
   try {
     const response = await fetch("/api/remote-info");
     if (response.ok) {

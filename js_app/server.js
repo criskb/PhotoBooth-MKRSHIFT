@@ -570,7 +570,7 @@ const server = http.createServer((req, res) => {
     res.end(
       JSON.stringify({
         baseUrl,
-        remoteUrl: `${baseUrl}/remote.html`,
+        remoteUrl: `${baseUrl}/remote`,
       })
     );
     return;
@@ -945,7 +945,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const filePath = req.url === "/" ? "index.html" : req.url.replace(/^\//, "");
+  let filePath = req.url === "/" ? "index.html" : req.url.replace(/^\//, "");
+  if (req.url === "/remote" || req.url === "/remote/") {
+    filePath = "remote.html";
+  }
   const resolved = path.join(webDir, filePath);
   if (!resolved.startsWith(webDir)) {
     res.writeHead(403);
