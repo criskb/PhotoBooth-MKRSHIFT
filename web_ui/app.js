@@ -69,6 +69,19 @@ const countdownValue = document.querySelector(".countdown-value");
 const flashOverlay = document.querySelector(".flash-overlay");
 const idleOverlay = document.querySelector(".idle-overlay");
 
+[
+  { node: settingsModal, label: "settings modal", selector: ".settings-modal" },
+  { node: galleryModal, label: "gallery modal", selector: ".gallery-modal" },
+  { node: settingsToggle, label: "settings toggle", selector: ".settings-toggle" },
+  { node: galleryToggle, label: "gallery toggle", selector: ".gallery-toggle" },
+].forEach(({ node, label, selector }) => {
+  if (!node) {
+    console.warn(
+      `[app] Missing ${label} (${selector}). Check markup or renderApp execution.`
+    );
+  }
+});
+
 let selectedStyle = null;
 let isQueueing = false;
 let lastShake = 0;
@@ -933,8 +946,11 @@ function savePrinterConfig() {
 }
 
 function openSettings() {
+  if (!settingsModal) {
+    return;
+  }
   openModal(settingsModal, "settings-modal--open");
-  settingsClose.disabled = false;
+  settingsClose?.disabled = false;
   loadPrinters(printerConfig.name);
 }
 
@@ -949,10 +965,16 @@ function handlePrinterSelection() {
 }
 
 function closeSettings() {
+  if (!settingsModal) {
+    return;
+  }
   closeModal(settingsModal, "settings-modal--open");
 }
 
 function openGallery() {
+  if (!galleryModal) {
+    return;
+  }
   openModal(galleryModal, "gallery-modal--open");
   galleryUploadStatus.textContent = "";
   galleryQr.style.display = "none";
@@ -968,6 +990,9 @@ function openGallery() {
 }
 
 function closeGallery() {
+  if (!galleryModal) {
+    return;
+  }
   closeModal(galleryModal, "gallery-modal--open");
 }
 
@@ -1330,22 +1355,22 @@ document.addEventListener("keydown", (event) => {
   if (timerMenu.classList.contains("timer-menu--open")) {
     closeTimerMenu();
   }
-  if (settingsModal.classList.contains("settings-modal--open")) {
+  if (settingsModal?.classList.contains("settings-modal--open")) {
     closeSettings();
   }
-  if (galleryModal.classList.contains("gallery-modal--open")) {
+  if (galleryModal?.classList.contains("gallery-modal--open")) {
     closeGallery();
   }
   if (diagnosticsModal?.classList.contains("diagnostics-modal--open")) {
     closeDiagnostics();
   }
 });
-settingsModal.addEventListener("click", (event) => {
+settingsModal?.addEventListener("click", (event) => {
   if (event.target === settingsModal) {
     closeSettings();
   }
 });
-galleryModal.addEventListener("click", (event) => {
+galleryModal?.addEventListener("click", (event) => {
   if (event.target === galleryModal) {
     closeGallery();
   }
@@ -1355,7 +1380,7 @@ diagnosticsModal?.addEventListener("click", (event) => {
     closeDiagnostics();
   }
 });
-settingsToggle.addEventListener("click", () => openSettings());
+settingsToggle?.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
 fullscreenToggle.addEventListener("click", toggleFullscreen);
 settingsPrinterInput.addEventListener("change", handlePrinterSelection);
@@ -1366,7 +1391,7 @@ settingsSave.addEventListener("click", () => {
 settingsClose.addEventListener("click", closeSettings);
 diagnosticsClose?.addEventListener("click", closeDiagnostics);
 diagnosticsRefresh?.addEventListener("click", fetchDiagnostics);
-galleryToggle.addEventListener("click", openGallery);
+galleryToggle?.addEventListener("click", openGallery);
 galleryClose.addEventListener("click", closeGallery);
 gallerySearch?.addEventListener("input", (event) => {
   galleryFilterText = event.target.value.trim().toLowerCase();
