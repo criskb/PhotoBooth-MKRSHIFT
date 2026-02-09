@@ -251,9 +251,10 @@ button:focus-visible {
   z-index: 2;
   align-items: center;
   padding: 0.4rem 0.8rem;
-  border-radius: 999px;
+  border-radius: 2.5rem;
   background: rgba(8, 10, 16, 0.2);
   backdrop-filter: blur(8px);
+  overflow: hidden;
 }
 
 .action-row {
@@ -898,6 +899,10 @@ button:focus-visible {
   gap: 0.5rem;
 }
 
+.settings-field--file {
+  gap: 0.4rem;
+}
+
 .form-input {
   padding: 0.6rem 0.75rem;
   border-radius: 0.75rem;
@@ -917,6 +922,50 @@ button:focus-visible {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+}
+
+.settings-watermark {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 14, 22, 0.7);
+}
+
+.settings-watermark__label {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(247, 247, 251, 0.55);
+}
+
+.settings-watermark__preview {
+  padding: 0.6rem;
+  border-radius: 0.75rem;
+  background: rgba(6, 8, 12, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-watermark__image {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  border-radius: 0.6rem;
+}
+
+.settings-action--clear-watermark {
+  align-self: flex-start;
+}
+
+.settings-action--clear-watermark:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .settings-remote {
