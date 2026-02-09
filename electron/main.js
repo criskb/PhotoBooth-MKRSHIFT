@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog } from "electron";
 import { execFile, spawn } from "node:child_process";
-import fs from "node:fs/promises";
+import fs from "node:fs";
+import fsPromises from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const serverScript = path.join(repoRoot, "js_app", "server.js");
 const repoUrl = "git@github.com:criskb/PhotoBooth-MKRSHIFT.git";
 const serverPort = Number(process.env.PORT ?? 8080);
+const appIconPath = path.join(repoRoot, "assets", "icon.png");
 let serverProcess = null;
 
 async function runCommand(command, args, options = {}) {
@@ -26,7 +28,7 @@ async function runCommand(command, args, options = {}) {
 async function ensureJsDependencies() {
   const wsPath = path.join(repoRoot, "js_app", "node_modules", "ws");
   try {
-    await fs.access(wsPath);
+    await fsPromises.access(wsPath);
     return;
   } catch (error) {
     console.info("Installing js_app dependencies...");
@@ -131,6 +133,7 @@ async function createWindow() {
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
+    icon: fs.existsSync(appIconPath) ? appIconPath : undefined,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -141,6 +144,11 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   try {
+    if (process.platform === "darwin") {
+      if (fs.existsSync(appIconPath)) {
+        app.dock.setIcon(appIconPath);
+      }
+    }
     await ensureJsDependencies();
     await ensureGitUpdate();
     await startServer();
