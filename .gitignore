@@ -1,4 +1,5 @@
 **/__pycache__
+**/node_modules
 config_local.py
 app.log
 **/wifi_qr.png
