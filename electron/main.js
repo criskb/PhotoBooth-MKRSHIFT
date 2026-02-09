@@ -1,10 +1,10 @@
 import { app, BrowserWindow, dialog } from "electron";
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -15,7 +15,7 @@ const serverScript = path.join(repoRoot, "js_app", "server.js");
 const repoUrl = "git@github.com:criskb/PhotoBooth-MKRSHIFT.git";
 const serverPort = Number(process.env.PORT ?? 8080);
 const appIconPath = path.join(repoRoot, "assets", "icon.png");
-let serverProcess = null;
+let serverInstance = null;
 
 async function runCommand(command, args, options = {}) {
   const { stdout } = await execFileAsync(command, args, {
@@ -115,18 +115,11 @@ async function waitForServer(url, timeoutMs = 15000) {
 }
 
 async function startServer() {
-  if (serverProcess) {
+  if (serverInstance) {
     return;
   }
-  serverProcess = spawn("node", [serverScript], {
-    cwd: repoRoot,
-    env: process.env,
-    stdio: "inherit",
-  });
-  serverProcess.on("exit", (code) => {
-    console.info(`Photo booth server exited with code ${code ?? "unknown"}.`);
-    serverProcess = null;
-  });
+  const serverModule = await import(pathToFileURL(serverScript).href);
+  serverInstance = serverModule.startServer();
 }
 
 async function createWindow() {
@@ -168,7 +161,8 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
-  if (serverProcess) {
-    serverProcess.kill();
+  if (serverInstance) {
+    serverInstance.close();
+    serverInstance = null;
   }
 });
