@@ -302,12 +302,29 @@ html {
 
 .progress__meta {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-right: 2.5rem;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-right: 3rem;
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: rgba(247, 247, 251, 0.75);
+}
+
+.progress__label {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress__value {
+  flex-shrink: 0;
+  min-width: 3.5rem;
+  text-align: right;
 }
 
 .progress__bar {
@@ -380,6 +397,49 @@ html {
   border-radius: 0;
   border: none;
   background: transparent;
+}
+
+@media (max-width: 540px) {
+  .progress-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "meta close"
+      "bar bar"
+      "preview preview"
+      "actions actions"
+      "qr qr";
+    row-gap: 1rem;
+    column-gap: 0.75rem;
+  }
+
+  .progress__meta {
+    grid-area: meta;
+    padding-right: 0;
+  }
+
+  .progress-close {
+    position: static;
+    grid-area: close;
+    justify-self: end;
+    align-self: start;
+  }
+
+  .progress__bar {
+    grid-area: bar;
+  }
+
+  .progress__preview {
+    grid-area: preview;
+  }
+
+  .progress__actions {
+    grid-area: actions;
+  }
+
+  .progress__qr {
+    grid-area: qr;
+  }
 }
 
 .countdown-overlay {
