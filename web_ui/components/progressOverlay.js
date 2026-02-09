@@ -2,7 +2,7 @@ export function renderProgressOverlay() {
   return `
     <div class="progress-overlay" aria-live="polite">
       <div class="progress-card">
-        <button class="progress-close" aria-label="Close results">✕</button>
+        <button class="progress-close btn btn--secondary" aria-label="Close results">✕</button>
         <div class="progress__meta">
           <span class="progress__label">Idle</span>
           <span class="progress__value">0%</span>
@@ -12,9 +12,9 @@ export function renderProgressOverlay() {
         </div>
         <img class="progress__preview" alt="Latest generated output" />
         <div class="progress__actions">
-          <button class="progress-action progress-action--upload" disabled>Upload</button>
-          <button class="progress-action progress-action--print" disabled>Print</button>
-          <button class="progress-action progress-action--done" disabled>Back to Capture</button>
+          <button class="progress-action progress-action--upload btn btn--primary" disabled>Upload</button>
+          <button class="progress-action progress-action--print btn btn--primary" disabled>Print</button>
+          <button class="progress-action progress-action--done btn btn--primary" disabled>Back to Capture</button>
         </div>
         <div class="progress__qr">
           <span class="progress__qr-label">Upload QR</span>

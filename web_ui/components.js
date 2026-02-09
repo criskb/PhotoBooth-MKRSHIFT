@@ -54,7 +54,7 @@ function renderProgressOverlay() {
   return `
     <div class="progress-overlay" aria-live="polite">
       <div class="progress-card">
-        <button class="progress-close" aria-label="Close results">✕</button>
+        <button class="progress-close btn btn--secondary" aria-label="Close results">✕</button>
         <div class="progress__meta">
           <span class="progress__label">Idle</span>
           <span class="progress__value">0%</span>
@@ -64,9 +64,9 @@ function renderProgressOverlay() {
         </div>
         <img class="progress__preview" alt="Latest generated output" />
         <div class="progress__actions">
-          <button class="progress-action progress-action--upload" disabled>Upload</button>
-          <button class="progress-action progress-action--print" disabled>Print</button>
-          <button class="progress-action progress-action--done" disabled>Back to Capture</button>
+          <button class="progress-action progress-action--upload btn btn--primary" disabled>Upload</button>
+          <button class="progress-action progress-action--print btn btn--primary" disabled>Print</button>
+          <button class="progress-action progress-action--done btn btn--primary" disabled>Back to Capture</button>
         </div>
         <div class="progress__qr">
           <span class="progress__qr-label">Upload QR</span>
@@ -81,6 +81,7 @@ function renderIdleOverlay() {
   return `
     <div class="idle-overlay idle-overlay--hidden" aria-live="polite">
       <div class="idle-overlay__backdrop" aria-hidden="true"></div>
+      <div class="idle-overlay__glow" aria-hidden="true"></div>
       <div class="idle-overlay__canvas" aria-hidden="true"></div>
       <div class="idle-overlay__copy">
         <p class="idle-overlay__title">Touch to start</p>
@@ -97,12 +98,16 @@ function renderSettingsModal() {
         <h2 id="settings-title">Settings</h2>
         <label class="settings-field">
           ComfyUI API Endpoint
-          <input class="settings-input settings-input--comfy" type="url" placeholder="http://127.0.0.1:8188" />
+          <input
+            class="settings-input form-input settings-input--comfy"
+            type="url"
+            placeholder="http://127.0.0.1:8188"
+          />
         </label>
         <label class="settings-field">
           ComfyUI API Key (for hosted services)
           <input
-            class="settings-input settings-input--comfy-key"
+            class="settings-input form-input settings-input--comfy-key"
             type="password"
             placeholder="Optional API token"
             autocomplete="off"
@@ -110,7 +115,7 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Camera Orientation
-          <select class="settings-input settings-input--orientation">
+          <select class="settings-input form-input settings-input--orientation">
             <option value="0">0° (Normal)</option>
             <option value="90">90°</option>
             <option value="180">180°</option>
@@ -123,14 +128,14 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Printer Name
-          <select class="settings-input settings-input--printer">
+          <select class="settings-input form-input settings-input--printer">
             <option value="">Select a printer</option>
           </select>
         </label>
         <label class="settings-field">
           Printer Copies
           <input
-            class="settings-input settings-input--printer-copies"
+            class="settings-input form-input settings-input--printer-copies"
             type="number"
             min="1"
             step="1"
@@ -139,7 +144,11 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Freeimage API Key
-          <input class="settings-input settings-input--freeimage" type="text" placeholder="Freeimage API Key" />
+          <input
+            class="settings-input form-input settings-input--freeimage"
+            type="text"
+            placeholder="Freeimage API Key"
+          />
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--uploads" type="checkbox" />
@@ -150,8 +159,8 @@ function renderSettingsModal() {
           Add MKRSHIFT watermark on upload/print
         </label>
         <div class="settings-actions">
-          <button class="settings-action settings-action--save">Save</button>
-          <button class="settings-action settings-action--close">Close</button>
+          <button class="settings-action settings-action--save btn btn--primary">Save</button>
+          <button class="settings-action settings-action--close btn btn--secondary">Close</button>
         </div>
         <div class="settings-remote">
           <p class="settings-remote__title">Phone remote shutter</p>
@@ -189,7 +198,7 @@ function renderGalleryModal() {
       <div class="gallery-card">
         <div class="gallery-header">
           <h2 id="gallery-title">Gallery</h2>
-          <button class="gallery-close" aria-label="Close gallery">Close</button>
+          <button class="gallery-close btn btn--secondary" aria-label="Close gallery">Close</button>
         </div>
         <div class="gallery-body">
           <div class="gallery-list"></div>
@@ -205,7 +214,7 @@ function renderGalleryModal() {
               </div>
             </div>
             <div class="gallery-actions">
-              <button class="gallery-action gallery-action--upload">Upload Selected</button>
+              <button class="gallery-action gallery-action--upload btn btn--primary">Upload Selected</button>
               <span class="gallery-upload-status" aria-live="polite"></span>
             </div>
             <div class="gallery-qr">
