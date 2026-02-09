@@ -17,6 +17,7 @@
   --accent: #5fd3ff;
   --accent-strong: #58d36e;
   --accent-warm: #feaa3a;
+  --text-muted: rgba(247, 247, 251, 0.6);
 }
 
 * {
@@ -249,7 +250,8 @@ button:focus-visible {
   font-size: 0.85rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(247, 247, 251, 0.65);
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 .brand__subtitle-accent {
@@ -274,12 +276,15 @@ button:focus-visible {
 .status__label {
   display: block;
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .status__meta {
   font-size: 0.85rem;
-  color: rgba(247, 247, 251, 0.7);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
 }
 
 .status__connection {
