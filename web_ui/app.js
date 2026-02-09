@@ -932,7 +932,7 @@ function savePrinterConfig() {
 }
 
 function openSettings() {
-  settingsModal.classList.add("settings-modal--open");
+  openModal(settingsModal, "settings-modal--open");
   settingsClose.disabled = false;
   loadPrinters(printerConfig.name);
 }
@@ -948,11 +948,11 @@ function handlePrinterSelection() {
 }
 
 function closeSettings() {
-  settingsModal.classList.remove("settings-modal--open");
+  closeModal(settingsModal, "settings-modal--open");
 }
 
 function openGallery() {
-  galleryModal.classList.add("gallery-modal--open");
+  openModal(galleryModal, "gallery-modal--open");
   galleryUploadStatus.textContent = "";
   galleryQr.style.display = "none";
   galleryQrImage.src = "";
@@ -967,7 +967,7 @@ function openGallery() {
 }
 
 function closeGallery() {
-  galleryModal.classList.remove("gallery-modal--open");
+  closeModal(galleryModal, "gallery-modal--open");
 }
 
 function setGallerySelection(item) {
