@@ -39,10 +39,12 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       return;
     }
     overlay.classList.remove("idle-overlay--hidden");
+    overlay.classList.add("idle-overlay--active");
   };
 
   const hide = () => {
     overlay.classList.add("idle-overlay--hidden");
+    overlay.classList.remove("idle-overlay--active");
   };
 
   const schedule = () => {
