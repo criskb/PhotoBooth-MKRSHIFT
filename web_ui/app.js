@@ -1395,11 +1395,14 @@ idleOverlay?.addEventListener("click", (event) => {
   if (idleOverlay.classList.contains("idle-overlay--hidden")) {
     return;
   }
+  const { clientX, clientY } = event;
   idleController.hide();
-  const target = document.elementFromPoint(event.clientX, event.clientY);
-  if (target && target !== idleOverlay) {
-    target.click();
-  }
+  requestAnimationFrame(() => {
+    const target = document.elementFromPoint(clientX, clientY);
+    if (target && target !== idleOverlay) {
+      target.click();
+    }
+  });
 });
 
 startCamera();
