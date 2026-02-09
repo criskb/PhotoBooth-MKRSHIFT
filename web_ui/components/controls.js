@@ -23,9 +23,6 @@ export function renderControls() {
             <button class="style">Pixel Art</button>
           </div>
         </div>
-        <div class="style-preview-card" aria-live="polite">
-          <img class="style-preview__image" alt="Selected style preview" />
-        </div>
       </div>
     </div>
   `;

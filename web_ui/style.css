@@ -1400,10 +1400,13 @@ button:focus-visible {
   display: flex;
   gap: 1rem;
   align-items: stretch;
-  width: min(880px, 92vw);
+  width: min(680px, 92vw);
 }
 
 .style-preview-card {
+  position: absolute;
+  right: calc(var(--space-xl) + var(--space-xs) / 2);
+  bottom: 6.5rem;
   width: min(220px, 25vw);
   aspect-ratio: 1 / 1;
   border-radius: 1.2rem;
@@ -1414,6 +1417,7 @@ button:focus-visible {
   justify-content: center;
   padding: 0.75rem;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  z-index: 2;
 }
 
 .style-preview--visible {
