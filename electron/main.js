@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, "..");
+const repoRoot = app.isPackaged ? app.getAppPath() : path.resolve(__dirname, "..");
 const serverScript = path.join(repoRoot, "js_app", "server.js");
 const repoUrl = "git@github.com:criskb/PhotoBooth-MKRSHIFT.git";
 const serverPort = Number(process.env.PORT ?? 8080);
@@ -26,6 +26,9 @@ async function runCommand(command, args, options = {}) {
 }
 
 async function ensureJsDependencies() {
+  if (app.isPackaged) {
+    return;
+  }
   const wsPath = path.join(repoRoot, "js_app", "node_modules", "ws");
   try {
     await fsPromises.access(wsPath);
@@ -67,6 +70,9 @@ async function resolveRemoteHead() {
 }
 
 async function ensureGitUpdate() {
+  if (app.isPackaged) {
+    return;
+  }
   try {
     await runCommand("git", ["--version"]);
   } catch (error) {
