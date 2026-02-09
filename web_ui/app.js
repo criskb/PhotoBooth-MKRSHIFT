@@ -67,6 +67,7 @@ const galleryQrImage = document.querySelector(".gallery-qr-image");
 const countdownOverlay = document.querySelector(".countdown-overlay");
 const countdownValue = document.querySelector(".countdown-value");
 const flashOverlay = document.querySelector(".flash-overlay");
+const idleOverlay = document.querySelector(".idle-overlay");
 
 let selectedStyle = null;
 let isQueueing = false;
@@ -1390,6 +1391,16 @@ window.addEventListener("resize", applyCameraOrientation);
 ["pointerdown", "mousemove", "keydown", "touchstart", "wheel"].forEach((eventName) => {
   window.addEventListener(eventName, idleController.handleUserActivity, { passive: true });
 });
+idleOverlay?.addEventListener("click", (event) => {
+  if (idleOverlay.classList.contains("idle-overlay--hidden")) {
+    return;
+  }
+  idleController.hide();
+  const target = document.elementFromPoint(event.clientX, event.clientY);
+  if (target && target !== idleOverlay) {
+    target.click();
+  }
+});
 
 startCamera();
 loadUiPreferences();
@@ -1400,7 +1411,6 @@ updateActionButtonState();
 progressCloseButton.disabled = true;
 connectRemoteSocket();
 idleController.loadImages();
-idleController.show();
 idleController.schedule();
 
 function handleDoneAction() {
