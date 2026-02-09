@@ -20,6 +20,7 @@ PhotoBooth-MKRSHIFT/
 ### 1) Install dependencies
 
 ```bash
+npm install
 cd js_app
 npm install
 ```
@@ -27,10 +28,47 @@ npm install
 ### 2) Run the server
 
 ```bash
+cd js_app
 npm run start
 ```
 
 The server starts on `http://localhost:8080` and serves the Three.js UI from `web_ui/`.
+
+## Electron app
+
+Launch the Electron shell, which will auto-install `js_app` dependencies and check for updates from
+`git@github.com:criskb/PhotoBooth-MKRSHIFT.git` before starting the local server:
+
+```bash
+npm run start
+```
+
+## Installer scripts
+
+Use the helper scripts to install Node dependencies on each platform:
+
+```bash
+./scripts/install-macos.sh
+```
+
+```powershell
+.\scripts\install-windows.ps1
+```
+
+## Build desktop installers
+
+Generate platform installers with Electron Builder (the icon files are generated automatically):
+
+```bash
+npm run build:mac
+```
+
+```bash
+npm run build:win
+```
+
+Artifacts are written to `dist/`. On macOS, drag `PhotoBooth.app` to the Applications folder so it
+appears in the Dock. Supply a 1024x1024 `assets/icon.png` before building to customize the app icon.
 
 ## Configuring styles
 
