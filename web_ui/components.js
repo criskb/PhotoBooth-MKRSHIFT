@@ -30,14 +30,18 @@ function renderControls() {
           </div>
         </div>
       </div>
-      <div class="styles">
-        <button class="style">Clay</button>
-        <button class="style">Comic</button>
-        <button class="style">Oil Paint</button>
-        <button class="style">Cyberpunk</button>
-        <button class="style">Pixel Art</button>
+        <div class="styles-panel">
+          <div class="styles-card">
+            <div class="styles">
+              <button class="style">Clay</button>
+              <button class="style">Comic</button>
+              <button class="style">Oil Paint</button>
+              <button class="style">Cyberpunk</button>
+              <button class="style">Pixel Art</button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
   `;
 }
 
@@ -123,6 +127,10 @@ function renderSettingsModal() {
           </select>
         </label>
         <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--mirror" type="checkbox" />
+          Mirror camera preview
+        </label>
+        <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--enabled" type="checkbox" />
           Enable printing
         </label>
@@ -158,6 +166,39 @@ function renderSettingsModal() {
           <input class="settings-input settings-input--watermark" type="checkbox" />
           Add MKRSHIFT watermark on upload/print
         </label>
+        <div class="settings-watermark">
+          <p class="settings-watermark__label">Watermark preview</p>
+          <div class="settings-watermark__preview">
+            <img class="settings-watermark__image" alt="Watermark preview" />
+          </div>
+          <label class="settings-field settings-field--compact">
+            Watermark text
+            <input
+              class="settings-input form-input settings-input--watermark-text"
+              type="text"
+              value="MKRShift"
+              maxlength="48"
+            />
+          </label>
+          <label class="settings-field settings-field--file">
+            Custom signature watermark
+            <div class="settings-watermark__upload">
+              <button
+                type="button"
+                class="settings-action settings-action--clear-watermark btn btn--secondary"
+                aria-label="Clear custom signature"
+                title="Clear custom signature"
+              >
+                ✕
+              </button>
+              <input
+                class="settings-input form-input settings-input--watermark-file"
+                type="file"
+                accept="image/*"
+              />
+            </div>
+          </label>
+        </div>
         <div class="settings-actions">
           <button class="settings-action settings-action--save btn btn--primary">Save</button>
           <button class="settings-action settings-action--close btn btn--secondary">Close</button>

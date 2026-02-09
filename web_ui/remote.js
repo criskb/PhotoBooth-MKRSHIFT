@@ -3,6 +3,8 @@ const actionButton = document.querySelector(".remote-action");
 const statusLabel = document.querySelector(".remote-status");
 const styleList = document.querySelector(".remote-style-list");
 const styleStatus = document.querySelector(".remote-style-status");
+const stylePreview = document.querySelector(".remote-style-preview");
+const stylePreviewImage = document.querySelector(".remote-style-preview__image");
 const progressLabel = document.querySelector(".remote-progress__label");
 const progressValue = document.querySelector(".remote-progress__value");
 const progressFill = document.querySelector(".remote-progress__fill");
@@ -17,6 +19,7 @@ let currentPromptId = null;
 let progressPoller = null;
 let comfyServerUrl = "";
 let resultReady = false;
+let stylePreviewToken = 0;
 const remotePreferenceKeys = {
   selectedDelay: "remoteSelectedDelay",
   selectedStyle: "remoteSelectedStyle",
@@ -89,6 +92,41 @@ function setResultReady(isReady) {
   if (exitButton) {
     exitButton.disabled = !resultReady;
   }
+}
+
+function clearStylePreview() {
+  if (!stylePreview || !stylePreviewImage) {
+    return;
+  }
+  stylePreview.classList.remove("remote-style-preview--visible");
+  stylePreviewImage.removeAttribute("src");
+}
+
+function updateStylePreview(style) {
+  if (!stylePreview || !stylePreviewImage) {
+    return;
+  }
+  const trimmed = typeof style === "string" ? style.trim() : "";
+  if (!trimmed) {
+    clearStylePreview();
+    return;
+  }
+  stylePreviewToken += 1;
+  const token = stylePreviewToken;
+  const previewUrl = `/api/style-preview?style=${encodeURIComponent(trimmed)}`;
+  stylePreviewImage.onload = () => {
+    if (token !== stylePreviewToken) {
+      return;
+    }
+    stylePreview.classList.add("remote-style-preview--visible");
+  };
+  stylePreviewImage.onerror = () => {
+    if (token !== stylePreviewToken) {
+      return;
+    }
+    clearStylePreview();
+  };
+  stylePreviewImage.src = previewUrl;
 }
 
 function startProgressPolling(promptId) {
@@ -269,6 +307,11 @@ function setSelectedStyle(style, { announce = true } = {}) {
   if (announce && style) {
     setStyleStatus(`Selected: ${toTitleCase(style)}`);
   }
+  if (style) {
+    updateStylePreview(style);
+  } else {
+    clearStylePreview();
+  }
 }
 
 function loadRemotePreferences() {
@@ -322,6 +365,9 @@ async function loadStyles() {
     setStyleStatus("Tap a style to select it.");
     if (selectedStyle) {
       setSelectedStyle(selectedStyle, { announce: false });
+    }
+    if (!selectedStyle) {
+      clearStylePreview();
     }
     if (remoteBusy) {
       setRemoteBusy(true);

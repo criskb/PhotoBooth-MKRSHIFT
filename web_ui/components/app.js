@@ -17,6 +17,9 @@ export function renderApp(container) {
     ${renderHud()}
     <video id="camera" autoplay playsinline muted></video>
     ${renderControls()}
+    <div class="style-preview-card" aria-live="polite">
+      <img class="style-preview__image" alt="Selected style preview" />
+    </div>
     ${renderUtilityControls()}
     ${renderGalleryToggle()}
     ${renderProgressOverlay()}
