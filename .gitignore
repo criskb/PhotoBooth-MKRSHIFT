@@ -1,5 +1,9 @@
 **/__pycache__
 **/node_modules
+dist/
+assets/icon.icns
+assets/icon.ico
+assets/icon.png
 config_local.py
 app.log
 **/wifi_qr.png
