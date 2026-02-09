@@ -1,0 +1,12 @@
+{
+  "name": "photobooth-ui-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:visual": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.2",
+    "http-server": "^14.1.1"
+  }
+}
