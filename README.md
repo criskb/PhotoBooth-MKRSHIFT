@@ -43,6 +43,18 @@ Launch the Electron shell, which will auto-install `js_app` dependencies and che
 npm run start
 ```
 
+## Installer scripts
+
+Use the helper scripts to install Node dependencies on each platform:
+
+```bash
+./scripts/install-macos.sh
+```
+
+```powershell
+.\scripts\install-windows.ps1
+```
+
 ## Configuring styles
 
 Each workflow JSON inside `workflows/` contains its own prompt text and settings. To add a new style, drop a workflow JSON file into the folder. The API exposes the style list at:
