@@ -13,7 +13,7 @@ renderApp(appRoot);
 
 const video = document.querySelector("#camera");
 const stylesContainer = document.querySelector(".styles");
-const stylePreview = document.querySelector(".style-preview");
+const stylePreview = document.querySelector(".style-preview-card");
 const stylePreviewImage = document.querySelector(".style-preview__image");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
