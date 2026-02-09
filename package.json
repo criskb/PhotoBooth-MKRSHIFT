@@ -1,11 +1,15 @@
 {
-  "name": "photobooth-ui-tests",
+  "name": "photobooth",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
+    "start": "electron .",
+    "start:server": "node js_app/server.js",
     "test:visual": "playwright test"
   },
   "devDependencies": {
+    "electron": "^30.0.0",
     "@playwright/test": "^1.47.2",
     "http-server": "^14.1.1"
   }
