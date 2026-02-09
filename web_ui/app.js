@@ -104,6 +104,8 @@ const uiPreferencesKeys = {
   selectedDelay: "selectedDelay",
   selectedStyle: "selectedStyle",
 };
+const modalStack = [];
+const modalFocusState = new Map();
 
 modalManager.registerModal({
   id: "settings",
@@ -594,6 +596,75 @@ function isEditableTarget(target) {
   return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
 }
 
+function getFocusableElements(container) {
+  return Array.from(
+    container.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter(
+    (element) =>
+      element instanceof HTMLElement &&
+      !element.hasAttribute("disabled") &&
+      element.getClientRects().length > 0
+  );
+}
+
+function focusFirstElement(container) {
+  const focusable = getFocusableElements(container);
+  if (focusable.length) {
+    focusable[0].focus();
+    return;
+  }
+  container.focus();
+}
+
+function getTopModal() {
+  return modalStack[modalStack.length - 1] || null;
+}
+
+function pushModal(modal) {
+  const index = modalStack.indexOf(modal);
+  if (index !== -1) {
+    modalStack.splice(index, 1);
+  }
+  modalStack.push(modal);
+}
+
+function openModal(modal, openClass) {
+  if (!modal) {
+    return;
+  }
+  modal.setAttribute("tabindex", "-1");
+  modal.classList.add(openClass);
+  modalFocusState.set(modal, {
+    lastFocused: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  });
+  pushModal(modal);
+  requestAnimationFrame(() => {
+    focusFirstElement(modal);
+  });
+}
+
+function closeModal(modal, openClass) {
+  if (!modal) {
+    return;
+  }
+  modal.classList.remove(openClass);
+  const index = modalStack.indexOf(modal);
+  if (index !== -1) {
+    modalStack.splice(index, 1);
+  }
+  const nextModal = getTopModal();
+  if (nextModal) {
+    focusFirstElement(nextModal);
+    return;
+  }
+  const state = modalFocusState.get(modal);
+  if (state?.lastFocused) {
+    state.lastFocused.focus();
+  }
+}
+
 function toggleSystemMenus() {
   document.body.classList.toggle("system-controls-hidden");
 }
@@ -638,10 +709,12 @@ function openDiagnostics() {
   if (modalManager.open("diagnostics")) {
     fetchDiagnostics();
   }
+  openModal(diagnosticsModal, "diagnostics-modal--open");
+  fetchDiagnostics();
 }
 
 function closeDiagnostics() {
-  modalManager.close("diagnostics");
+  closeModal(diagnosticsModal, "diagnostics-modal--open");
 }
 
 function renderPrinterOptions(printers, selectedName) {
@@ -931,10 +1004,9 @@ function savePrinterConfig() {
 }
 
 function openSettings() {
-  if (modalManager.open("settings")) {
-    settingsClose.disabled = false;
-    loadPrinters(printerConfig.name);
-  }
+  openModal(settingsModal, "settings-modal--open");
+  settingsClose.disabled = false;
+  loadPrinters(printerConfig.name);
 }
 
 function handlePrinterSelection() {
@@ -948,27 +1020,25 @@ function handlePrinterSelection() {
 }
 
 function closeSettings() {
-  modalManager.close("settings");
+  closeModal(settingsModal, "settings-modal--open");
 }
 
 function openGallery() {
-  if (modalManager.open("gallery")) {
-    galleryUploadStatus.textContent = "";
-    galleryQr.style.display = "none";
-    galleryQrImage.src = "";
-    galleryFilterText = "";
-    if (gallerySearch) {
-      gallerySearch.value = "";
-    }
-    if (gallerySort) {
-      gallerySort.value = gallerySortOrder;
-    }
-    loadGallery();
+  openModal(galleryModal, "gallery-modal--open");
+  galleryUploadStatus.textContent = "";
+  galleryQr.style.display = "none";
+  galleryQrImage.src = "";
+  galleryFilterText = "";
+  if (gallerySearch) {
+    gallerySearch.value = "";
+  }
+  if (gallerySort) {
+    gallerySort.value = gallerySortOrder;
   }
 }
 
 function closeGallery() {
-  modalManager.close("gallery");
+  closeModal(galleryModal, "gallery-modal--open");
 }
 
 function setGallerySelection(item) {
@@ -1284,7 +1354,58 @@ document.addEventListener("click", () => {
     closeTimerMenu();
   }
 });
+
+function closeTopModal() {
+  const topModal = getTopModal();
+  if (!topModal) {
+    return false;
+  }
+  if (topModal === settingsModal) {
+    closeSettings();
+    return true;
+  }
+  if (topModal === galleryModal) {
+    closeGallery();
+    return true;
+  }
+  if (topModal === diagnosticsModal) {
+    closeDiagnostics();
+    return true;
+  }
+  return false;
+}
+
+function handleModalTabKey(event) {
+  const topModal = getTopModal();
+  if (!topModal || event.key !== "Tab") {
+    return false;
+  }
+  const focusable = getFocusableElements(topModal);
+  if (!focusable.length) {
+    event.preventDefault();
+    topModal.focus();
+    return true;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+  if (event.shiftKey && (active === first || !topModal.contains(active))) {
+    event.preventDefault();
+    last.focus();
+    return true;
+  }
+  if (!event.shiftKey && (active === last || !topModal.contains(active))) {
+    event.preventDefault();
+    first.focus();
+    return true;
+  }
+  return false;
+}
+
 document.addEventListener("keydown", (event) => {
+  if (handleModalTabKey(event)) {
+    return;
+  }
   if (event.key.toLowerCase() === "m" && !isEditableTarget(event.target)) {
     toggleSystemMenus();
     return;
@@ -1295,7 +1416,32 @@ document.addEventListener("keydown", (event) => {
   if (timerMenu.classList.contains("timer-menu--open")) {
     closeTimerMenu();
   }
-  modalManager.handleEscape(event);
+  closeTopModal();
+});
+document.addEventListener("focusin", (event) => {
+  const topModal = getTopModal();
+  if (!topModal) {
+    return;
+  }
+  if (topModal.contains(event.target)) {
+    return;
+  }
+  focusFirstElement(topModal);
+});
+settingsModal.addEventListener("click", (event) => {
+  if (event.target === settingsModal) {
+    closeSettings();
+  }
+});
+galleryModal.addEventListener("click", (event) => {
+  if (event.target === galleryModal) {
+    closeGallery();
+  }
+});
+diagnosticsModal?.addEventListener("click", (event) => {
+  if (event.target === diagnosticsModal) {
+    closeDiagnostics();
+  }
 });
 settingsToggle.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
