@@ -675,7 +675,9 @@ function applyUploadVisibility() {
   document.body.classList.toggle("is-upload-hidden", !uploadEnabled);
   document.body.classList.toggle("is-qr-hidden", hideQrEnabled);
   uploadButton.disabled = !uploadEnabled || !outputReady;
-  galleryUploadButton.disabled = !uploadEnabled || !selectedGalleryUrl;
+  if (galleryUploadButton) {
+    galleryUploadButton.disabled = !uploadEnabled || !selectedGalleryUrl;
+  }
   if (!uploadEnabled || hideQrEnabled) {
     qrContainer.style.display = "none";
     qrImage.src = "";
@@ -687,10 +689,14 @@ function applyUploadVisibility() {
 
 function applyPrintVisibility() {
   document.body.classList.toggle("is-print-hidden", hidePrintEnabled);
-  printButton.disabled =
-    hidePrintEnabled || !printerConfig.enabled || !printerConfig.name || !outputReady;
-  galleryPrintButton.disabled =
-    hidePrintEnabled || !printerConfig.enabled || !printerConfig.name || !selectedGalleryUrl;
+  if (printButton) {
+    printButton.disabled =
+      hidePrintEnabled || !printerConfig.enabled || !printerConfig.name || !outputReady;
+  }
+  if (galleryPrintButton) {
+    galleryPrintButton.disabled =
+      hidePrintEnabled || !printerConfig.enabled || !printerConfig.name || !selectedGalleryUrl;
+  }
 }
 
 function startProgressPolling() {
@@ -859,10 +865,14 @@ function loadPrinterConfig() {
   settingsPrinterInput.value = printerConfig.name || "";
   settingsPrinterCopiesInput.value = String(printerConfig.copies || 1);
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
-  settingsHidePrintInput.checked = hidePrintEnabled;
+  if (settingsHidePrintInput) {
+    settingsHidePrintInput.checked = hidePrintEnabled;
+  }
   settingsFreeimageInput.value = freeimageApiKey || "";
   settingsUploadsInput.checked = uploadEnabled;
-  settingsHideQrInput.checked = hideQrEnabled;
+  if (settingsHideQrInput) {
+    settingsHideQrInput.checked = hideQrEnabled;
+  }
   settingsWatermarkInput.checked = watermarkEnabled;
   applyPrintVisibility();
   applyCameraOrientation();
@@ -908,10 +918,14 @@ function savePrinterConfig() {
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
   uploadEnabled = settingsUploadsInput.checked;
   localStorage.setItem("uploadEnabled", String(uploadEnabled));
-  hidePrintEnabled = settingsHidePrintInput.checked;
-  localStorage.setItem("hidePrintEnabled", String(hidePrintEnabled));
-  hideQrEnabled = settingsHideQrInput.checked;
-  localStorage.setItem("hideQrEnabled", String(hideQrEnabled));
+  if (settingsHidePrintInput) {
+    hidePrintEnabled = settingsHidePrintInput.checked;
+    localStorage.setItem("hidePrintEnabled", String(hidePrintEnabled));
+  }
+  if (settingsHideQrInput) {
+    hideQrEnabled = settingsHideQrInput.checked;
+    localStorage.setItem("hideQrEnabled", String(hideQrEnabled));
+  }
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
@@ -968,7 +982,9 @@ function setGallerySelection(item) {
     }
     updateGallerySelectionHighlight();
     galleryUploadButton.disabled = true;
-    galleryPrintButton.disabled = true;
+    if (galleryPrintButton) {
+      galleryPrintButton.disabled = true;
+    }
     return;
   }
   selectedGalleryUrl = item.outputUrl;
@@ -1360,7 +1376,7 @@ gallerySort?.addEventListener("change", (event) => {
   applyGalleryFilters();
 });
 galleryUploadButton.addEventListener("click", uploadGallerySelection);
-galleryPrintButton.addEventListener("click", printGallerySelection);
+galleryPrintButton?.addEventListener("click", printGallerySelection);
 uploadButton.addEventListener("click", uploadToFreeimage);
 printButton.addEventListener("click", sendToPrinter);
 doneButton.addEventListener("click", () => {
