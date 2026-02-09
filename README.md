@@ -20,6 +20,7 @@ PhotoBooth-MKRSHIFT/
 ### 1) Install dependencies
 
 ```bash
+npm install
 cd js_app
 npm install
 ```
@@ -27,10 +28,20 @@ npm install
 ### 2) Run the server
 
 ```bash
+cd js_app
 npm run start
 ```
 
 The server starts on `http://localhost:8080` and serves the Three.js UI from `web_ui/`.
+
+## Electron app
+
+Launch the Electron shell, which will auto-install `js_app` dependencies and check for updates from
+`git@github.com:criskb/PhotoBooth-MKRSHIFT.git` before starting the local server:
+
+```bash
+npm run start
+```
 
 ## Configuring styles
 
