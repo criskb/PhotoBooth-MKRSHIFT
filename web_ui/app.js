@@ -13,6 +13,8 @@ renderApp(appRoot);
 
 const video = document.querySelector("#camera");
 const stylesContainer = document.querySelector(".styles");
+const stylePreview = document.querySelector(".style-preview");
+const stylePreviewImage = document.querySelector(".style-preview__image");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
 const statusConnection = document.querySelector(".status__connection");
@@ -102,6 +104,7 @@ let countdownActive = false;
 let remoteSocket = null;
 let remoteSocketReconnect = null;
 let lastRemoteProgress = { status: "ready", label: "Ready", percent: 0, complete: false };
+let stylePreviewToken = 0;
 let selectedGalleryId = "";
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
@@ -290,6 +293,41 @@ function sendRemoteMessage(payload) {
   remoteSocket.send(JSON.stringify(payload));
 }
 
+function clearStylePreview() {
+  if (!stylePreview || !stylePreviewImage) {
+    return;
+  }
+  stylePreview.classList.remove("style-preview--visible");
+  stylePreviewImage.removeAttribute("src");
+}
+
+function updateStylePreview(style) {
+  if (!stylePreview || !stylePreviewImage) {
+    return;
+  }
+  const trimmed = typeof style === "string" ? style.trim() : "";
+  if (!trimmed) {
+    clearStylePreview();
+    return;
+  }
+  stylePreviewToken += 1;
+  const token = stylePreviewToken;
+  const previewUrl = `/api/style-preview?style=${encodeURIComponent(trimmed)}`;
+  stylePreviewImage.onload = () => {
+    if (token !== stylePreviewToken) {
+      return;
+    }
+    stylePreview.classList.add("style-preview--visible");
+  };
+  stylePreviewImage.onerror = () => {
+    if (token !== stylePreviewToken) {
+      return;
+    }
+    clearStylePreview();
+  };
+  stylePreviewImage.src = previewUrl;
+}
+
 function applyStyleSelection(style, { source = "booth", announce = true } = {}) {
   const trimmed = typeof style === "string" ? style.trim() : "";
   if (!trimmed) {
@@ -306,6 +344,11 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
       matched = true;
     }
   });
+  if (matched) {
+    updateStylePreview(trimmed);
+  } else {
+    clearStylePreview();
+  }
   if (announce) {
     statusLabel.textContent = "Style Selected";
     statusMeta.textContent =

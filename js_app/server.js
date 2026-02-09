@@ -551,6 +551,38 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url.startsWith("/api/style-preview")) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const style = url.searchParams.get("style");
+    if (!style) {
+      res.writeHead(400);
+      res.end("Missing style");
+      return;
+    }
+    const styles = loadWorkflowStyles(workflowDir);
+    if (!styles.includes(style)) {
+      res.writeHead(404);
+      res.end("Style not found");
+      return;
+    }
+    const previewPath = path.join(workflowDir, `${style}.png`);
+    if (!fs.existsSync(previewPath)) {
+      res.writeHead(404);
+      res.end("Preview not found");
+      return;
+    }
+    fs.readFile(previewPath, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        res.end("Unable to load preview");
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "image/png" });
+      res.end(data);
+    });
+    return;
+  }
+
   if (req.url.startsWith("/api/health")) {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
