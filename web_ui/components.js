@@ -174,14 +174,22 @@ function renderSettingsModal() {
           </label>
           <label class="settings-field settings-field--file">
             Custom signature watermark
-            <input class="settings-input form-input settings-input--watermark-file" type="file" accept="image/*" />
+            <div class="settings-watermark__upload">
+              <button
+                type="button"
+                class="settings-action settings-action--clear-watermark btn btn--secondary"
+                aria-label="Clear custom signature"
+                title="Clear custom signature"
+              >
+                ✕
+              </button>
+              <input
+                class="settings-input form-input settings-input--watermark-file"
+                type="file"
+                accept="image/*"
+              />
+            </div>
           </label>
-          <button
-            type="button"
-            class="settings-action settings-action--clear-watermark btn btn--secondary"
-          >
-            Clear custom signature
-          </button>
         </div>
         <div class="settings-actions">
           <button class="settings-action settings-action--save btn btn--primary">Save</button>
