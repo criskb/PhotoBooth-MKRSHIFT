@@ -243,17 +243,19 @@ button:focus-visible {
 .controls {
   position: absolute;
   left: 50%;
-  bottom: 2.5rem;
+  bottom: 6.5rem;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   z-index: 2;
   align-items: center;
-  padding: 0.4rem 0.8rem;
-  border-radius: 999px;
+  padding: 1.8rem 1.8rem;
+  min-height: 300px;
+  border-radius: 2.5rem;
   background: rgba(8, 10, 16, 0.2);
   backdrop-filter: blur(8px);
+  overflow: visible;
 }
 
 .action-row {
@@ -869,6 +871,8 @@ button:focus-visible {
 
 .settings-card {
   width: min(480px, 90vw);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
   background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.4rem;
@@ -898,6 +902,14 @@ button:focus-visible {
   gap: 0.5rem;
 }
 
+.settings-field--file {
+  gap: 0.4rem;
+}
+
+.settings-field--compact {
+  gap: 0.35rem;
+}
+
 .form-input {
   padding: 0.6rem 0.75rem;
   border-radius: 0.75rem;
@@ -917,6 +929,68 @@ button:focus-visible {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+}
+
+.settings-watermark {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 14, 22, 0.7);
+}
+
+.settings-watermark__label {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(247, 247, 251, 0.55);
+}
+
+.settings-watermark__preview {
+  padding: 0.6rem;
+  border-radius: 0.75rem;
+  background: rgba(6, 8, 12, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-watermark__image {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  border-radius: 0.6rem;
+}
+
+.settings-action--clear-watermark {
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.settings-action--clear-watermark:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-watermark__upload {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-watermark__upload .settings-input--watermark-file {
+  flex: 1;
 }
 
 .settings-remote {
@@ -1305,12 +1379,58 @@ button:focus-visible {
   box-shadow: none;
 }
 
+.styles-card {
+  padding: 0.9rem 1rem;
+  border-radius: 1.4rem;
+  background: rgba(8, 10, 16, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+}
+
 .styles {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
   justify-content: space-evenly;
+  width: 100%;
+}
+
+.styles-panel {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
   width: min(680px, 92vw);
+}
+
+.style-preview-card {
+  position: absolute;
+  right: calc(var(--space-xl) + var(--space-xs) / 2);
+  bottom: 6.5rem;
+  width: min(220px, 25vw);
+  min-height: 300px;
+  aspect-ratio: 1 / 1;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(12, 15, 22, 0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0rem;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+
+.style-preview--visible {
+  display: flex;
+}
+
+.style-preview__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.9rem;
 }
 
 .style {
@@ -1340,15 +1460,18 @@ button:focus-visible {
 
 .remote-body {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 2rem 1.5rem;
   background: radial-gradient(circle at top, #1f2a44 0%, #0f1118 55%, #090b10 100%);
+  overflow-y: auto;
 }
 
 .remote-card {
   width: min(420px, 92vw);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
   background: rgba(8, 11, 18, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 1.5rem;
