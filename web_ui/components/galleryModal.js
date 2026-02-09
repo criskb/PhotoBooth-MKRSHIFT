@@ -42,6 +42,7 @@ export function renderGalleryModal() {
             </div>
             <div class="gallery-actions">
               <button class="gallery-action gallery-action--upload">Upload Selected</button>
+              <button class="gallery-action gallery-action--print">Print Selected</button>
               <span class="gallery-upload-status" aria-live="polite"></span>
             </div>
             <div class="gallery-qr">

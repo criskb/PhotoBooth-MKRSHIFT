@@ -1,6 +1,5 @@
 import { initIdleOverlay } from "./idle.js";
 import { renderApp } from "./components/index.js";
-import { createModalManager } from "./ui/modalManager.js";
 
 const appRoot = document.querySelector(".app");
 renderApp(appRoot);
@@ -61,6 +60,7 @@ const galleryMetaDate = document.querySelector(".gallery-meta__value--date");
 const galleryInputImage = document.querySelector(".gallery-image--input");
 const galleryOutputImage = document.querySelector(".gallery-image--output");
 const galleryUploadButton = document.querySelector(".gallery-action--upload");
+const galleryPrintButton = document.querySelector(".gallery-action--print");
 const galleryUploadStatus = document.querySelector(".gallery-upload-status");
 const galleryQr = document.querySelector(".gallery-qr");
 const galleryQrImage = document.querySelector(".gallery-qr-image");
@@ -99,29 +99,10 @@ let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
-const modalManager = createModalManager();
 const uiPreferencesKeys = {
   selectedDelay: "selectedDelay",
   selectedStyle: "selectedStyle",
 };
-const modalStack = [];
-const modalFocusState = new Map();
-
-modalManager.registerModal({
-  id: "settings",
-  element: settingsModal,
-  openClass: "settings-modal--open",
-});
-modalManager.registerModal({
-  id: "diagnostics",
-  element: diagnosticsModal,
-  openClass: "diagnostics-modal--open",
-});
-modalManager.registerModal({
-  id: "gallery",
-  element: galleryModal,
-  openClass: "gallery-modal--open",
-});
 
 function updateActionButtonState() {
   actionButton.disabled = !selectedStyle;
@@ -596,75 +577,6 @@ function isEditableTarget(target) {
   return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
 }
 
-function getFocusableElements(container) {
-  return Array.from(
-    container.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )
-  ).filter(
-    (element) =>
-      element instanceof HTMLElement &&
-      !element.hasAttribute("disabled") &&
-      element.getClientRects().length > 0
-  );
-}
-
-function focusFirstElement(container) {
-  const focusable = getFocusableElements(container);
-  if (focusable.length) {
-    focusable[0].focus();
-    return;
-  }
-  container.focus();
-}
-
-function getTopModal() {
-  return modalStack[modalStack.length - 1] || null;
-}
-
-function pushModal(modal) {
-  const index = modalStack.indexOf(modal);
-  if (index !== -1) {
-    modalStack.splice(index, 1);
-  }
-  modalStack.push(modal);
-}
-
-function openModal(modal, openClass) {
-  if (!modal) {
-    return;
-  }
-  modal.setAttribute("tabindex", "-1");
-  modal.classList.add(openClass);
-  modalFocusState.set(modal, {
-    lastFocused: document.activeElement instanceof HTMLElement ? document.activeElement : null,
-  });
-  pushModal(modal);
-  requestAnimationFrame(() => {
-    focusFirstElement(modal);
-  });
-}
-
-function closeModal(modal, openClass) {
-  if (!modal) {
-    return;
-  }
-  modal.classList.remove(openClass);
-  const index = modalStack.indexOf(modal);
-  if (index !== -1) {
-    modalStack.splice(index, 1);
-  }
-  const nextModal = getTopModal();
-  if (nextModal) {
-    focusFirstElement(nextModal);
-    return;
-  }
-  const state = modalFocusState.get(modal);
-  if (state?.lastFocused) {
-    state.lastFocused.focus();
-  }
-}
-
 function toggleSystemMenus() {
   document.body.classList.toggle("system-controls-hidden");
 }
@@ -706,15 +618,15 @@ async function fetchDiagnostics() {
 }
 
 function openDiagnostics() {
-  if (modalManager.open("diagnostics")) {
-    fetchDiagnostics();
+  if (!diagnosticsModal) {
+    return;
   }
-  openModal(diagnosticsModal, "diagnostics-modal--open");
+  diagnosticsModal.classList.add("diagnostics-modal--open");
   fetchDiagnostics();
 }
 
 function closeDiagnostics() {
-  closeModal(diagnosticsModal, "diagnostics-modal--open");
+  diagnosticsModal?.classList.remove("diagnostics-modal--open");
 }
 
 function renderPrinterOptions(printers, selectedName) {
@@ -777,6 +689,8 @@ function applyPrintVisibility() {
   document.body.classList.toggle("is-print-hidden", hidePrintEnabled);
   printButton.disabled =
     hidePrintEnabled || !printerConfig.enabled || !printerConfig.name || !outputReady;
+  galleryPrintButton.disabled =
+    hidePrintEnabled || !printerConfig.enabled || !printerConfig.name || !selectedGalleryUrl;
 }
 
 function startProgressPolling() {
@@ -1035,6 +949,7 @@ function openGallery() {
   if (gallerySort) {
     gallerySort.value = gallerySortOrder;
   }
+  loadGallery();
 }
 
 function closeGallery() {
@@ -1053,6 +968,7 @@ function setGallerySelection(item) {
     }
     updateGallerySelectionHighlight();
     galleryUploadButton.disabled = true;
+    galleryPrintButton.disabled = true;
     return;
   }
   selectedGalleryUrl = item.outputUrl;
@@ -1067,6 +983,7 @@ function setGallerySelection(item) {
   galleryOutputImage.src = item.outputUrl;
   updateGallerySelectionHighlight();
   galleryUploadButton.disabled = !uploadEnabled;
+  applyPrintVisibility();
   galleryUploadStatus.textContent = "";
   galleryQr.style.display = "none";
   galleryQrImage.src = "";
@@ -1276,6 +1193,37 @@ async function uploadGallerySelection() {
   }
 }
 
+async function printGallerySelection() {
+  if (!selectedGalleryUrl || !printerConfig.enabled || !printerConfig.name) {
+    return;
+  }
+  if (hidePrintEnabled) {
+    return;
+  }
+  galleryPrintButton.disabled = true;
+  galleryUploadStatus.textContent = "Sending to printer...";
+  try {
+    const imageUrl = await resolveShareImageUrl(selectedGalleryUrl);
+    const response = await fetch("/api/print", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageUrl,
+        printerName: printerConfig.name,
+        copies: printerConfig.copies,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    galleryUploadStatus.textContent = `Sent to printer ${printerConfig.name}`;
+  } catch (error) {
+    galleryUploadStatus.textContent = error?.message || "Print failed.";
+  } finally {
+    applyPrintVisibility();
+  }
+}
+
 async function sendToPrinter() {
   if (!lastOutputUrl || !printerConfig.enabled || !printerConfig.name) {
     return;
@@ -1354,58 +1302,7 @@ document.addEventListener("click", () => {
     closeTimerMenu();
   }
 });
-
-function closeTopModal() {
-  const topModal = getTopModal();
-  if (!topModal) {
-    return false;
-  }
-  if (topModal === settingsModal) {
-    closeSettings();
-    return true;
-  }
-  if (topModal === galleryModal) {
-    closeGallery();
-    return true;
-  }
-  if (topModal === diagnosticsModal) {
-    closeDiagnostics();
-    return true;
-  }
-  return false;
-}
-
-function handleModalTabKey(event) {
-  const topModal = getTopModal();
-  if (!topModal || event.key !== "Tab") {
-    return false;
-  }
-  const focusable = getFocusableElements(topModal);
-  if (!focusable.length) {
-    event.preventDefault();
-    topModal.focus();
-    return true;
-  }
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  const active = document.activeElement;
-  if (event.shiftKey && (active === first || !topModal.contains(active))) {
-    event.preventDefault();
-    last.focus();
-    return true;
-  }
-  if (!event.shiftKey && (active === last || !topModal.contains(active))) {
-    event.preventDefault();
-    first.focus();
-    return true;
-  }
-  return false;
-}
-
 document.addEventListener("keydown", (event) => {
-  if (handleModalTabKey(event)) {
-    return;
-  }
   if (event.key.toLowerCase() === "m" && !isEditableTarget(event.target)) {
     toggleSystemMenus();
     return;
@@ -1416,17 +1313,15 @@ document.addEventListener("keydown", (event) => {
   if (timerMenu.classList.contains("timer-menu--open")) {
     closeTimerMenu();
   }
-  closeTopModal();
-});
-document.addEventListener("focusin", (event) => {
-  const topModal = getTopModal();
-  if (!topModal) {
-    return;
+  if (settingsModal.classList.contains("settings-modal--open")) {
+    closeSettings();
   }
-  if (topModal.contains(event.target)) {
-    return;
+  if (galleryModal.classList.contains("gallery-modal--open")) {
+    closeGallery();
   }
-  focusFirstElement(topModal);
+  if (diagnosticsModal?.classList.contains("diagnostics-modal--open")) {
+    closeDiagnostics();
+  }
 });
 settingsModal.addEventListener("click", (event) => {
   if (event.target === settingsModal) {
@@ -1465,6 +1360,7 @@ gallerySort?.addEventListener("change", (event) => {
   applyGalleryFilters();
 });
 galleryUploadButton.addEventListener("click", uploadGallerySelection);
+galleryPrintButton.addEventListener("click", printGallerySelection);
 uploadButton.addEventListener("click", uploadToFreeimage);
 printButton.addEventListener("click", sendToPrinter);
 doneButton.addEventListener("click", () => {
