@@ -54,7 +54,7 @@ function renderProgressOverlay() {
   return `
     <div class="progress-overlay" aria-live="polite">
       <div class="progress-card">
-        <button class="progress-close" aria-label="Close results">✕</button>
+        <button class="progress-close btn btn--secondary" aria-label="Close results">✕</button>
         <div class="progress__meta">
           <span class="progress__label">Idle</span>
           <span class="progress__value">0%</span>
@@ -64,9 +64,9 @@ function renderProgressOverlay() {
         </div>
         <img class="progress__preview" alt="Latest generated output" />
         <div class="progress__actions">
-          <button class="progress-action progress-action--upload" disabled>Upload</button>
-          <button class="progress-action progress-action--print" disabled>Print</button>
-          <button class="progress-action progress-action--done" disabled>Back to Capture</button>
+          <button class="progress-action progress-action--upload btn btn--primary" disabled>Upload</button>
+          <button class="progress-action progress-action--print btn btn--primary" disabled>Print</button>
+          <button class="progress-action progress-action--done btn btn--primary" disabled>Back to Capture</button>
         </div>
         <div class="progress__qr">
           <span class="progress__qr-label">Upload QR</span>
@@ -151,8 +151,8 @@ function renderSettingsModal() {
           Add MKRSHIFT watermark on upload/print
         </label>
         <div class="settings-actions">
-          <button class="settings-action settings-action--save">Save</button>
-          <button class="settings-action settings-action--close">Close</button>
+          <button class="settings-action settings-action--save btn btn--primary">Save</button>
+          <button class="settings-action settings-action--close btn btn--secondary">Close</button>
         </div>
         <div class="settings-remote">
           <p class="settings-remote__title">Phone remote shutter</p>
@@ -190,7 +190,7 @@ function renderGalleryModal() {
       <div class="gallery-card">
         <div class="gallery-header">
           <h2 id="gallery-title">Gallery</h2>
-          <button class="gallery-close" aria-label="Close gallery">Close</button>
+          <button class="gallery-close btn btn--secondary" aria-label="Close gallery">Close</button>
         </div>
         <div class="gallery-body">
           <div class="gallery-list"></div>
@@ -206,7 +206,7 @@ function renderGalleryModal() {
               </div>
             </div>
             <div class="gallery-actions">
-              <button class="gallery-action gallery-action--upload">Upload Selected</button>
+              <button class="gallery-action gallery-action--upload btn btn--primary">Upload Selected</button>
               <span class="gallery-upload-status" aria-live="polite"></span>
             </div>
             <div class="gallery-qr">

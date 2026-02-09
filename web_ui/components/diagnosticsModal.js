@@ -4,7 +4,7 @@ export function renderDiagnosticsModal() {
       <div class="diagnostics-card">
         <div class="diagnostics-header">
           <h2 id="diagnostics-title">Diagnostics</h2>
-          <button class="diagnostics-close" aria-label="Close diagnostics">Close</button>
+          <button class="diagnostics-close btn btn--secondary" aria-label="Close diagnostics">Close</button>
         </div>
         <div class="diagnostics-grid">
           <div class="diagnostics-item">

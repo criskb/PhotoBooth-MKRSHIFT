@@ -138,6 +138,64 @@ button:focus-visible {
   transform: translateY(-2px);
 }
 
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #f7f7fb;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.btn--primary {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: linear-gradient(135deg, var(--accent), var(--accent-warm));
+  color: #07121c;
+  box-shadow: 0 16px 32px rgba(95, 211, 255, 0.3);
+}
+
+.btn--secondary {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(18, 22, 33, 0.8);
+  color: #f7f7fb;
+  box-shadow: 0 12px 24px rgba(3, 6, 14, 0.4);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.02);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn--primary:hover:not(:disabled) {
+  box-shadow: 0 16px 36px rgba(95, 211, 255, 0.4), 0 0 18px rgba(254, 170, 58, 0.35);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  border-color: rgba(95, 211, 255, 0.6);
+  box-shadow: 0 14px 32px rgba(95, 211, 255, 0.2);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 #camera {
   position: absolute;
   inset: 0;
@@ -357,19 +415,8 @@ button:focus-visible {
   right: 0.75rem;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: #f7f7fb;
   font-size: 1rem;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.progress-close:hover {
-  border-color: rgba(255, 129, 129, 0.7);
-  box-shadow: 0 10px 25px rgba(255, 129, 129, 0.2);
-  transform: rotate(-4deg);
+  padding: 0;
 }
 
 .progress__meta {
@@ -429,30 +476,6 @@ button:focus-visible {
   gap: 0.75rem;
   flex-wrap: wrap;
   justify-content: center;
-}
-
-.progress-action {
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(18, 22, 33, 0.8);
-  color: #f7f7fb;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.progress-action:hover:not(:disabled) {
-  border-color: rgba(95, 211, 255, 0.6);
-  box-shadow: 0 12px 28px rgba(95, 211, 255, 0.2);
-  transform: translateY(-1px);
-}
-
-.progress-action:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .progress__qr {
@@ -803,24 +826,6 @@ button:focus-visible {
   letter-spacing: 0.12em;
 }
 
-.diagnostics-close {
-  padding: 0.5rem 1.2rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: #f7f7fb;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.diagnostics-close:hover {
-  border-color: rgba(95, 211, 255, 0.6);
-  box-shadow: 0 12px 28px rgba(95, 211, 255, 0.2);
-  transform: translateY(-1px);
-}
-
 .diagnostics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -997,25 +1002,6 @@ button:focus-visible {
   color: rgba(120, 209, 255, 0.9);
 }
 
-.settings-action {
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: #f7f7fb;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.settings-action:hover {
-  border-color: rgba(95, 211, 255, 0.6);
-  box-shadow: 0 12px 28px rgba(95, 211, 255, 0.2);
-  transform: translateY(-1px);
-}
-
 .gallery-modal {
   position: absolute;
   inset: 0;
@@ -1052,24 +1038,6 @@ button:focus-visible {
   font-size: 1.2rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-}
-
-.gallery-close {
-  padding: 0.5rem 1.2rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: #f7f7fb;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.gallery-close:hover {
-  border-color: rgba(95, 211, 255, 0.6);
-  box-shadow: 0 12px 28px rgba(95, 211, 255, 0.2);
-  transform: translateY(-1px);
 }
 
 .gallery-body {
@@ -1201,23 +1169,6 @@ button:focus-visible {
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
-}
-
-.gallery-action {
-  padding: 0.6rem 1.4rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(18, 22, 33, 0.7);
-  color: #f7f7fb;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-}
-
-.gallery-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .is-print-hidden .gallery-action--print {

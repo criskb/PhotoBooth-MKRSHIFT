@@ -66,8 +66,8 @@ export function renderSettingsModal() {
           Add MKRSHIFT watermark on upload/print
         </label>
         <div class="settings-actions">
-          <button class="settings-action settings-action--save">Save</button>
-          <button class="settings-action settings-action--close">Close</button>
+          <button class="settings-action settings-action--save btn btn--primary">Save</button>
+          <button class="settings-action settings-action--close btn btn--secondary">Close</button>
         </div>
         <div class="settings-remote">
           <p class="settings-remote__title">Phone remote shutter</p>
