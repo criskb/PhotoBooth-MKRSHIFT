@@ -1080,7 +1080,14 @@ remoteWss.on("connection", (socket) => {
   });
 });
 
-const port = process.env.PORT ?? 8080;
-server.listen(port, () => {
-  console.log(`Photo Booth UI server running on http://localhost:${port}`);
-});
+export function startServer() {
+  const port = process.env.PORT ?? 8080;
+  server.listen(port, () => {
+    console.log(`Photo Booth UI server running on http://localhost:${port}`);
+  });
+  return server;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  startServer();
+}

@@ -1,12 +1,51 @@
 {
-  "name": "photobooth-ui-tests",
+  "name": "photobooth",
+  "version": "0.1.0",
+  "description": "PhotoBooth-MKRSHIFT desktop shell for the photobooth UI and server.",
+  "author": "MKRSHIFT",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
+    "start": "electron .",
+    "start:server": "node js_app/server.js",
+    "icons:generate": "node scripts/generate-icons.js",
+    "build:mac": "npm run icons:generate && npm --prefix js_app install && electron-builder --mac",
+    "build:win": "npm run icons:generate && npm --prefix js_app install && electron-builder --win",
+    "build": "npm run icons:generate && npm --prefix js_app install && electron-builder",
     "test:visual": "playwright test"
   },
   "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "png2icons": "^2.0.1",
     "@playwright/test": "^1.47.2",
     "http-server": "^14.1.1"
+  },
+  "build": {
+    "appId": "com.mkrshift.photobooth",
+    "productName": "PhotoBooth",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "js_app/**",
+      "js_app/node_modules/**",
+      "web_ui/**",
+      "workflows/**",
+      "gallery/**",
+      "assets/**",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.photo-video",
+      "icon": "assets/icon.icns",
+      "sign": false
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    }
   }
 }
