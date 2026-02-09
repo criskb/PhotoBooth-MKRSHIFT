@@ -1,5 +1,6 @@
 import { initIdleOverlay } from "./idle.js";
 import { renderApp } from "./components/index.js";
+import { createModalManager } from "./ui/modalManager.js";
 
 const appRoot = document.querySelector(".app");
 renderApp(appRoot);
@@ -98,12 +99,29 @@ let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
+const modalManager = createModalManager();
 const uiPreferencesKeys = {
   selectedDelay: "selectedDelay",
   selectedStyle: "selectedStyle",
 };
 const modalStack = [];
 const modalFocusState = new Map();
+
+modalManager.registerModal({
+  id: "settings",
+  element: settingsModal,
+  openClass: "settings-modal--open",
+});
+modalManager.registerModal({
+  id: "diagnostics",
+  element: diagnosticsModal,
+  openClass: "diagnostics-modal--open",
+});
+modalManager.registerModal({
+  id: "gallery",
+  element: galleryModal,
+  openClass: "gallery-modal--open",
+});
 
 function updateActionButtonState() {
   actionButton.disabled = !selectedStyle;
@@ -688,8 +706,8 @@ async function fetchDiagnostics() {
 }
 
 function openDiagnostics() {
-  if (!diagnosticsModal) {
-    return;
+  if (modalManager.open("diagnostics")) {
+    fetchDiagnostics();
   }
   openModal(diagnosticsModal, "diagnostics-modal--open");
   fetchDiagnostics();
@@ -1017,7 +1035,6 @@ function openGallery() {
   if (gallerySort) {
     gallerySort.value = gallerySortOrder;
   }
-  loadGallery();
 }
 
 function closeGallery() {
