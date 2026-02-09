@@ -1,5 +1,6 @@
 import { initIdleOverlay } from "./idle.js";
 import { renderApp } from "./components/index.js";
+import { createModalManager } from "./ui/modalManager.js";
 
 const appRoot = document.querySelector(".app");
 renderApp(appRoot);
@@ -98,10 +99,27 @@ let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
+const modalManager = createModalManager();
 const uiPreferencesKeys = {
   selectedDelay: "selectedDelay",
   selectedStyle: "selectedStyle",
 };
+
+modalManager.registerModal({
+  id: "settings",
+  element: settingsModal,
+  openClass: "settings-modal--open",
+});
+modalManager.registerModal({
+  id: "diagnostics",
+  element: diagnosticsModal,
+  openClass: "diagnostics-modal--open",
+});
+modalManager.registerModal({
+  id: "gallery",
+  element: galleryModal,
+  openClass: "gallery-modal--open",
+});
 
 function updateActionButtonState() {
   actionButton.disabled = !selectedStyle;
@@ -617,15 +635,13 @@ async function fetchDiagnostics() {
 }
 
 function openDiagnostics() {
-  if (!diagnosticsModal) {
-    return;
+  if (modalManager.open("diagnostics")) {
+    fetchDiagnostics();
   }
-  diagnosticsModal.classList.add("diagnostics-modal--open");
-  fetchDiagnostics();
 }
 
 function closeDiagnostics() {
-  diagnosticsModal?.classList.remove("diagnostics-modal--open");
+  modalManager.close("diagnostics");
 }
 
 function renderPrinterOptions(printers, selectedName) {
@@ -915,9 +931,10 @@ function savePrinterConfig() {
 }
 
 function openSettings() {
-  settingsModal.classList.add("settings-modal--open");
-  settingsClose.disabled = false;
-  loadPrinters(printerConfig.name);
+  if (modalManager.open("settings")) {
+    settingsClose.disabled = false;
+    loadPrinters(printerConfig.name);
+  }
 }
 
 function handlePrinterSelection() {
@@ -931,26 +948,27 @@ function handlePrinterSelection() {
 }
 
 function closeSettings() {
-  settingsModal.classList.remove("settings-modal--open");
+  modalManager.close("settings");
 }
 
 function openGallery() {
-  galleryModal.classList.add("gallery-modal--open");
-  galleryUploadStatus.textContent = "";
-  galleryQr.style.display = "none";
-  galleryQrImage.src = "";
-  galleryFilterText = "";
-  if (gallerySearch) {
-    gallerySearch.value = "";
+  if (modalManager.open("gallery")) {
+    galleryUploadStatus.textContent = "";
+    galleryQr.style.display = "none";
+    galleryQrImage.src = "";
+    galleryFilterText = "";
+    if (gallerySearch) {
+      gallerySearch.value = "";
+    }
+    if (gallerySort) {
+      gallerySort.value = gallerySortOrder;
+    }
+    loadGallery();
   }
-  if (gallerySort) {
-    gallerySort.value = gallerySortOrder;
-  }
-  loadGallery();
 }
 
 function closeGallery() {
-  galleryModal.classList.remove("gallery-modal--open");
+  modalManager.close("gallery");
 }
 
 function setGallerySelection(item) {
@@ -1277,30 +1295,7 @@ document.addEventListener("keydown", (event) => {
   if (timerMenu.classList.contains("timer-menu--open")) {
     closeTimerMenu();
   }
-  if (settingsModal.classList.contains("settings-modal--open")) {
-    closeSettings();
-  }
-  if (galleryModal.classList.contains("gallery-modal--open")) {
-    closeGallery();
-  }
-  if (diagnosticsModal?.classList.contains("diagnostics-modal--open")) {
-    closeDiagnostics();
-  }
-});
-settingsModal.addEventListener("click", (event) => {
-  if (event.target === settingsModal) {
-    closeSettings();
-  }
-});
-galleryModal.addEventListener("click", (event) => {
-  if (event.target === galleryModal) {
-    closeGallery();
-  }
-});
-diagnosticsModal?.addEventListener("click", (event) => {
-  if (event.target === diagnosticsModal) {
-    closeDiagnostics();
-  }
+  modalManager.handleEscape(event);
 });
 settingsToggle.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
