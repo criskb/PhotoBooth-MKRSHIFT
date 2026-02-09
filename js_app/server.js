@@ -21,6 +21,7 @@ const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
 let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+let comfyApiKey = process.env.COMFY_API_KEY ?? "";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
 let comfyProgressUrl = `${comfyServerUrl}/progress`;
@@ -45,6 +46,14 @@ function setComfyServerUrl(nextUrl) {
   connectComfyWebsocket();
 }
 
+function setComfyApiKey(nextKey) {
+  if (nextKey === comfyApiKey) {
+    return;
+  }
+  comfyApiKey = nextKey || "";
+  connectComfyWebsocket();
+}
+
 function normalizeComfyServerUrl(value) {
   if (typeof value !== "string") {
     return null;
@@ -54,10 +63,43 @@ function normalizeComfyServerUrl(value) {
     return null;
   }
   try {
-    const url = new URL(trimmed);
+    const withProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+    const url = new URL(withProtocol);
     return url.toString().replace(/\/$/, "");
   } catch (error) {
     return null;
+  }
+}
+
+function normalizeApiKey(value) {
+  if (Array.isArray(value)) {
+    return value[0]?.trim?.() ?? "";
+  }
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.trim();
+}
+
+function buildComfyHeaders() {
+  if (!comfyApiKey) {
+    return {};
+  }
+  return {
+    Authorization: `Bearer ${comfyApiKey}`,
+    "X-API-Key": comfyApiKey,
+  };
+}
+
+function isRemoteComfyServerUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    const host = url.hostname;
+    return host !== "localhost" && host !== "127.0.0.1" && host !== "::1";
+  } catch (error) {
+    return false;
   }
 }
 
@@ -85,7 +127,7 @@ function buildPreviewUrl(preview) {
   }
   if (typeof preview === "string") {
     return normalizePreviewImage(preview) ??
-      `${comfyViewUrl}?filename=${encodeURIComponent(preview)}`;
+      `/api/output?filename=${encodeURIComponent(preview)}&type=temp&subfolder=`;
   }
   const inlinePreview =
     normalizePreviewImage(preview.image) ??
@@ -100,7 +142,7 @@ function buildPreviewUrl(preview) {
   }
   const type = preview.type ?? "temp";
   const subfolder = preview.subfolder ?? "";
-  return `${comfyViewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
+  return `/api/output?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
     type
   )}&subfolder=${encodeURIComponent(subfolder)}`;
 }
@@ -248,7 +290,7 @@ function connectComfyWebsocket() {
     comfyClientId
   )}`;
   console.info(`ComfyUI WebSocket connecting (clientId: ${comfyClientId}): ${wsUrl}`);
-  comfySocket = new WebSocket(wsUrl);
+  comfySocket = new WebSocket(wsUrl, { headers: buildComfyHeaders() });
   comfySocketReady = false;
   comfySocket.on("open", () => {
     comfySocketReady = true;
@@ -313,19 +355,22 @@ function readJsonBody(req) {
   });
 }
 
-function writeBase64Image(dataUrl, outputPath) {
+function decodeBase64Image(dataUrl) {
   const match = /^data:image\/\w+;base64,(.+)$/.exec(dataUrl || "");
   if (!match) {
     throw new Error("Invalid image data");
   }
-  const buffer = Buffer.from(match[1], "base64");
+  return Buffer.from(match[1], "base64");
+}
+
+function writeImageBuffer(buffer, outputPath) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, buffer);
   return buffer;
 }
 
 async function fetchComfyJson(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, { headers: buildComfyHeaders() });
   if (!response.ok) {
     throw new Error(`ComfyUI error: ${response.status}`);
   }
@@ -476,7 +521,7 @@ async function fetchComfyImageBuffer(image) {
   const target = `${comfyViewUrl}?filename=${encodeURIComponent(image.filename)}&type=${encodeURIComponent(
     image.type ?? "output"
   )}&subfolder=${encodeURIComponent(image.subfolder ?? "")}`;
-  const response = await fetch(target);
+  const response = await fetch(target, { headers: buildComfyHeaders() });
   if (!response.ok) {
     throw new Error(`ComfyUI view error: ${response.status}`);
   }
@@ -503,6 +548,19 @@ const server = http.createServer((req, res) => {
     const styles = loadWorkflowStyles(workflowDir);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ styles }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/health")) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        comfyServerUrl,
+        websocketConnected: comfySocketReady,
+        apiKeyConfigured: Boolean(comfyApiKey),
+        uptimeSeconds: Math.floor(process.uptime()),
+      })
+    );
     return;
   }
 
@@ -537,8 +595,13 @@ const server = http.createServer((req, res) => {
         const style = payload.style;
         const image = payload.image;
         const comfyOverride = normalizeComfyServerUrl(payload.comfyServerUrl);
+        const comfyKeyOverride =
+          typeof payload.comfyApiKey === "string" ? normalizeApiKey(payload.comfyApiKey) : null;
         if (comfyOverride) {
           setComfyServerUrl(comfyOverride);
+        }
+        if (comfyKeyOverride !== null) {
+          setComfyApiKey(comfyKeyOverride);
         }
         if (!style || !image) {
           res.writeHead(400);
@@ -549,8 +612,16 @@ const server = http.createServer((req, res) => {
           const captureId = `capture-${Date.now()}-${crypto.randomUUID()}`;
           const safeId = safeFileName(captureId);
           const captureName = `${safeId}.png`;
-          const buffer = writeBase64Image(image, comfyInputPath);
-          fs.writeFileSync(path.join(galleryInputDir, captureName), buffer);
+          const buffer = decodeBase64Image(image);
+          writeImageBuffer(buffer, path.join(galleryInputDir, captureName));
+          let inputImagePath = null;
+          let inputImageBuffer = null;
+          if (isRemoteComfyServerUrl(comfyServerUrl)) {
+            inputImageBuffer = buffer;
+          } else {
+            inputImagePath = comfyInputPath;
+            writeImageBuffer(buffer, comfyInputPath);
+          }
           console.info(`Queueing ComfyUI prompt (clientId: ${comfyClientId}).`);
           const promptId = crypto.randomUUID();
           const workflow = loadWorkflowJson(workflowDir, style);
@@ -558,10 +629,12 @@ const server = http.createServer((req, res) => {
             workflowDir,
             styleName: style,
             stylePrompt: null,
-            inputImagePath: comfyInputPath,
+            inputImagePath,
+            inputImageBuffer,
             serverUrl: comfyServerUrl,
             clientId: comfyClientId,
             promptId,
+            apiKey: comfyApiKey,
           });
           const resolvedPromptId = result?.prompt_id ?? promptId;
           promptToCapture.set(resolvedPromptId, safeId);
@@ -590,8 +663,12 @@ const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const promptId = url.searchParams.get("promptId");
     const comfyOverride = normalizeComfyServerUrl(url.searchParams.get("comfyServerUrl"));
+    const comfyKeyHeader = req.headers["x-comfy-api-key"];
     if (comfyOverride) {
       setComfyServerUrl(comfyOverride);
+    }
+    if (comfyKeyHeader !== undefined) {
+      setComfyApiKey(normalizeApiKey(comfyKeyHeader));
     }
     if (!promptId) {
       res.writeHead(400);
@@ -687,7 +764,7 @@ const server = http.createServer((req, res) => {
     const target = `${comfyViewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
       type
     )}&subfolder=${encodeURIComponent(subfolder)}`;
-    fetch(target)
+    fetch(target, { headers: buildComfyHeaders() })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`ComfyUI view error: ${response.status}`);
