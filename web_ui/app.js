@@ -1,7 +1,14 @@
 import { initIdleOverlay } from "./idle.js";
 import { renderApp } from "./components/index.js";
 
-const appRoot = document.querySelector(".app");
+const appRoot =
+  document.querySelector(".app") ??
+  (() => {
+    const root = document.createElement("div");
+    root.className = "app";
+    document.body.appendChild(root);
+    return root;
+  })();
 renderApp(appRoot);
 
 const video = document.querySelector("#camera");
@@ -68,19 +75,6 @@ const countdownOverlay = document.querySelector(".countdown-overlay");
 const countdownValue = document.querySelector(".countdown-value");
 const flashOverlay = document.querySelector(".flash-overlay");
 const idleOverlay = document.querySelector(".idle-overlay");
-
-[
-  { node: settingsModal, label: "settings modal", selector: ".settings-modal" },
-  { node: galleryModal, label: "gallery modal", selector: ".gallery-modal" },
-  { node: settingsToggle, label: "settings toggle", selector: ".settings-toggle" },
-  { node: galleryToggle, label: "gallery toggle", selector: ".gallery-toggle" },
-].forEach(({ node, label, selector }) => {
-  if (!node) {
-    console.warn(
-      `[app] Missing ${label} (${selector}). Check markup or renderApp execution.`
-    );
-  }
-});
 
 let selectedStyle = null;
 let isQueueing = false;
@@ -949,8 +943,10 @@ function openSettings() {
   if (!settingsModal) {
     return;
   }
-  openModal(settingsModal, "settings-modal--open");
-  settingsClose?.disabled = false;
+  settingsModal.classList.add("settings-modal--open");
+  if (settingsClose) {
+    settingsClose.disabled = false;
+  }
   loadPrinters(printerConfig.name);
 }
 
@@ -965,20 +961,21 @@ function handlePrinterSelection() {
 }
 
 function closeSettings() {
-  if (!settingsModal) {
-    return;
-  }
-  closeModal(settingsModal, "settings-modal--open");
+  settingsModal?.classList.remove("settings-modal--open");
 }
 
 function openGallery() {
   if (!galleryModal) {
     return;
   }
-  openModal(galleryModal, "gallery-modal--open");
+  galleryModal.classList.add("gallery-modal--open");
   galleryUploadStatus.textContent = "";
-  galleryQr.style.display = "none";
-  galleryQrImage.src = "";
+  if (galleryQr) {
+    galleryQr.style.display = "none";
+  }
+  if (galleryQrImage) {
+    galleryQrImage.src = "";
+  }
   galleryFilterText = "";
   if (gallerySearch) {
     gallerySearch.value = "";
@@ -990,10 +987,7 @@ function openGallery() {
 }
 
 function closeGallery() {
-  if (!galleryModal) {
-    return;
-  }
-  closeModal(galleryModal, "gallery-modal--open");
+  galleryModal?.classList.remove("gallery-modal--open");
 }
 
 function setGallerySelection(item) {
@@ -1355,10 +1349,10 @@ document.addEventListener("keydown", (event) => {
   if (timerMenu.classList.contains("timer-menu--open")) {
     closeTimerMenu();
   }
-  if (settingsModal?.classList.contains("settings-modal--open")) {
+  if (settingsModal.classList.contains("settings-modal--open")) {
     closeSettings();
   }
-  if (galleryModal?.classList.contains("gallery-modal--open")) {
+  if (galleryModal.classList.contains("gallery-modal--open")) {
     closeGallery();
   }
   if (diagnosticsModal?.classList.contains("diagnostics-modal--open")) {
@@ -1382,17 +1376,17 @@ diagnosticsModal?.addEventListener("click", (event) => {
 });
 settingsToggle?.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
-fullscreenToggle.addEventListener("click", toggleFullscreen);
-settingsPrinterInput.addEventListener("change", handlePrinterSelection);
-settingsSave.addEventListener("click", () => {
+fullscreenToggle?.addEventListener("click", toggleFullscreen);
+settingsPrinterInput?.addEventListener("change", handlePrinterSelection);
+settingsSave?.addEventListener("click", () => {
   savePrinterConfig();
   closeSettings();
 });
-settingsClose.addEventListener("click", closeSettings);
+settingsClose?.addEventListener("click", closeSettings);
 diagnosticsClose?.addEventListener("click", closeDiagnostics);
 diagnosticsRefresh?.addEventListener("click", fetchDiagnostics);
 galleryToggle?.addEventListener("click", openGallery);
-galleryClose.addEventListener("click", closeGallery);
+galleryClose?.addEventListener("click", closeGallery);
 gallerySearch?.addEventListener("input", (event) => {
   galleryFilterText = event.target.value.trim().toLowerCase();
   applyGalleryFilters();
@@ -1420,10 +1414,9 @@ idleOverlay?.addEventListener("click", (event) => {
   if (idleOverlay.classList.contains("idle-overlay--hidden")) {
     return;
   }
-  const { clientX, clientY } = event;
   idleController.hide();
   requestAnimationFrame(() => {
-    const target = document.elementFromPoint(clientX, clientY);
+    const target = document.elementFromPoint(event.clientX, event.clientY);
     if (target && target !== idleOverlay) {
       target.click();
     }
