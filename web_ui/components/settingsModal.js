@@ -5,12 +5,16 @@ export function renderSettingsModal() {
         <h2 id="settings-title">Settings</h2>
         <label class="settings-field">
           ComfyUI API Endpoint
-          <input class="settings-input settings-input--comfy" type="url" placeholder="http://127.0.0.1:8188" />
+          <input
+            class="settings-input form-input settings-input--comfy"
+            type="url"
+            placeholder="http://127.0.0.1:8188"
+          />
         </label>
         <label class="settings-field">
           ComfyUI API Key (for hosted services)
           <input
-            class="settings-input settings-input--comfy-key"
+            class="settings-input form-input settings-input--comfy-key"
             type="password"
             placeholder="Optional API token"
             autocomplete="off"
@@ -18,12 +22,16 @@ export function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Camera Orientation
-          <select class="settings-input settings-input--orientation">
+          <select class="settings-input form-input settings-input--orientation">
             <option value="0">0° (Normal)</option>
             <option value="90">90°</option>
             <option value="180">180°</option>
             <option value="270">270°</option>
           </select>
+        </label>
+        <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--mirror" type="checkbox" />
+          Mirror camera preview
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--enabled" type="checkbox" />
@@ -35,14 +43,14 @@ export function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Printer Name
-          <select class="settings-input settings-input--printer">
+          <select class="settings-input form-input settings-input--printer">
             <option value="">Select a printer</option>
           </select>
         </label>
         <label class="settings-field">
           Printer Copies
           <input
-            class="settings-input settings-input--printer-copies"
+            class="settings-input form-input settings-input--printer-copies"
             type="number"
             min="1"
             step="1"
@@ -51,7 +59,11 @@ export function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Freeimage API Key
-          <input class="settings-input settings-input--freeimage" type="text" placeholder="Freeimage API Key" />
+          <input
+            class="settings-input form-input settings-input--freeimage"
+            type="text"
+            placeholder="Freeimage API Key"
+          />
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--uploads" type="checkbox" />
@@ -65,9 +77,42 @@ export function renderSettingsModal() {
           <input class="settings-input settings-input--watermark" type="checkbox" />
           Add MKRSHIFT watermark on upload/print
         </label>
+        <div class="settings-watermark">
+          <p class="settings-watermark__label">Watermark preview</p>
+          <div class="settings-watermark__preview">
+            <img class="settings-watermark__image" alt="Watermark preview" />
+          </div>
+          <label class="settings-field settings-field--compact">
+            Watermark text
+            <input
+              class="settings-input form-input settings-input--watermark-text"
+              type="text"
+              value="MKRShift"
+              maxlength="48"
+            />
+          </label>
+          <label class="settings-field settings-field--file">
+            Custom signature watermark
+            <div class="settings-watermark__upload">
+              <button
+                type="button"
+                class="settings-action settings-action--clear-watermark btn btn--secondary"
+                aria-label="Clear custom signature"
+                title="Clear custom signature"
+              >
+                ✕
+              </button>
+              <input
+                class="settings-input form-input settings-input--watermark-file"
+                type="file"
+                accept="image/*"
+              />
+            </div>
+          </label>
+        </div>
         <div class="settings-actions">
-          <button class="settings-action settings-action--save">Save</button>
-          <button class="settings-action settings-action--close">Close</button>
+          <button class="settings-action settings-action--save btn btn--primary">Save</button>
+          <button class="settings-action settings-action--close btn btn--secondary">Close</button>
         </div>
         <div class="settings-remote">
           <p class="settings-remote__title">Phone remote shutter</p>

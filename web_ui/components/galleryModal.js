@@ -4,18 +4,18 @@ export function renderGalleryModal() {
       <div class="gallery-card">
         <div class="gallery-header">
           <h2 id="gallery-title">Gallery</h2>
-          <button class="gallery-close" aria-label="Close gallery">Close</button>
+          <button class="gallery-close btn btn--secondary" aria-label="Close gallery">Close</button>
         </div>
         <div class="gallery-body">
           <div class="gallery-sidebar">
             <div class="gallery-filters">
               <label class="gallery-filter">
                 Search
-                <input class="gallery-search" type="search" placeholder="Filter by capture id" />
+                <input class="gallery-search form-input" type="search" placeholder="Filter by capture id" />
               </label>
               <label class="gallery-filter">
                 Sort
-                <select class="gallery-sort">
+                <select class="gallery-sort form-input">
                   <option value="recent">Most recent</option>
                   <option value="oldest">Oldest first</option>
                 </select>
@@ -41,8 +41,8 @@ export function renderGalleryModal() {
               </div>
             </div>
             <div class="gallery-actions">
-              <button class="gallery-action gallery-action--upload">Upload Selected</button>
-              <button class="gallery-action gallery-action--print">Print Selected</button>
+              <button class="gallery-action gallery-action--upload btn btn--primary">Upload Selected</button>
+              <button class="gallery-action gallery-action--print btn btn--primary">Print Selected</button>
               <span class="gallery-upload-status" aria-live="polite"></span>
             </div>
             <div class="gallery-qr">
