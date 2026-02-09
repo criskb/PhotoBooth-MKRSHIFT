@@ -10,9 +10,9 @@
     "start": "electron .",
     "start:server": "node js_app/server.js",
     "icons:generate": "node scripts/generate-icons.js",
-    "build:mac": "npm run icons:generate && npm --prefix js_app install && electron-builder --mac",
-    "build:win": "npm run icons:generate && npm --prefix js_app install && electron-builder --win",
-    "build": "npm run icons:generate && npm --prefix js_app install && electron-builder",
+    "build:mac": "npm run icons:generate && node scripts/ensure-js-app-deps.js && electron-builder --mac",
+    "build:win": "npm run icons:generate && node scripts/ensure-js-app-deps.js && electron-builder --win",
+    "build": "npm run icons:generate && node scripts/ensure-js-app-deps.js && electron-builder",
     "test:visual": "playwright test"
   },
   "devDependencies": {
@@ -41,7 +41,6 @@
     "asarUnpack": [
       "js_app/**"
     ],
-    "beforeBuild": "scripts/ensure-js-app-deps.js",
     "mac": {
       "category": "public.app-category.photo-video",
       "icon": "assets/icon.icns",
