@@ -39,7 +39,8 @@
     ],
     "mac": {
       "category": "public.app-category.photo-video",
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "sign": false
     },
     "win": {
       "target": "nsis",
