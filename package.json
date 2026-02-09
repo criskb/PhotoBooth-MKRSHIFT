@@ -10,9 +10,9 @@
     "start": "electron .",
     "start:server": "node js_app/server.js",
     "icons:generate": "node scripts/generate-icons.js",
-    "build:mac": "npm run icons:generate && electron-builder --mac",
-    "build:win": "npm run icons:generate && electron-builder --win",
-    "build": "npm run icons:generate && electron-builder",
+    "build:mac": "npm run icons:generate && npm --prefix js_app install && electron-builder --mac",
+    "build:win": "npm run icons:generate && npm --prefix js_app install && electron-builder --win",
+    "build": "npm run icons:generate && npm --prefix js_app install && electron-builder",
     "test:visual": "playwright test"
   },
   "devDependencies": {
@@ -31,6 +31,7 @@
     "files": [
       "electron/**",
       "js_app/**",
+      "js_app/node_modules/**",
       "web_ui/**",
       "workflows/**",
       "gallery/**",
