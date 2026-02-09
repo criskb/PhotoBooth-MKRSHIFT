@@ -11,11 +11,11 @@ export function renderGalleryModal() {
             <div class="gallery-filters">
               <label class="gallery-filter">
                 Search
-                <input class="gallery-search" type="search" placeholder="Filter by capture id" />
+                <input class="gallery-search form-input" type="search" placeholder="Filter by capture id" />
               </label>
               <label class="gallery-filter">
                 Sort
-                <select class="gallery-sort">
+                <select class="gallery-sort form-input">
                   <option value="recent">Most recent</option>
                   <option value="oldest">Oldest first</option>
                 </select>

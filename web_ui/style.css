@@ -919,16 +919,16 @@ button:focus-visible {
   gap: 0.5rem;
 }
 
-.settings-input {
-  padding: 0.65rem 0.8rem;
+.form-input {
+  padding: 0.6rem 0.75rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(12, 16, 24, 0.88);
+  background: rgba(12, 16, 24, 0.9);
   color: #f7f7fb;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.settings-input:focus {
+.form-input:focus {
   outline: none;
   border-color: rgba(95, 211, 255, 0.7);
   box-shadow: 0 0 0 3px rgba(95, 211, 255, 0.15);
@@ -1078,18 +1078,6 @@ button:focus-visible {
 .gallery-search,
 .gallery-sort {
   padding: 0.55rem 0.7rem;
-  border-radius: 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(12, 16, 24, 0.9);
-  color: #f7f7fb;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.gallery-search:focus,
-.gallery-sort:focus {
-  outline: none;
-  border-color: rgba(95, 211, 255, 0.7);
-  box-shadow: 0 0 0 3px rgba(95, 211, 255, 0.15);
 }
 .gallery-list {
   display: flex;

@@ -98,12 +98,16 @@ function renderSettingsModal() {
         <h2 id="settings-title">Settings</h2>
         <label class="settings-field">
           ComfyUI API Endpoint
-          <input class="settings-input settings-input--comfy" type="url" placeholder="http://127.0.0.1:8188" />
+          <input
+            class="settings-input form-input settings-input--comfy"
+            type="url"
+            placeholder="http://127.0.0.1:8188"
+          />
         </label>
         <label class="settings-field">
           ComfyUI API Key (for hosted services)
           <input
-            class="settings-input settings-input--comfy-key"
+            class="settings-input form-input settings-input--comfy-key"
             type="password"
             placeholder="Optional API token"
             autocomplete="off"
@@ -111,7 +115,7 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Camera Orientation
-          <select class="settings-input settings-input--orientation">
+          <select class="settings-input form-input settings-input--orientation">
             <option value="0">0° (Normal)</option>
             <option value="90">90°</option>
             <option value="180">180°</option>
@@ -124,14 +128,14 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Printer Name
-          <select class="settings-input settings-input--printer">
+          <select class="settings-input form-input settings-input--printer">
             <option value="">Select a printer</option>
           </select>
         </label>
         <label class="settings-field">
           Printer Copies
           <input
-            class="settings-input settings-input--printer-copies"
+            class="settings-input form-input settings-input--printer-copies"
             type="number"
             min="1"
             step="1"
@@ -140,7 +144,11 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field">
           Freeimage API Key
-          <input class="settings-input settings-input--freeimage" type="text" placeholder="Freeimage API Key" />
+          <input
+            class="settings-input form-input settings-input--freeimage"
+            type="text"
+            placeholder="Freeimage API Key"
+          />
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--uploads" type="checkbox" />
