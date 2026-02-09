@@ -17,6 +17,10 @@ let currentPromptId = null;
 let progressPoller = null;
 let comfyServerUrl = "";
 let resultReady = false;
+const remotePreferenceKeys = {
+  selectedDelay: "remoteSelectedDelay",
+  selectedStyle: "remoteSelectedStyle",
+};
 
 function setStatus(message) {
   statusLabel.textContent = message;
@@ -37,6 +41,7 @@ function toTitleCase(value) {
 
 function setSelectedDelay(value) {
   selectedDelay = value;
+  localStorage.setItem(remotePreferenceKeys.selectedDelay, String(value));
   timerButtons.forEach((button) => {
     button.classList.toggle(
       "remote-timer--active",
@@ -112,6 +117,8 @@ function startProgressPolling(promptId) {
       if (data.complete) {
         setResultReady(true);
         setRemoteBusy(true);
+        clearInterval(progressPoller);
+        progressPoller = null;
         currentPromptId = null;
       }
     } catch (error) {
@@ -168,6 +175,10 @@ function connectSocket() {
         if (payload.complete) {
           setResultReady(true);
           setRemoteBusy(true);
+          if (progressPoller) {
+            clearInterval(progressPoller);
+            progressPoller = null;
+          }
           currentPromptId = null;
         } else if (payload.status === "ready") {
           setResultReady(false);
@@ -248,12 +259,35 @@ function sendExit() {
 
 function setSelectedStyle(style, { announce = true } = {}) {
   selectedStyle = style;
+  if (style) {
+    localStorage.setItem(remotePreferenceKeys.selectedStyle, style);
+  }
   const styleButtons = Array.from(document.querySelectorAll(".remote-style"));
   styleButtons.forEach((button) => {
     button.classList.toggle("remote-style--active", button.dataset.style === style);
   });
   if (announce && style) {
     setStyleStatus(`Selected: ${toTitleCase(style)}`);
+  }
+}
+
+function loadRemotePreferences() {
+  try {
+    const storedDelay = Number(localStorage.getItem(remotePreferenceKeys.selectedDelay));
+    if (Number.isFinite(storedDelay)) {
+      selectedDelay = storedDelay;
+    }
+    const storedStyle = localStorage.getItem(remotePreferenceKeys.selectedStyle);
+    if (storedStyle) {
+      selectedStyle = storedStyle;
+    }
+  } catch (error) {
+    selectedDelay = 0;
+    selectedStyle = null;
+  }
+  setSelectedDelay(selectedDelay);
+  if (selectedStyle) {
+    setSelectedStyle(selectedStyle, { announce: false });
   }
 }
 
@@ -310,4 +344,5 @@ if (exitButton) {
 }
 
 loadStyles();
+loadRemotePreferences();
 connectSocket();

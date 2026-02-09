@@ -20,6 +20,7 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   let idleTimer = null;
   let images = [];
   let resizeTimer = null;
+  let paused = false;
 
   if (!overlay || !canvas) {
     return {
@@ -28,10 +29,15 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       hide: () => {},
       schedule: () => {},
       handleUserActivity: () => {},
+      pause: () => {},
+      resume: () => {},
     };
   }
 
   const show = () => {
+    if (paused) {
+      return;
+    }
     overlay.classList.remove("idle-overlay--hidden");
   };
 
@@ -40,6 +46,9 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   };
 
   const schedule = () => {
+    if (paused) {
+      return;
+    }
     if (idleTimer) {
       clearTimeout(idleTimer);
     }
@@ -47,6 +56,9 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   };
 
   const handleUserActivity = () => {
+    if (paused) {
+      return;
+    }
     if (!overlay.classList.contains("idle-overlay--hidden")) {
       hide();
     }
@@ -138,11 +150,27 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
 
   window.addEventListener("resize", handleResize);
 
+  const pause = () => {
+    paused = true;
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+    hide();
+  };
+
+  const resume = () => {
+    paused = false;
+    schedule();
+  };
+
   return {
     loadImages,
     show,
     hide,
     schedule,
     handleUserActivity,
+    pause,
+    resume,
   };
 }
