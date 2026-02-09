@@ -33,7 +33,9 @@ const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
+const settingsHidePrintInput = document.querySelector(".settings-input--hide-print");
 const settingsUploadsInput = document.querySelector(".settings-input--uploads");
+const settingsHideQrInput = document.querySelector(".settings-input--hide-qr");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
@@ -92,6 +94,8 @@ let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let watermarkEnabled = false;
 let uploadEnabled = true;
+let hidePrintEnabled = false;
+let hideQrEnabled = false;
 let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
 const uiPreferencesKeys = {
@@ -564,6 +568,18 @@ function updateComfyConnectionStatus(isConnected) {
   statusConnection.classList.toggle("status__connection--offline", !isConnected);
 }
 
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
+}
+
+function toggleSystemMenus() {
+  document.body.classList.toggle("system-controls-hidden");
+}
+
 function formatUptime(seconds) {
   const totalSeconds = Number(seconds) || 0;
   const hours = Math.floor(totalSeconds / 3600);
@@ -656,15 +672,22 @@ async function loadPrinters(selectedName = printerConfig.name) {
 
 function applyUploadVisibility() {
   document.body.classList.toggle("is-upload-hidden", !uploadEnabled);
+  document.body.classList.toggle("is-qr-hidden", hideQrEnabled);
   uploadButton.disabled = !uploadEnabled || !outputReady;
   galleryUploadButton.disabled = !uploadEnabled || !selectedGalleryUrl;
-  if (!uploadEnabled) {
+  if (!uploadEnabled || hideQrEnabled) {
     qrContainer.style.display = "none";
     qrImage.src = "";
     galleryUploadStatus.textContent = "";
     galleryQr.style.display = "none";
     galleryQrImage.src = "";
   }
+}
+
+function applyPrintVisibility() {
+  document.body.classList.toggle("is-print-hidden", hidePrintEnabled);
+  printButton.disabled =
+    hidePrintEnabled || !printerConfig.enabled || !printerConfig.name || !outputReady;
 }
 
 function startProgressPolling() {
@@ -702,7 +725,7 @@ function startProgressPolling() {
         });
         outputReady = true;
         uploadButton.disabled = !uploadEnabled;
-        printButton.disabled = !printerConfig.enabled || !printerConfig.name;
+        applyPrintVisibility();
         doneButton.disabled = false;
         progressCloseButton.disabled = false;
         updateRemoteProgress({
@@ -808,6 +831,14 @@ function loadPrinterConfig() {
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
     }
+    const hidePrintRaw = localStorage.getItem("hidePrintEnabled");
+    if (hidePrintRaw !== null) {
+      hidePrintEnabled = hidePrintRaw === "true";
+    }
+    const hideQrRaw = localStorage.getItem("hideQrEnabled");
+    if (hideQrRaw !== null) {
+      hideQrEnabled = hideQrRaw === "true";
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
@@ -816,6 +847,8 @@ function loadPrinterConfig() {
     cameraOrientation = 0;
     watermarkEnabled = false;
     uploadEnabled = true;
+    hidePrintEnabled = false;
+    hideQrEnabled = false;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
@@ -823,10 +856,12 @@ function loadPrinterConfig() {
   settingsPrinterInput.value = printerConfig.name || "";
   settingsPrinterCopiesInput.value = String(printerConfig.copies || 1);
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
+  settingsHidePrintInput.checked = hidePrintEnabled;
   settingsFreeimageInput.value = freeimageApiKey || "";
   settingsUploadsInput.checked = uploadEnabled;
+  settingsHideQrInput.checked = hideQrEnabled;
   settingsWatermarkInput.checked = watermarkEnabled;
-  printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  applyPrintVisibility();
   applyCameraOrientation();
   updateRemoteInfo();
   applyUploadVisibility();
@@ -870,7 +905,11 @@ function savePrinterConfig() {
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
   uploadEnabled = settingsUploadsInput.checked;
   localStorage.setItem("uploadEnabled", String(uploadEnabled));
-  printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  hidePrintEnabled = settingsHidePrintInput.checked;
+  localStorage.setItem("hidePrintEnabled", String(hidePrintEnabled));
+  hideQrEnabled = settingsHideQrInput.checked;
+  localStorage.setItem("hideQrEnabled", String(hideQrEnabled));
+  applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
 }
@@ -888,7 +927,7 @@ function handlePrinterSelection() {
     name: selectedName,
   };
   localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
-  printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+  applyPrintVisibility();
 }
 
 function closeSettings() {
@@ -1111,7 +1150,7 @@ async function uploadToFreeimage() {
   try {
     const imageUrl = await resolveShareImageUrl(lastOutputUrl);
     const data = await uploadImage(imageUrl);
-    if (data.qrUrl) {
+    if (data.qrUrl && !hideQrEnabled) {
       qrImage.src = data.qrUrl;
       qrContainer.style.display = "flex";
     }
@@ -1137,7 +1176,7 @@ async function uploadGallerySelection() {
   try {
     const imageUrl = await resolveShareImageUrl(selectedGalleryUrl);
     const data = await uploadImage(imageUrl);
-    if (data.qrUrl) {
+    if (data.qrUrl && !hideQrEnabled) {
       galleryQrImage.src = data.qrUrl;
       galleryQr.style.display = "flex";
     }
@@ -1174,7 +1213,7 @@ async function sendToPrinter() {
     statusLabel.textContent = "Print Failed";
     statusMeta.textContent = error?.message || "Printer not configured or unavailable.";
   } finally {
-    printButton.disabled = !printerConfig.enabled || !printerConfig.name || !outputReady;
+    applyPrintVisibility();
   }
 }
 
@@ -1228,6 +1267,10 @@ document.addEventListener("click", () => {
   }
 });
 document.addEventListener("keydown", (event) => {
+  if (event.key.toLowerCase() === "m" && !isEditableTarget(event.target)) {
+    toggleSystemMenus();
+    return;
+  }
   if (event.key !== "Escape") {
     return;
   }

@@ -29,6 +29,10 @@ export function renderSettingsModal() {
           <input class="settings-input settings-input--enabled" type="checkbox" />
           Enable printing
         </label>
+        <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--hide-print" type="checkbox" />
+          Hide print button
+        </label>
         <label class="settings-field">
           Printer Name
           <select class="settings-input settings-input--printer">
@@ -52,6 +56,10 @@ export function renderSettingsModal() {
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--uploads" type="checkbox" />
           Enable uploads
+        </label>
+        <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--hide-qr" type="checkbox" />
+          Hide QR downloads
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--watermark" type="checkbox" />

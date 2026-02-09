@@ -58,7 +58,8 @@ html {
 }
 
 .settings-toggle,
-.fullscreen-toggle {
+.fullscreen-toggle,
+.diagnostics-toggle {
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 999px;
@@ -67,6 +68,21 @@ html {
   color: #f7f7fb;
   font-size: 1.1rem;
   cursor: pointer;
+}
+
+.system-controls-hidden .utility-controls,
+.system-controls-hidden .gallery-toggle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.is-print-hidden .progress-action--print {
+  display: none;
+}
+
+.is-qr-hidden .progress__qr,
+.is-qr-hidden .gallery-qr {
+  display: none;
 }
 
 .gallery-toggle {
