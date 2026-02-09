@@ -36,6 +36,7 @@ const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
+const settingsMirrorInput = document.querySelector(".settings-input--mirror");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
@@ -105,6 +106,7 @@ let selectedGalleryId = "";
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
+let cameraMirrored = false;
 let watermarkEnabled = false;
 let watermarkCustomDataUrl = "";
 let watermarkImageCache = { src: "", image: null };
@@ -847,6 +849,10 @@ function loadPrinterConfig() {
     if (orientationRaw) {
       cameraOrientation = Number(orientationRaw) || 0;
     }
+    const mirrorRaw = localStorage.getItem("cameraMirrored");
+    if (mirrorRaw !== null) {
+      cameraMirrored = mirrorRaw === "true";
+    }
     const watermarkRaw = localStorage.getItem("watermarkEnabled");
     if (watermarkRaw !== null) {
       watermarkEnabled = watermarkRaw === "true";
@@ -877,6 +883,7 @@ function loadPrinterConfig() {
     comfyApiKey = "";
     comfyServerUrl = defaultComfyServerUrl;
     cameraOrientation = 0;
+    cameraMirrored = false;
     watermarkEnabled = false;
     watermarkCustomDataUrl = "";
     watermarkImageCache = { src: "", image: null };
@@ -888,6 +895,9 @@ function loadPrinterConfig() {
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
   settingsOrientationInput.value = String(cameraOrientation || 0);
+  if (settingsMirrorInput) {
+    settingsMirrorInput.checked = cameraMirrored;
+  }
   settingsPrinterInput.value = printerConfig.name || "";
   settingsPrinterCopiesInput.value = String(printerConfig.copies || 1);
   settingsEnabledInput.checked = Boolean(printerConfig.enabled);
@@ -947,6 +957,10 @@ function savePrinterConfig() {
   localStorage.setItem("comfyServerUrl", comfyServerUrl);
   cameraOrientation = Number(settingsOrientationInput.value) || 0;
   localStorage.setItem("cameraOrientation", String(cameraOrientation));
+  if (settingsMirrorInput) {
+    cameraMirrored = settingsMirrorInput.checked;
+    localStorage.setItem("cameraMirrored", String(cameraMirrored));
+  }
   watermarkEnabled = settingsWatermarkInput.checked;
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
   if (settingsWatermarkTextInput) {
@@ -1066,13 +1080,17 @@ function applyCameraOrientation() {
       video.style.width = `${container.height}px`;
       video.style.height = `${container.width}px`;
     }
-    video.style.transform = `translate(-50%, -50%) rotate(${orientation}deg)`;
   } else {
     video.style.top = "";
     video.style.left = "";
     video.style.width = "";
     video.style.height = "";
-    video.style.transform = "";
+  }
+  const mirrorValue = cameraMirrored ? " scaleX(-1)" : "";
+  if (orientation) {
+    video.style.transform = `translate(-50%, -50%) rotate(${orientation}deg)${mirrorValue}`;
+  } else {
+    video.style.transform = mirrorValue ? `scaleX(-1)` : "";
   }
   video.style.transformOrigin = "center";
 }
@@ -1554,6 +1572,11 @@ settingsToggle?.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
 fullscreenToggle?.addEventListener("click", toggleFullscreen);
 settingsPrinterInput?.addEventListener("change", handlePrinterSelection);
+settingsMirrorInput?.addEventListener("change", () => {
+  cameraMirrored = settingsMirrorInput.checked;
+  localStorage.setItem("cameraMirrored", String(cameraMirrored));
+  applyCameraOrientation();
+});
 settingsWatermarkInput?.addEventListener("change", renderWatermarkPreview);
 settingsWatermarkTextInput?.addEventListener("input", () => {
   watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";

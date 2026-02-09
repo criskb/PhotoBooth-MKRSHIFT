@@ -30,6 +30,10 @@ export function renderSettingsModal() {
           </select>
         </label>
         <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--mirror" type="checkbox" />
+          Mirror camera preview
+        </label>
+        <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--enabled" type="checkbox" />
           Enable printing
         </label>
