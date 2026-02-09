@@ -1,5 +1,8 @@
 {
   "name": "photobooth",
+  "version": "0.1.0",
+  "description": "PhotoBooth-MKRSHIFT desktop shell for the photobooth UI and server.",
+  "author": "MKRSHIFT",
   "private": true,
   "type": "module",
   "main": "electron/main.js",
