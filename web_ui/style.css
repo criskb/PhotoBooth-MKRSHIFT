@@ -143,10 +143,12 @@ button:focus-visible {
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(12px);
+  box-shadow: 0 18px 35px rgba(5, 6, 7, 0.35);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .brand__title {
-  font-size: clamp(1.65rem, 3.4vw, 3.1rem);
+  font-size: clamp(0.825rem, 1.7vw, 1.55rem);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
