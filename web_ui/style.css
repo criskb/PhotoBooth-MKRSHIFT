@@ -48,7 +48,7 @@ button:focus-visible {
   background: rgba(3, 5, 9, 0.75);
 }
 
-.app--busy .controls {
+.controls {
   opacity: 0;
   pointer-events: none;
 }
