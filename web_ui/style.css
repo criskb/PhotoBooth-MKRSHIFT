@@ -296,7 +296,8 @@ button:focus-visible {
 .timer-menu {
   position: absolute;
   bottom: calc(100% + 0.5rem);
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   background: rgba(8, 11, 18, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 0.75rem;
