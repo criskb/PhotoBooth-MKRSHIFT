@@ -6,8 +6,8 @@
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
-    "start": "electron .",
-    "start:web": "node js_app/server.js",
+    "start": "node js_app/server.js",
+    "start:desktop": "electron .",
     "build:icons": "node scripts/generate-icons.js",
     "build:mac": "node scripts/ensure-js-app-deps.js && npm run build:icons && electron-builder --mac",
     "build:win": "node scripts/ensure-js-app-deps.js && npm run build:icons && electron-builder --win",

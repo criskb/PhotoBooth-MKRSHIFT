@@ -40,7 +40,7 @@ Launch the Electron shell, which will auto-install `js_app` dependencies and che
 `git@github.com:criskb/PhotoBooth-MKRSHIFT.git` before starting the local server:
 
 ```bash
-npm run start
+npm run start:desktop
 ```
 
 ## Installer scripts
