@@ -236,8 +236,8 @@ button:focus-visible {
 
 .capture-controls {
   position: absolute;
-  left: 50%;
-  bottom: 16.75rem;
+  left: 45%;
+  bottom: 19.75rem;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -258,7 +258,7 @@ button:focus-visible {
 
 .controls {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 1rem;
   align-items: center;
   padding: 0;
