@@ -5,7 +5,7 @@ export function renderIdleOverlay() {
       <div class="idle-overlay__canvas" aria-hidden="true"></div>
       <div class="idle-overlay__copy">
         <p class="idle-overlay__title">Touch to start</p>
-        <p class="idle-overlay__subtitle">AI PhotoBooth by MKRShift</p>
+        <p class="idle-overlay__subtitle">Kreativ Teknologi</p>
       </div>
     </div>
   `;
