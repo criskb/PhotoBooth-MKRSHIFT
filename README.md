@@ -20,6 +20,7 @@ PhotoBooth-MKRSHIFT/
 ### 1) Install dependencies
 
 ```bash
+npm install
 cd js_app
 npm install
 ```
@@ -27,6 +28,7 @@ npm install
 ### 2) Run the server
 
 ```bash
+cd js_app
 npm run start
 ```
 

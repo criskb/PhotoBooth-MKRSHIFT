@@ -1,8 +1,11 @@
 {
-  "name": "photobooth-ui-tests",
+  "name": "photobooth",
+  "version": "0.1.0",
+  "description": "PhotoBooth-MKRSHIFT server and web UI.",
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node js_app/server.js",
     "test:visual": "playwright test"
   },
   "devDependencies": {
