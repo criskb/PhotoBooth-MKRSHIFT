@@ -16,9 +16,11 @@ export function renderApp(container) {
   container.innerHTML = `
     ${renderHud()}
     <video id="camera" autoplay playsinline muted></video>
-    ${renderControls()}
-    <div class="style-preview-card" aria-live="polite">
-      <img class="style-preview__image" alt="Selected style preview" />
+    <div class="controls-preview-group">
+      ${renderControls()}
+      <div class="style-preview-card" aria-live="polite">
+        <img class="style-preview__image" alt="Selected style preview" />
+      </div>
     </div>
     ${renderUtilityControls()}
     ${renderGalleryToggle()}

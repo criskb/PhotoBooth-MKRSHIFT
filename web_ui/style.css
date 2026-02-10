@@ -44,15 +44,8 @@ button:focus-visible {
 
 .app--busy::before {
   content: "";
-  position: absolute;
   inset: 0;
   background: rgba(3, 5, 9, 0.75);
-  z-index: 2;
-}
-
-.app--busy .controls {
-  opacity: 0;
-  pointer-events: none;
 }
 
 .app--busy .utility-controls,
@@ -240,19 +233,25 @@ button:focus-visible {
   color: rgba(255, 129, 129, 0.9);
 }
 
-.controls {
+.controls-preview-group {
   position: absolute;
   left: 50%;
   bottom: 6.5rem;
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  align-items: stretch;
+  gap: 1rem;
   z-index: 2;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
   align-items: center;
-  padding: 1.8rem 1.8rem;
+  padding: 1.62rem 1.62rem;
   min-height: 300px;
-  border-radius: 2.5rem;
+  border-radius: 2.25rem;
   background: rgba(8, 10, 16, 0.2);
   backdrop-filter: blur(8px);
   overflow: visible;
@@ -1382,9 +1381,9 @@ button:focus-visible {
 .styles-card {
   padding: 0.9rem 1rem;
   border-radius: 1.4rem;
-  background: rgba(8, 10, 16, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
   display: flex;
   align-items: center;
 }
@@ -1405,10 +1404,7 @@ button:focus-visible {
 }
 
 .style-preview-card {
-  position: absolute;
-  right: calc(var(--space-xl) + var(--space-xs) / 2);
-  bottom: 6.5rem;
-  width: min(220px, 25vw);
+  width: min(198px, 22.5vw);
   min-height: 300px;
   aspect-ratio: 1 / 1;
   border-radius: 1.2rem;
@@ -1419,7 +1415,6 @@ button:focus-visible {
   justify-content: center;
   padding: 0rem;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
-  z-index: 2;
 }
 
 .style-preview--visible {
@@ -1669,7 +1664,7 @@ button:focus-visible {
     align-items: flex-start;
   }
 
-  .controls {
+  .controls-preview-group {
     bottom: 1.5rem;
   }
 }
