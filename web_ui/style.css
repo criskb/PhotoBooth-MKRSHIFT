@@ -247,12 +247,12 @@ button:focus-visible {
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.125rem;
   z-index: 2;
   align-items: center;
-  padding: 1.8rem 1.8rem;
-  min-height: 300px;
-  border-radius: 2.5rem;
+  padding: 1.62rem 1.62rem;
+  min-height: 270px;
+  border-radius: 2.25rem;
   background: rgba(8, 10, 16, 0.2);
   backdrop-filter: blur(8px);
   overflow: visible;
@@ -1408,8 +1408,8 @@ button:focus-visible {
   position: absolute;
   right: calc(var(--space-xl) + var(--space-xs) / 2);
   bottom: 6.5rem;
-  width: min(220px, 25vw);
-  min-height: 300px;
+  width: min(198px, 22.5vw);
+  min-height: 270px;
   aspect-ratio: 1 / 1;
   border-radius: 1.2rem;
   border: 1px solid rgba(255, 255, 255, 0.15);
