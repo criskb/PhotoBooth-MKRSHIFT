@@ -1,11 +1,11 @@
-# PhotoBooth-MKRSHIFT
+# PhotoBooth-TVIBIT
 
-PhotoBooth-MKRSHIFT is a JavaScript-first photo booth stack that pairs a Node.js server with a Three.js web UI and ComfyUI workflows. Styles and prompts live in workflow JSON files, and the UI consumes them through a simple JSON API.
+PhotoBooth-TVIBIT is a JavaScript-first photo booth stack that pairs a Node.js server with a Three.js web UI and ComfyUI workflows. Styles and prompts live in workflow JSON files, and the UI consumes them through a simple JSON API.
 
 ## Repository layout
 
 ```
-PhotoBooth-MKRSHIFT/
+PhotoBooth-TVIBIT/
 ├── js_app/        # Node.js API server + ComfyUI client
 ├── web_ui/        # Three.js photo booth UI (served by js_app)
 ├── workflows/     # ComfyUI workflow JSON files (style prompts live here)
@@ -65,3 +65,8 @@ Long-running image generations can exceed reverse-proxy defaults. Increase proxy
 ## Legacy Python notes
 
 The previous Python implementation is deprecated and retained only for reference.
+
+
+Kreativ Teknologi
+Made by Cris K B
+@2025-26

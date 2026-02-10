@@ -1212,7 +1212,7 @@ async function buildWatermarkedImageUrl(imageUrl) {
   ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
   ctx.shadowBlur = Math.round(fontSize * 0.4);
   const margin = Math.round(fontSize * 0.6);
-  ctx.fillText("MKRSHIFT", width - margin, height - margin);
+  ctx.fillText("Kreativ Teknologi", width - margin, height - margin);
   return canvas.toDataURL("image/png");
 }
 
