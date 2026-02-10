@@ -233,6 +233,18 @@ button:focus-visible {
   color: rgba(255, 129, 129, 0.9);
 }
 
+
+.capture-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 16.75rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 3;
+}
+
 .controls-preview-group {
   position: absolute;
   left: 50%;
@@ -247,24 +259,19 @@ button:focus-visible {
 .controls {
   display: flex;
   flex-direction: column;
-  gap: 1.125rem;
+  gap: 1rem;
   align-items: center;
-  padding: 1.62rem 1.62rem;
-  min-height: 300px;
-  border-radius: 2.25rem;
-  background: rgba(8, 10, 16, 0.2);
-  backdrop-filter: blur(8px);
+  padding: 0;
+  min-height: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
   overflow: visible;
-}
-
-.action-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
 }
 
 .timer-control {
   position: relative;
+  z-index: 4;
 }
 
 .timer-toggle {
@@ -299,6 +306,7 @@ button:focus-visible {
   gap: 0.35rem;
   min-width: 90px;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+  z-index: 5;
 }
 
 .timer-menu--open {
@@ -327,6 +335,16 @@ button:focus-visible {
 .timer-option--active {
   border-color: rgba(95, 211, 255, 0.7);
   color: #5fd3ff;
+}
+
+@media (max-height: 860px) {
+  .capture-controls {
+    bottom: 14.25rem;
+  }
+
+  .controls-preview-group {
+    bottom: 5.5rem;
+  }
 }
 
 .progress-overlay {
@@ -1379,11 +1397,12 @@ button:focus-visible {
 }
 
 .styles-card {
-  padding: 0.9rem 1rem;
+  padding: 1rem 1.1rem;
   border-radius: 1.4rem;
-  background: transparent;
-  border: none;
-  backdrop-filter: none;
+  background: linear-gradient(140deg, rgba(12, 16, 26, 0.82), rgba(9, 12, 19, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--panel-glow);
   display: flex;
   align-items: center;
 }
@@ -1662,6 +1681,10 @@ button:focus-visible {
     flex-direction: column;
     gap: 1rem;
     align-items: flex-start;
+  }
+
+  .capture-controls {
+    bottom: 13rem;
   }
 
   .controls-preview-group {
