@@ -84,7 +84,7 @@ function renderIdleOverlay() {
       <div class="idle-overlay__canvas" aria-hidden="true"></div>
       <div class="idle-overlay__copy">
         <p class="idle-overlay__title">Touch to start</p>
-        <p class="idle-overlay__subtitle">AI PhotoBooth by MKRShift</p>
+        <p class="idle-overlay__subtitle">Kreativ Teknologi</p>
       </div>
     </div>
   `;
@@ -147,7 +147,7 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--watermark" type="checkbox" />
-          Add MKRSHIFT watermark on upload/print
+          Add Kreativ Teknologi watermark on upload/print
         </label>
         <div class="settings-actions">
           <button class="settings-action settings-action--save">Save</button>
@@ -176,7 +176,8 @@ function renderSettingsModal() {
             and
             <a href="https://github.com/ADEFORGE/PhotoBooth" target="_blank" rel="noreferrer">ADEFORGE/PhotoBooth</a>.
           </p>
-          <p class="settings-about__text">Made by Cris K B · MKRShift</p>
+          <p class="settings-about__text">Made by Cris K B</p>
+          <p class="settings-about__text">@2025-26</p>
         </div>
       </div>
     </div>
