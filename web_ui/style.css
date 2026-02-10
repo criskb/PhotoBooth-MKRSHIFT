@@ -48,13 +48,6 @@ button:focus-visible {
   background: rgba(3, 5, 9, 0.75);
 }
 
-.app--busy .controls-preview-group {
-  display: flex;
-  align-items: stretch;
-  gap: 1rem;
-  z-index: 2;
-}
-
 .controls {
   opacity: 0;
   pointer-events: none;
