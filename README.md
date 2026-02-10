@@ -29,7 +29,7 @@ npm install
 
 ```bash
 cd js_app
-npm run start:web
+npm run start
 ```
 
 The server starts on `http://localhost:8080` and serves the Three.js UI from `web_ui/`.
@@ -69,6 +69,83 @@ npm run build:win
 
 Artifacts are written to `dist/`. On macOS, drag `PhotoBooth.app` to the Applications folder so it
 appears in the Dock. Supply a 1024x1024 `assets/icon.png` before building to customize the app icon.
+
+## Raspberry Pi setup (Raspberry Pi OS Bookworm)
+
+The project runs well on Raspberry Pi as a **Node.js server + browser kiosk** setup.
+This is the recommended Pi deployment mode (instead of Electron).
+
+### 1) Install system prerequisites on the Pi
+
+```bash
+sudo apt update
+sudo apt install -y git curl build-essential ca-certificates
+```
+
+Install Node.js 20 LTS (ARM64/ARMHF compatible):
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v
+npm -v
+```
+
+### 2) Clone and install PhotoBooth dependencies
+
+```bash
+git clone https://github.com/criskb/PhotoBooth-MKRSHIFT.git
+cd PhotoBooth-MKRSHIFT
+./scripts/install-raspberry.sh
+```
+
+(If script execution is blocked, run `chmod +x scripts/install-raspberry.sh` once.)
+
+### 3) Run PhotoBooth on the Pi
+
+```bash
+npm run start
+```
+
+Open `http://<pi-ip>:8080` from the Pi itself (kiosk browser) or another device on the same network.
+
+### 4) Optional: auto-start on boot (systemd)
+
+Create `/etc/systemd/system/photobooth.service`:
+
+```ini
+[Unit]
+Description=PhotoBooth-MKRSHIFT
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/PhotoBooth-MKRSHIFT
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable photobooth
+sudo systemctl start photobooth
+sudo systemctl status photobooth
+```
+
+### Notes for Raspberry Pi
+
+- For Pi installs, prefer `npm run start` (web server mode). This is the most reliable path on ARM devices.
+- Electron desktop packaging in this repo targets macOS/Windows; Pi usage should run the web UI in Chromium kiosk mode.
+- ComfyUI can run on the same Pi for lightweight workflows, but for heavy models use a separate GPU machine and point PhotoBooth to that ComfyUI endpoint in Settings.
 
 ## Configuring styles
 
