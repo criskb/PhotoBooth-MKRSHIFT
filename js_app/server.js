@@ -1088,6 +1088,14 @@ export function startServer() {
   return server;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isExecutedDirectly() {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) {
+    return false;
+  }
+  return path.resolve(entrypoint) === __filename;
+}
+
+if (isExecutedDirectly()) {
   startServer();
 }
