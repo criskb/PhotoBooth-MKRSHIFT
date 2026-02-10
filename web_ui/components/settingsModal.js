@@ -87,12 +87,9 @@ export function renderSettingsModal() {
         <div class="settings-about">
           <p class="settings-about__title">About this project</p>
           <p class="settings-about__text">
-            This project is a complete rewrite based on the collaborative work from
-            <a href="https://github.com/tvibitnmkt/PhotoBooth" target="_blank" rel="noreferrer">tvibitnmkt/PhotoBooth</a>
-            and
-            <a href="https://github.com/ADEFORGE/PhotoBooth" target="_blank" rel="noreferrer">ADEFORGE/PhotoBooth</a>.
+            This version was made with vibe coding and creative iteration.
           </p>
-          <p class="settings-about__text">Made by Cris K B</p>
+          <p class="settings-about__text">Made by me, Cris K B.</p>
           <p class="settings-about__text">@2025-26</p>
         </div>
       </div>
