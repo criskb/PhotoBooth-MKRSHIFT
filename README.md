@@ -29,7 +29,7 @@ npm install
 
 ```bash
 cd js_app
-npm run start
+npm run start:web
 ```
 
 The server starts on `http://localhost:8080` and serves the Three.js UI from `web_ui/`.
