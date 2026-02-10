@@ -4,12 +4,45 @@
   "description": "PhotoBooth-MKRSHIFT server and web UI.",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "start": "node js_app/server.js",
     "test:visual": "playwright test"
   },
   "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "png2icons": "^2.0.1",
     "@playwright/test": "^1.47.2",
     "http-server": "^14.1.1"
+  },
+  "build": {
+    "appId": "com.mkrshift.photobooth",
+    "productName": "PhotoBooth",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "js_app/**",
+      "js_app/node_modules/**",
+      "web_ui/**",
+      "workflows/**",
+      "gallery/**",
+      "assets/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "js_app/**"
+    ],
+    "mac": {
+      "category": "public.app-category.photo-video",
+      "icon": "assets/icon.icns",
+      "sign": false
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    }
   }
 }
