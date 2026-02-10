@@ -9,6 +9,7 @@
     "start": "node js_app/server.js",
     "start:desktop": "electron .",
     "build:icons": "node scripts/generate-icons.js",
+    "install:raspberry": "bash ./scripts/install-raspberry.sh",
     "build:mac": "node scripts/ensure-js-app-deps.js && npm run build:icons && electron-builder --mac",
     "build:win": "node scripts/ensure-js-app-deps.js && npm run build:icons && electron-builder --win",
     "test:visual": "playwright test"
