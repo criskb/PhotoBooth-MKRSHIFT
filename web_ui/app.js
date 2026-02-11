@@ -38,6 +38,7 @@ const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
+const settingsCameraInput = document.querySelector(".settings-input--camera");
 const settingsMirrorInput = document.querySelector(".settings-input--mirror");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
@@ -110,6 +111,7 @@ const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let cameraMirrored = false;
+let cameraDeviceId = "";
 let watermarkEnabled = false;
 let watermarkCustomDataUrl = "";
 let watermarkImageCache = { src: "", image: null };
@@ -396,6 +398,59 @@ async function updateRemoteInfo() {
 }
 
 
+function stopCameraStream() {
+  const stream = video.srcObject;
+  if (!stream) {
+    return;
+  }
+  stream.getTracks().forEach((track) => track.stop());
+  video.srcObject = null;
+}
+
+async function listCameraDevices() {
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    return [];
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((device) => device.kind === "videoinput");
+  } catch (error) {
+    return [];
+  }
+}
+
+function getCameraDeviceLabel(device, index) {
+  const label = typeof device.label === "string" ? device.label.trim() : "";
+  if (label) {
+    return label;
+  }
+  return `Camera ${index + 1}`;
+}
+
+async function refreshCameraOptions() {
+  if (!settingsCameraInput) {
+    return;
+  }
+  const devices = await listCameraDevices();
+  const preferredId = settingsCameraInput.value || cameraDeviceId;
+
+  settingsCameraInput.innerHTML = '<option value="">Default camera</option>';
+  devices.forEach((device, index) => {
+    const option = document.createElement("option");
+    option.value = device.deviceId;
+    option.textContent = getCameraDeviceLabel(device, index);
+    settingsCameraInput.appendChild(option);
+  });
+
+  const hasPreferred = preferredId && devices.some((device) => device.deviceId === preferredId);
+  settingsCameraInput.value = hasPreferred ? preferredId : "";
+
+  if (!hasPreferred && cameraDeviceId && !devices.some((device) => device.deviceId === cameraDeviceId)) {
+    cameraDeviceId = "";
+    localStorage.removeItem("cameraDeviceId");
+  }
+}
+
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
     statusLabel.textContent = "Camera Unsupported";
@@ -403,15 +458,43 @@ async function startCamera() {
     return;
   }
 
+  stopCameraStream();
+
+  const primaryConstraints = cameraDeviceId
+    ? { deviceId: { exact: cameraDeviceId } }
+    : { facingMode: "user" };
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
+      video: primaryConstraints,
       audio: false,
     });
     video.srcObject = stream;
+    await refreshCameraOptions();
     statusLabel.textContent = "Camera Ready";
     statusMeta.textContent = "Select a style, then tap or shake to shoot";
   } catch (error) {
+    const canFallback =
+      cameraDeviceId && (error?.name === "OverconstrainedError" || error?.name === "NotFoundError");
+
+    if (canFallback) {
+      cameraDeviceId = "";
+      localStorage.removeItem("cameraDeviceId");
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false,
+        });
+        video.srcObject = fallbackStream;
+        await refreshCameraOptions();
+        statusLabel.textContent = "Camera Ready";
+        statusMeta.textContent = "Selected camera unavailable; switched to default camera.";
+        return;
+      } catch (fallbackError) {
+        // handled by generic error status below
+      }
+    }
+
     statusLabel.textContent = "Camera Blocked";
     statusMeta.textContent = "Allow camera access to continue.";
   }
@@ -896,6 +979,10 @@ function loadPrinterConfig() {
     if (mirrorRaw !== null) {
       cameraMirrored = mirrorRaw === "true";
     }
+    const cameraDeviceRaw = localStorage.getItem("cameraDeviceId");
+    if (cameraDeviceRaw) {
+      cameraDeviceId = cameraDeviceRaw;
+    }
     const watermarkRaw = localStorage.getItem("watermarkEnabled");
     if (watermarkRaw !== null) {
       watermarkEnabled = watermarkRaw === "true";
@@ -927,6 +1014,7 @@ function loadPrinterConfig() {
     comfyServerUrl = defaultComfyServerUrl;
     cameraOrientation = 0;
     cameraMirrored = false;
+    cameraDeviceId = "";
     watermarkEnabled = false;
     watermarkCustomDataUrl = "";
     watermarkImageCache = { src: "", image: null };
@@ -938,6 +1026,9 @@ function loadPrinterConfig() {
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
   settingsOrientationInput.value = String(cameraOrientation || 0);
+  if (settingsCameraInput) {
+    settingsCameraInput.value = cameraDeviceId || "";
+  }
   if (settingsMirrorInput) {
     settingsMirrorInput.checked = cameraMirrored;
   }
@@ -983,7 +1074,7 @@ function loadUiPreferences() {
   }
 }
 
-function savePrinterConfig() {
+async function savePrinterConfig() {
   const copies = Number(settingsPrinterCopiesInput.value) || 1;
   printerConfig = {
     name: settingsPrinterInput.value.trim(),
@@ -1003,6 +1094,14 @@ function savePrinterConfig() {
   if (settingsMirrorInput) {
     cameraMirrored = settingsMirrorInput.checked;
     localStorage.setItem("cameraMirrored", String(cameraMirrored));
+  }
+  const selectedCameraDevice = settingsCameraInput?.value || "";
+  const cameraChanged = selectedCameraDevice !== cameraDeviceId;
+  cameraDeviceId = selectedCameraDevice;
+  if (cameraDeviceId) {
+    localStorage.setItem("cameraDeviceId", cameraDeviceId);
+  } else {
+    localStorage.removeItem("cameraDeviceId");
   }
   watermarkEnabled = settingsWatermarkInput.checked;
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
@@ -1024,9 +1123,12 @@ function savePrinterConfig() {
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
+  if (cameraChanged) {
+    await startCamera();
+  }
 }
 
-function openSettings() {
+async function openSettings() {
   if (!settingsModal) {
     return;
   }
@@ -1035,6 +1137,7 @@ function openSettings() {
     settingsClose.disabled = false;
   }
   loadPrinters(printerConfig.name);
+  await refreshCameraOptions();
 }
 
 function handlePrinterSelection() {
@@ -1620,6 +1723,19 @@ settingsMirrorInput?.addEventListener("change", () => {
   localStorage.setItem("cameraMirrored", String(cameraMirrored));
   applyCameraOrientation();
 });
+settingsCameraInput?.addEventListener("change", async () => {
+  const nextCameraId = settingsCameraInput.value || "";
+  if (nextCameraId === cameraDeviceId) {
+    return;
+  }
+  cameraDeviceId = nextCameraId;
+  if (cameraDeviceId) {
+    localStorage.setItem("cameraDeviceId", cameraDeviceId);
+  } else {
+    localStorage.removeItem("cameraDeviceId");
+  }
+  await startCamera();
+});
 settingsWatermarkInput?.addEventListener("change", renderWatermarkPreview);
 settingsWatermarkTextInput?.addEventListener("input", () => {
   watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
@@ -1628,8 +1744,8 @@ settingsWatermarkTextInput?.addEventListener("input", () => {
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
 settingsWatermarkClear?.addEventListener("click", clearCustomWatermark);
-settingsSave?.addEventListener("click", () => {
-  savePrinterConfig();
+settingsSave?.addEventListener("click", async () => {
+  await savePrinterConfig();
   closeSettings();
 });
 settingsClose?.addEventListener("click", closeSettings);
