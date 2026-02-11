@@ -611,12 +611,13 @@ const server = http.createServer((req, res) => {
   if (req.url.startsWith("/api/printers")) {
     fetchPrinters()
       .then((printers) => {
+        const names = printers.map((printer) => printer.name).filter(Boolean);
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ printers }));
+        res.end(JSON.stringify({ printers: names, printerDetails: printers }));
       })
       .catch(() => {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ printers: [] }));
+        res.end(JSON.stringify({ printers: [], printerDetails: [] }));
       });
     return;
   }
@@ -966,7 +967,7 @@ const server = http.createServer((req, res) => {
         }
         const filePath = await saveTempImage(imageUrl, req);
         const safeCopies = Number.isFinite(copies) && copies > 0 ? Math.floor(copies) : 1;
-        await sendToPrinter(printerName, filePath, safeCopies);
+        await sendToPrinter(printerName, filePath, safeCopies, payload.printOptions || {});
         res.writeHead(202, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ status: "sent" }));
       })

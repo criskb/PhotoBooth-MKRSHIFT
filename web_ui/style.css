@@ -943,6 +943,18 @@ button:focus-visible {
   box-shadow: 0 0 0 3px rgba(95, 211, 255, 0.15);
 }
 
+
+.settings-printer-details {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  background: rgba(12, 16, 26, 0.55);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: rgba(247, 247, 251, 0.86);
+  white-space: pre-line;
+}
+
 .settings-actions {
   display: flex;
   gap: 0.75rem;

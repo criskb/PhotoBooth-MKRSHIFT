@@ -41,6 +41,7 @@ const settingsOrientationInput = document.querySelector(".settings-input--orient
 const settingsCameraInput = document.querySelector(".settings-input--camera");
 const settingsMirrorInput = document.querySelector(".settings-input--mirror");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
+const settingsPrinterDetails = document.querySelector(".settings-printer-details");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
@@ -772,16 +773,89 @@ function closeDiagnostics() {
   diagnosticsModal?.classList.remove("diagnostics-modal--open");
 }
 
+function toPrinterEntry(entry) {
+  if (typeof entry === "string") {
+    return {
+      name: entry,
+      connection: "unknown",
+      isDefault: false,
+      uri: "",
+      location: "",
+      interface: "",
+      options: {},
+    };
+  }
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const name = typeof entry.name === "string" ? entry.name.trim() : "";
+  if (!name) {
+    return null;
+  }
+  return {
+    name,
+    connection: entry.connection || "unknown",
+    isDefault: Boolean(entry.isDefault),
+    uri: entry.uri || "",
+    location: entry.location || "",
+    interface: entry.interface || "",
+    options: entry.options || {},
+  };
+}
+
+function findPrinterByName(name) {
+  return knownPrinters.find((printer) => printer.name === name) || null;
+}
+
+function formatPrinterDetails(printer) {
+  if (!printer) {
+    return "No printer selected.";
+  }
+  const lines = [
+    `Connection: ${printer.connection || "unknown"}`,
+    `URI/Port: ${printer.uri || "n/a"}`,
+    `Location: ${printer.location || "n/a"}`,
+    `Driver/Interface: ${printer.interface || "n/a"}`,
+  ];
+  const optionEntries = Object.entries(printer.options || {});
+  if (optionEntries.length) {
+    lines.push("Options:");
+    optionEntries.slice(0, 8).forEach(([key, values]) => {
+      const rendered = Array.isArray(values) ? values.join(", ") : String(values || "");
+      lines.push(`• ${key}: ${rendered}`);
+    });
+  } else {
+    lines.push("Options: none reported");
+  }
+  return lines.join("\n");
+}
+
+function updatePrinterDetails(selectedName) {
+  if (!settingsPrinterDetails) {
+    return;
+  }
+  const selectedPrinter = findPrinterByName(selectedName);
+  settingsPrinterDetails.textContent = formatPrinterDetails(selectedPrinter);
+}
+
 function renderPrinterOptions(printers, selectedName) {
   const options = [];
   const seen = new Set();
-  const sorted = [...printers].filter(Boolean).sort();
-  sorted.forEach((name) => {
-    if (seen.has(name)) {
+  const sorted = [...printers].sort((a, b) => a.name.localeCompare(b.name));
+  sorted.forEach((printer) => {
+    if (!printer?.name || seen.has(printer.name)) {
       return;
     }
-    seen.add(name);
-    options.push({ name, label: name });
+    seen.add(printer.name);
+    const tags = [];
+    if (printer.isDefault) {
+      tags.push("default");
+    }
+    if (printer.connection && printer.connection !== "unknown") {
+      tags.push(printer.connection);
+    }
+    const suffix = tags.length ? ` (${tags.join(", ")})` : "";
+    options.push({ name: printer.name, label: `${printer.name}${suffix}` });
   });
   if (selectedName && !seen.has(selectedName)) {
     options.unshift({ name: selectedName, label: `${selectedName} (saved)` });
@@ -798,6 +872,7 @@ function renderPrinterOptions(printers, selectedName) {
     settingsPrinterInput.appendChild(option);
   });
   settingsPrinterInput.value = selectedName || "";
+  updatePrinterDetails(settingsPrinterInput.value || selectedName || "");
 }
 
 async function loadPrinters(selectedName = printerConfig.name) {
@@ -807,7 +882,10 @@ async function loadPrinters(selectedName = printerConfig.name) {
       throw new Error("Printer list unavailable");
     }
     const data = await response.json();
-    knownPrinters = Array.isArray(data.printers) ? data.printers : [];
+    const detailed = Array.isArray(data.printerDetails) ? data.printerDetails : data.printers;
+    knownPrinters = (Array.isArray(detailed) ? detailed : [])
+      .map((entry) => toPrinterEntry(entry))
+      .filter(Boolean);
   } catch (error) {
     knownPrinters = [];
   }
@@ -1147,6 +1225,7 @@ function handlePrinterSelection() {
     name: selectedName,
   };
   localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  updatePrinterDetails(selectedName);
   applyPrintVisibility();
 }
 

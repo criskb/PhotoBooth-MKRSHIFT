@@ -134,6 +134,7 @@ function renderSettingsModal() {
             <option value="">Select a printer</option>
           </select>
         </label>
+        <div class="settings-printer-details" aria-live="polite">No printer selected.</div>
         <label class="settings-field">
           Printer Copies
           <input
