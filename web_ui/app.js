@@ -38,8 +38,10 @@ const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
+const settingsCameraInput = document.querySelector(".settings-input--camera");
 const settingsMirrorInput = document.querySelector(".settings-input--mirror");
 const settingsPrinterInput = document.querySelector(".settings-input--printer");
+const settingsPrinterDetails = document.querySelector(".settings-printer-details");
 const settingsPrinterCopiesInput = document.querySelector(".settings-input--printer-copies");
 const settingsFreeimageInput = document.querySelector(".settings-input--freeimage");
 const settingsEnabledInput = document.querySelector(".settings-input--enabled");
@@ -110,6 +112,7 @@ const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
 let cameraOrientation = 0;
 let cameraMirrored = false;
+let cameraDeviceId = "";
 let watermarkEnabled = false;
 let watermarkCustomDataUrl = "";
 let watermarkImageCache = { src: "", image: null };
@@ -396,6 +399,59 @@ async function updateRemoteInfo() {
 }
 
 
+function stopCameraStream() {
+  const stream = video.srcObject;
+  if (!stream) {
+    return;
+  }
+  stream.getTracks().forEach((track) => track.stop());
+  video.srcObject = null;
+}
+
+async function listCameraDevices() {
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    return [];
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((device) => device.kind === "videoinput");
+  } catch (error) {
+    return [];
+  }
+}
+
+function getCameraDeviceLabel(device, index) {
+  const label = typeof device.label === "string" ? device.label.trim() : "";
+  if (label) {
+    return label;
+  }
+  return `Camera ${index + 1}`;
+}
+
+async function refreshCameraOptions() {
+  if (!settingsCameraInput) {
+    return;
+  }
+  const devices = await listCameraDevices();
+  const preferredId = settingsCameraInput.value || cameraDeviceId;
+
+  settingsCameraInput.innerHTML = '<option value="">Default camera</option>';
+  devices.forEach((device, index) => {
+    const option = document.createElement("option");
+    option.value = device.deviceId;
+    option.textContent = getCameraDeviceLabel(device, index);
+    settingsCameraInput.appendChild(option);
+  });
+
+  const hasPreferred = preferredId && devices.some((device) => device.deviceId === preferredId);
+  settingsCameraInput.value = hasPreferred ? preferredId : "";
+
+  if (!hasPreferred && cameraDeviceId && !devices.some((device) => device.deviceId === cameraDeviceId)) {
+    cameraDeviceId = "";
+    localStorage.removeItem("cameraDeviceId");
+  }
+}
+
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
     statusLabel.textContent = "Camera Unsupported";
@@ -403,15 +459,43 @@ async function startCamera() {
     return;
   }
 
+  stopCameraStream();
+
+  const primaryConstraints = cameraDeviceId
+    ? { deviceId: { exact: cameraDeviceId } }
+    : { facingMode: "user" };
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
+      video: primaryConstraints,
       audio: false,
     });
     video.srcObject = stream;
+    await refreshCameraOptions();
     statusLabel.textContent = "Camera Ready";
     statusMeta.textContent = "Select a style, then tap or shake to shoot";
   } catch (error) {
+    const canFallback =
+      cameraDeviceId && (error?.name === "OverconstrainedError" || error?.name === "NotFoundError");
+
+    if (canFallback) {
+      cameraDeviceId = "";
+      localStorage.removeItem("cameraDeviceId");
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false,
+        });
+        video.srcObject = fallbackStream;
+        await refreshCameraOptions();
+        statusLabel.textContent = "Camera Ready";
+        statusMeta.textContent = "Selected camera unavailable; switched to default camera.";
+        return;
+      } catch (fallbackError) {
+        // handled by generic error status below
+      }
+    }
+
     statusLabel.textContent = "Camera Blocked";
     statusMeta.textContent = "Allow camera access to continue.";
   }
@@ -689,16 +773,89 @@ function closeDiagnostics() {
   diagnosticsModal?.classList.remove("diagnostics-modal--open");
 }
 
+function toPrinterEntry(entry) {
+  if (typeof entry === "string") {
+    return {
+      name: entry,
+      connection: "unknown",
+      isDefault: false,
+      uri: "",
+      location: "",
+      interface: "",
+      options: {},
+    };
+  }
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+  const name = typeof entry.name === "string" ? entry.name.trim() : "";
+  if (!name) {
+    return null;
+  }
+  return {
+    name,
+    connection: entry.connection || "unknown",
+    isDefault: Boolean(entry.isDefault),
+    uri: entry.uri || "",
+    location: entry.location || "",
+    interface: entry.interface || "",
+    options: entry.options || {},
+  };
+}
+
+function findPrinterByName(name) {
+  return knownPrinters.find((printer) => printer.name === name) || null;
+}
+
+function formatPrinterDetails(printer) {
+  if (!printer) {
+    return "No printer selected.";
+  }
+  const lines = [
+    `Connection: ${printer.connection || "unknown"}`,
+    `URI/Port: ${printer.uri || "n/a"}`,
+    `Location: ${printer.location || "n/a"}`,
+    `Driver/Interface: ${printer.interface || "n/a"}`,
+  ];
+  const optionEntries = Object.entries(printer.options || {});
+  if (optionEntries.length) {
+    lines.push("Options:");
+    optionEntries.slice(0, 8).forEach(([key, values]) => {
+      const rendered = Array.isArray(values) ? values.join(", ") : String(values || "");
+      lines.push(`• ${key}: ${rendered}`);
+    });
+  } else {
+    lines.push("Options: none reported");
+  }
+  return lines.join("\n");
+}
+
+function updatePrinterDetails(selectedName) {
+  if (!settingsPrinterDetails) {
+    return;
+  }
+  const selectedPrinter = findPrinterByName(selectedName);
+  settingsPrinterDetails.textContent = formatPrinterDetails(selectedPrinter);
+}
+
 function renderPrinterOptions(printers, selectedName) {
   const options = [];
   const seen = new Set();
-  const sorted = [...printers].filter(Boolean).sort();
-  sorted.forEach((name) => {
-    if (seen.has(name)) {
+  const sorted = [...printers].sort((a, b) => a.name.localeCompare(b.name));
+  sorted.forEach((printer) => {
+    if (!printer?.name || seen.has(printer.name)) {
       return;
     }
-    seen.add(name);
-    options.push({ name, label: name });
+    seen.add(printer.name);
+    const tags = [];
+    if (printer.isDefault) {
+      tags.push("default");
+    }
+    if (printer.connection && printer.connection !== "unknown") {
+      tags.push(printer.connection);
+    }
+    const suffix = tags.length ? ` (${tags.join(", ")})` : "";
+    options.push({ name: printer.name, label: `${printer.name}${suffix}` });
   });
   if (selectedName && !seen.has(selectedName)) {
     options.unshift({ name: selectedName, label: `${selectedName} (saved)` });
@@ -715,6 +872,7 @@ function renderPrinterOptions(printers, selectedName) {
     settingsPrinterInput.appendChild(option);
   });
   settingsPrinterInput.value = selectedName || "";
+  updatePrinterDetails(settingsPrinterInput.value || selectedName || "");
 }
 
 async function loadPrinters(selectedName = printerConfig.name) {
@@ -724,7 +882,10 @@ async function loadPrinters(selectedName = printerConfig.name) {
       throw new Error("Printer list unavailable");
     }
     const data = await response.json();
-    knownPrinters = Array.isArray(data.printers) ? data.printers : [];
+    const detailed = Array.isArray(data.printerDetails) ? data.printerDetails : data.printers;
+    knownPrinters = (Array.isArray(detailed) ? detailed : [])
+      .map((entry) => toPrinterEntry(entry))
+      .filter(Boolean);
   } catch (error) {
     knownPrinters = [];
   }
@@ -896,6 +1057,10 @@ function loadPrinterConfig() {
     if (mirrorRaw !== null) {
       cameraMirrored = mirrorRaw === "true";
     }
+    const cameraDeviceRaw = localStorage.getItem("cameraDeviceId");
+    if (cameraDeviceRaw) {
+      cameraDeviceId = cameraDeviceRaw;
+    }
     const watermarkRaw = localStorage.getItem("watermarkEnabled");
     if (watermarkRaw !== null) {
       watermarkEnabled = watermarkRaw === "true";
@@ -927,6 +1092,7 @@ function loadPrinterConfig() {
     comfyServerUrl = defaultComfyServerUrl;
     cameraOrientation = 0;
     cameraMirrored = false;
+    cameraDeviceId = "";
     watermarkEnabled = false;
     watermarkCustomDataUrl = "";
     watermarkImageCache = { src: "", image: null };
@@ -938,6 +1104,9 @@ function loadPrinterConfig() {
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
   settingsOrientationInput.value = String(cameraOrientation || 0);
+  if (settingsCameraInput) {
+    settingsCameraInput.value = cameraDeviceId || "";
+  }
   if (settingsMirrorInput) {
     settingsMirrorInput.checked = cameraMirrored;
   }
@@ -983,7 +1152,7 @@ function loadUiPreferences() {
   }
 }
 
-function savePrinterConfig() {
+async function savePrinterConfig() {
   const copies = Number(settingsPrinterCopiesInput.value) || 1;
   printerConfig = {
     name: settingsPrinterInput.value.trim(),
@@ -1003,6 +1172,14 @@ function savePrinterConfig() {
   if (settingsMirrorInput) {
     cameraMirrored = settingsMirrorInput.checked;
     localStorage.setItem("cameraMirrored", String(cameraMirrored));
+  }
+  const selectedCameraDevice = settingsCameraInput?.value || "";
+  const cameraChanged = selectedCameraDevice !== cameraDeviceId;
+  cameraDeviceId = selectedCameraDevice;
+  if (cameraDeviceId) {
+    localStorage.setItem("cameraDeviceId", cameraDeviceId);
+  } else {
+    localStorage.removeItem("cameraDeviceId");
   }
   watermarkEnabled = settingsWatermarkInput.checked;
   localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
@@ -1024,9 +1201,12 @@ function savePrinterConfig() {
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
+  if (cameraChanged) {
+    await startCamera();
+  }
 }
 
-function openSettings() {
+async function openSettings() {
   if (!settingsModal) {
     return;
   }
@@ -1035,6 +1215,7 @@ function openSettings() {
     settingsClose.disabled = false;
   }
   loadPrinters(printerConfig.name);
+  await refreshCameraOptions();
 }
 
 function handlePrinterSelection() {
@@ -1044,6 +1225,7 @@ function handlePrinterSelection() {
     name: selectedName,
   };
   localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  updatePrinterDetails(selectedName);
   applyPrintVisibility();
 }
 
@@ -1620,6 +1802,19 @@ settingsMirrorInput?.addEventListener("change", () => {
   localStorage.setItem("cameraMirrored", String(cameraMirrored));
   applyCameraOrientation();
 });
+settingsCameraInput?.addEventListener("change", async () => {
+  const nextCameraId = settingsCameraInput.value || "";
+  if (nextCameraId === cameraDeviceId) {
+    return;
+  }
+  cameraDeviceId = nextCameraId;
+  if (cameraDeviceId) {
+    localStorage.setItem("cameraDeviceId", cameraDeviceId);
+  } else {
+    localStorage.removeItem("cameraDeviceId");
+  }
+  await startCamera();
+});
 settingsWatermarkInput?.addEventListener("change", renderWatermarkPreview);
 settingsWatermarkTextInput?.addEventListener("input", () => {
   watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
@@ -1628,8 +1823,8 @@ settingsWatermarkTextInput?.addEventListener("input", () => {
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
 settingsWatermarkClear?.addEventListener("click", clearCustomWatermark);
-settingsSave?.addEventListener("click", () => {
-  savePrinterConfig();
+settingsSave?.addEventListener("click", async () => {
+  await savePrinterConfig();
   closeSettings();
 });
 settingsClose?.addEventListener("click", closeSettings);

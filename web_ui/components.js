@@ -18,18 +18,6 @@ function renderHud() {
 function renderControls() {
   return `
     <div class="controls">
-      <div class="action-row">
-        <button class="action" disabled>Take Selfie</button>
-        <div class="timer-control">
-          <button class="timer-toggle" aria-haspopup="true" aria-expanded="false">⏱️ 0s</button>
-          <div class="timer-menu" role="menu">
-            <button class="timer-option" data-delay="0" role="menuitem">0s</button>
-            <button class="timer-option" data-delay="3" role="menuitem">3s</button>
-            <button class="timer-option" data-delay="5" role="menuitem">5s</button>
-            <button class="timer-option" data-delay="10" role="menuitem">10s</button>
-          </div>
-        </div>
-      </div>
         <div class="styles-panel">
           <div class="styles-card">
             <div class="styles">
@@ -126,6 +114,12 @@ function renderSettingsModal() {
             <option value="270">270°</option>
           </select>
         </label>
+        <label class="settings-field">
+          Camera Device
+          <select class="settings-input form-input settings-input--camera">
+            <option value="">Default camera</option>
+          </select>
+        </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--mirror" type="checkbox" />
           Mirror camera preview
@@ -140,6 +134,7 @@ function renderSettingsModal() {
             <option value="">Select a printer</option>
           </select>
         </label>
+        <div class="settings-printer-details" aria-live="polite">No printer selected.</div>
         <label class="settings-field">
           Printer Copies
           <input
@@ -289,6 +284,18 @@ export function renderApp(container) {
   container.innerHTML = `
     ${renderHud()}
     <video id="camera" autoplay playsinline muted></video>
+    <div class="capture-controls">
+      <button class="action" disabled>Take Selfie</button>
+      <div class="timer-control">
+        <button class="timer-toggle" aria-haspopup="true" aria-expanded="false">⏱️ 0s</button>
+        <div class="timer-menu" role="menu">
+          <button class="timer-option" data-delay="0" role="menuitem">0s</button>
+          <button class="timer-option" data-delay="3" role="menuitem">3s</button>
+          <button class="timer-option" data-delay="5" role="menuitem">5s</button>
+          <button class="timer-option" data-delay="10" role="menuitem">10s</button>
+        </div>
+      </div>
+    </div>
     ${renderControls()}
     ${renderUtilityControls()}
     ${renderGalleryToggle()}
