@@ -114,6 +114,12 @@ function renderSettingsModal() {
             <option value="270">270°</option>
           </select>
         </label>
+        <label class="settings-field">
+          Camera Device
+          <select class="settings-input form-input settings-input--camera">
+            <option value="">Default camera</option>
+          </select>
+        </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--mirror" type="checkbox" />
           Mirror camera preview
