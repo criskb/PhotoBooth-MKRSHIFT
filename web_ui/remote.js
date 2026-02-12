@@ -2,6 +2,11 @@ const timerButtons = Array.from(document.querySelectorAll(".remote-timer"));
 const actionButton = document.querySelector(".remote-action");
 const statusLabel = document.querySelector(".remote-status");
 const styleList = document.querySelector(".remote-style-list");
+const styleDrawer = document.querySelector(".remote-style-drawer");
+const styleDrawerBackdrop = document.querySelector(".remote-style-drawer-backdrop");
+const styleDrawerToggle = document.querySelector(".remote-styles-toggle");
+const styleDrawerClose = document.querySelector(".remote-style-drawer__close");
+const styleDrawerOk = document.querySelector(".remote-style-drawer__ok");
 const styleStatus = document.querySelector(".remote-style-status");
 const stylePreview = document.querySelector(".remote-style-preview");
 const stylePreviewImage = document.querySelector(".remote-style-preview__image");
@@ -9,6 +14,15 @@ const progressLabel = document.querySelector(".remote-progress__label");
 const progressValue = document.querySelector(".remote-progress__value");
 const progressFill = document.querySelector(".remote-progress__fill");
 const exitButton = document.querySelector(".remote-exit");
+const remoteResultSection = document.querySelector(".remote-result");
+const remoteResultImage = document.querySelector(".remote-result__image");
+const remoteResultSave = document.querySelector(".remote-result__save");
+const remoteCameraSection = document.querySelector(".remote-camera");
+const remoteCameraToggle = document.querySelector(".remote-camera-toggle");
+const remoteCameraPreview = document.querySelector(".remote-camera-preview");
+const remoteCameraCapture = document.querySelector(".remote-camera-capture");
+const remoteCameraStatus = document.querySelector(".remote-camera-status");
+const remoteCameraSelect = document.querySelector(".remote-camera-select");
 
 let selectedDelay = 0;
 let socket = null;
@@ -20,13 +34,145 @@ let progressPoller = null;
 let comfyServerUrl = "";
 let resultReady = false;
 let stylePreviewToken = 0;
+let showResultOnRemote = true;
+let allowRemoteCameraCapture = false;
+let phoneCameraStream = null;
+let availableCameraDevices = [];
+let selectedRemoteCameraDeviceId = "";
+let pendingStyleSelection = null;
 const remotePreferenceKeys = {
   selectedDelay: "remoteSelectedDelay",
   selectedStyle: "remoteSelectedStyle",
+  selectedCameraDevice: "remoteCameraDeviceId",
 };
+
+
+function getCameraDeviceLabel(device, index) {
+  const label = typeof device.label === "string" ? device.label.trim() : "";
+  if (label) {
+    return label;
+  }
+  return `Camera ${index + 1}`;
+}
+
+async function listCameraDevices() {
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    return [];
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter((device) => device.kind === "videoinput");
+  } catch (error) {
+    return [];
+  }
+}
+
+function renderCameraSelectOptions() {
+  if (!remoteCameraSelect) {
+    return;
+  }
+  const preferred = selectedRemoteCameraDeviceId || remoteCameraSelect.value || "";
+  remoteCameraSelect.innerHTML = '<option value="">Default camera</option>';
+  availableCameraDevices.forEach((device, index) => {
+    const option = document.createElement("option");
+    option.value = device.deviceId;
+    option.textContent = getCameraDeviceLabel(device, index);
+    remoteCameraSelect.appendChild(option);
+  });
+  const hasPreferred = preferred && availableCameraDevices.some((device) => device.deviceId === preferred);
+  remoteCameraSelect.value = hasPreferred ? preferred : "";
+  if (!hasPreferred) {
+    selectedRemoteCameraDeviceId = "";
+    try {
+      localStorage.removeItem(remotePreferenceKeys.selectedCameraDevice);
+    } catch (error) {
+      // noop
+    }
+  }
+}
+
+async function refreshCameraOptions() {
+  availableCameraDevices = await listCameraDevices();
+  renderCameraSelectOptions();
+}
 
 function setStatus(message) {
   statusLabel.textContent = message;
+}
+
+function isPhoneLayout() {
+  return document.body.classList.contains("remote-layout--phone");
+}
+
+function openStyleDrawer() {
+  if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
+    return;
+  }
+  styleDrawer.hidden = false;
+  styleDrawerBackdrop.hidden = false;
+  styleDrawer.classList.add("remote-style-drawer--open");
+  styleDrawerBackdrop.classList.add("remote-style-drawer-backdrop--visible");
+  styleDrawerToggle.setAttribute("aria-expanded", "true");
+  if (styleDrawerOk) {
+    const pending = pendingStyleSelection ?? selectedStyle;
+    styleDrawerOk.disabled = !pending || pending === selectedStyle;
+  }
+  if (!pendingStyleSelection && selectedStyle) {
+    setPendingStyle(selectedStyle);
+  }
+}
+
+function closeStyleDrawer() {
+  if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
+    return;
+  }
+  styleDrawer.classList.remove("remote-style-drawer--open");
+  styleDrawerBackdrop.classList.remove("remote-style-drawer-backdrop--visible");
+  styleDrawer.hidden = true;
+  styleDrawerBackdrop.hidden = true;
+  styleDrawerToggle.setAttribute("aria-expanded", "false");
+}
+
+function syncStyleDrawerForViewport() {
+  if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
+    return;
+  }
+  if (!allowRemoteCameraCapture) {
+    styleDrawer.hidden = false;
+    styleDrawerBackdrop.hidden = true;
+    styleDrawer.classList.remove("remote-style-drawer--open");
+    styleDrawerBackdrop.classList.remove("remote-style-drawer-backdrop--visible");
+    styleDrawerToggle.setAttribute("aria-expanded", "false");
+    if (styleDrawerOk) {
+      styleDrawerOk.hidden = true;
+      styleDrawerOk.disabled = true;
+    }
+    return;
+  }
+  if (styleDrawerOk) {
+    styleDrawerOk.hidden = false;
+    styleDrawerOk.disabled = !pendingStyleSelection || pendingStyleSelection === selectedStyle;
+  }
+  if (!isPhoneLayout() && !document.body.classList.contains("remote-layout--tablet")) {
+    return;
+  }
+  closeStyleDrawer();
+}
+
+function updateViewportClass() {
+  const body = document.body;
+  if (!body) {
+    return;
+  }
+  const width = window.innerWidth || 0;
+  const height = window.innerHeight || 0;
+  const isLandscape = width > height;
+  const isTablet = Math.max(width, height) >= 900;
+  body.classList.toggle("remote-layout--tablet", isTablet);
+  body.classList.toggle("remote-layout--phone", !isTablet);
+  body.classList.toggle("remote-layout--landscape", isLandscape);
+  body.classList.toggle("remote-layout--portrait", !isLandscape);
+  syncStyleDrawerForViewport();
 }
 
 function setStyleStatus(message) {
@@ -165,6 +311,175 @@ function startProgressPolling(promptId) {
   }, 1500);
 }
 
+
+function setRemoteResult(url) {
+  if (!remoteResultSection || !remoteResultImage || !remoteResultSave) {
+    return;
+  }
+  if (!showResultOnRemote || !url) {
+    remoteResultSection.classList.remove("remote-result--visible");
+    remoteResultImage.removeAttribute("src");
+    remoteResultSave.removeAttribute("href");
+    return;
+  }
+  remoteResultImage.src = url;
+  remoteResultSave.href = url;
+  remoteResultSection.classList.add("remote-result--visible");
+}
+
+function applyRemoteConfig() {
+  if (remoteResultSection && !showResultOnRemote) {
+    remoteResultSection.classList.remove("remote-result--visible");
+  }
+  if (remoteCameraSection) {
+    remoteCameraSection.classList.toggle("remote-camera--enabled", allowRemoteCameraCapture);
+  }
+  if (remoteCameraSelect) {
+    remoteCameraSelect.disabled = !allowRemoteCameraCapture;
+  }
+  if (styleDrawerToggle) {
+    styleDrawerToggle.style.display = allowRemoteCameraCapture ? "inline-flex" : "none";
+  }
+  document.body.classList.toggle("remote-camera-mode", allowRemoteCameraCapture);
+  if (stylePreview) {
+    stylePreview.classList.toggle("remote-style-preview--drawer-only", allowRemoteCameraCapture);
+  }
+  if (!allowRemoteCameraCapture) {
+    pendingStyleSelection = null;
+  }
+  syncStyleDrawerForViewport();
+  if (!allowRemoteCameraCapture) {
+    stopPhoneCamera();
+    if (stylePreview && stylePreviewImage?.src) {
+      stylePreview.classList.add("remote-style-preview--visible");
+    }
+  }
+}
+
+function setCameraStatus(message) {
+  if (remoteCameraStatus) {
+    remoteCameraStatus.textContent = message;
+  }
+}
+
+function stopPhoneCamera() {
+  if (phoneCameraStream) {
+    phoneCameraStream.getTracks().forEach((track) => track.stop());
+    phoneCameraStream = null;
+  }
+  if (remoteCameraPreview) {
+    remoteCameraPreview.srcObject = null;
+  }
+  if (remoteCameraToggle) {
+    remoteCameraToggle.textContent = "Use Phone Camera";
+  }
+}
+
+async function startPhoneCamera() {
+  if (!allowRemoteCameraCapture) {
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setCameraStatus("Phone camera is not available in this browser.");
+    return;
+  }
+  const selectedDevice = remoteCameraSelect?.value || selectedRemoteCameraDeviceId || "";
+  const primaryConstraints = selectedDevice
+    ? { deviceId: { exact: selectedDevice } }
+    : { facingMode: { ideal: "environment" } };
+  try {
+    phoneCameraStream = await navigator.mediaDevices.getUserMedia({
+      video: primaryConstraints,
+      audio: false,
+    });
+    remoteCameraPreview.srcObject = phoneCameraStream;
+    remoteCameraToggle.textContent = "Stop Phone Camera";
+    selectedRemoteCameraDeviceId = selectedDevice;
+    if (selectedRemoteCameraDeviceId) {
+      try {
+        localStorage.setItem(remotePreferenceKeys.selectedCameraDevice, selectedRemoteCameraDeviceId);
+      } catch (error) {
+        // noop
+      }
+    }
+    await refreshCameraOptions();
+    setCameraStatus("Phone camera ready.");
+  } catch (error) {
+    const canFallback = selectedDevice && (error?.name === "OverconstrainedError" || error?.name === "NotFoundError");
+    if (canFallback) {
+      selectedRemoteCameraDeviceId = "";
+      if (remoteCameraSelect) {
+        remoteCameraSelect.value = "";
+      }
+      try {
+        localStorage.removeItem(remotePreferenceKeys.selectedCameraDevice);
+      } catch (removeError) {
+        // noop
+      }
+      try {
+        phoneCameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        remoteCameraPreview.srcObject = phoneCameraStream;
+        remoteCameraToggle.textContent = "Stop Phone Camera";
+        await refreshCameraOptions();
+        setCameraStatus("Selected camera unavailable; switched to default camera.");
+        return;
+      } catch (fallbackError) {
+        // handled below
+      }
+    }
+    setCameraStatus("Camera permission denied.");
+  }
+}
+
+function capturePhoneFrame() {
+  if (!remoteCameraPreview || !remoteCameraPreview.videoWidth || !remoteCameraPreview.videoHeight) {
+    return null;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = remoteCameraPreview.videoWidth;
+  canvas.height = remoteCameraPreview.videoHeight;
+  const context = canvas.getContext("2d");
+  context.drawImage(remoteCameraPreview, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/png");
+}
+
+function sendCameraCapture() {
+  if (!allowRemoteCameraCapture) {
+    setCameraStatus("Phone camera capture is disabled in settings.");
+    return;
+  }
+  if (!phoneCameraStream) {
+    setCameraStatus("Start phone camera first.");
+    return;
+  }
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    setCameraStatus("Remote is not connected.");
+    return;
+  }
+  if (remoteBusy) {
+    setCameraStatus("Please wait for current photo.");
+    return;
+  }
+  const image = capturePhoneFrame();
+  if (!image) {
+    setCameraStatus("Camera preview is not ready.");
+    return;
+  }
+  socket.send(
+    JSON.stringify({
+      type: "capture-image",
+      image,
+      source: "remote-camera",
+    })
+  );
+  setStatus("Sent photo from phone camera.");
+  setResultReady(false);
+  setRemoteBusy(true);
+}
+
 function connectSocket() {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -182,6 +497,7 @@ function connectSocket() {
   });
   socket.addEventListener("close", () => {
     setStatus("Disconnected. Reconnecting…");
+    stopPhoneCamera();
     reconnectTimer = setTimeout(connectSocket, 1500);
     setRemoteBusy(false);
     setResultReady(false);
@@ -200,6 +516,11 @@ function connectSocket() {
       if (payload?.type === "style" && typeof payload.style === "string") {
         setSelectedStyle(payload.style, { announce: false });
       }
+      if (payload?.type === "remote-config") {
+        showResultOnRemote = payload.showResultOnRemote !== false;
+        allowRemoteCameraCapture = Boolean(payload.allowRemoteCameraCapture);
+        applyRemoteConfig();
+      }
       if (payload?.type === "progress") {
         const percent = Math.max(0, Math.min(100, Math.round(payload.percent ?? 0)));
         const label = payload.label ?? "Working";
@@ -213,6 +534,7 @@ function connectSocket() {
         if (payload.complete) {
           setResultReady(true);
           setRemoteBusy(true);
+          setRemoteResult(payload.showResultOnRemote === false ? null : payload.outputUrl ?? null);
           if (progressPoller) {
             clearInterval(progressPoller);
             progressPoller = null;
@@ -221,6 +543,7 @@ function connectSocket() {
         } else if (payload.status === "ready") {
           setResultReady(false);
           setRemoteBusy(false);
+          setRemoteResult(null);
         } else {
           setResultReady(false);
           setRemoteBusy(
@@ -259,6 +582,7 @@ function sendCapture() {
   setStatus(`Sent (${selectedDelay}s timer).`);
   setResultReady(false);
   setRemoteBusy(true);
+  setRemoteResult(null);
 }
 
 function sendStyle(style) {
@@ -278,6 +602,21 @@ function sendStyle(style) {
     })
   );
   setStatus(`Style sent: ${toTitleCase(style)}`);
+}
+
+function applyPendingStyleSelection() {
+  if (!pendingStyleSelection) {
+    return;
+  }
+  const nextStyle = pendingStyleSelection;
+  pendingStyleSelection = null;
+  setSelectedStyle(nextStyle);
+  sendStyle(nextStyle);
+  setStyleStatus(`Selected: ${toTitleCase(nextStyle)}`);
+  if (styleDrawerOk) {
+    styleDrawerOk.disabled = true;
+  }
+  closeStyleDrawer();
 }
 
 function sendExit() {
@@ -314,6 +653,22 @@ function setSelectedStyle(style, { announce = true } = {}) {
   }
 }
 
+
+function setPendingStyle(style) {
+  pendingStyleSelection = style;
+  const styleButtons = Array.from(document.querySelectorAll(".remote-style"));
+  styleButtons.forEach((button) => {
+    button.classList.toggle("remote-style--active", button.dataset.style === style);
+  });
+  if (style) {
+    updateStylePreview(style);
+    setStyleStatus(`Pending: ${toTitleCase(style)} (tap OK to confirm)`);
+  }
+  if (styleDrawerOk) {
+    styleDrawerOk.disabled = !style || style === selectedStyle;
+  }
+}
+
 function loadRemotePreferences() {
   try {
     const storedDelay = Number(localStorage.getItem(remotePreferenceKeys.selectedDelay));
@@ -323,6 +678,10 @@ function loadRemotePreferences() {
     const storedStyle = localStorage.getItem(remotePreferenceKeys.selectedStyle);
     if (storedStyle) {
       selectedStyle = storedStyle;
+    }
+    const storedCamera = localStorage.getItem(remotePreferenceKeys.selectedCameraDevice);
+    if (storedCamera) {
+      selectedRemoteCameraDeviceId = storedCamera;
     }
   } catch (error) {
     selectedDelay = 0;
@@ -357,8 +716,15 @@ async function loadStyles() {
       button.textContent = toTitleCase(style);
       button.dataset.style = style;
       button.addEventListener("click", () => {
+        if (allowRemoteCameraCapture) {
+          setPendingStyle(style);
+          return;
+        }
         setSelectedStyle(style);
         sendStyle(style);
+        if (isPhoneLayout() || allowRemoteCameraCapture) {
+          closeStyleDrawer();
+        }
       });
       styleList.appendChild(button);
     });
@@ -388,7 +754,74 @@ actionButton.addEventListener("click", sendCapture);
 if (exitButton) {
   exitButton.addEventListener("click", sendExit);
 }
+if (remoteCameraToggle) {
+  remoteCameraToggle.addEventListener("click", async () => {
+    if (!allowRemoteCameraCapture) {
+      setCameraStatus("Phone camera capture is disabled in settings.");
+      return;
+    }
+    if (phoneCameraStream) {
+      stopPhoneCamera();
+      setCameraStatus("");
+      return;
+    }
+    await startPhoneCamera();
+  });
+}
+if (remoteCameraCapture) {
+  remoteCameraCapture.addEventListener("click", sendCameraCapture);
+}
+if (remoteCameraSelect) {
+  remoteCameraSelect.addEventListener("change", async () => {
+    selectedRemoteCameraDeviceId = remoteCameraSelect.value || "";
+    try {
+      if (selectedRemoteCameraDeviceId) {
+        localStorage.setItem(remotePreferenceKeys.selectedCameraDevice, selectedRemoteCameraDeviceId);
+      } else {
+        localStorage.removeItem(remotePreferenceKeys.selectedCameraDevice);
+      }
+    } catch (error) {
+      // noop
+    }
+    if (phoneCameraStream) {
+      stopPhoneCamera();
+      await startPhoneCamera();
+    }
+  });
+}
+if (styleDrawerToggle) {
+  styleDrawerToggle.addEventListener("click", () => {
+    if (!allowRemoteCameraCapture) {
+      return;
+    }
+    const isOpen = styleDrawer && !styleDrawer.hidden;
+    if (isOpen) {
+      closeStyleDrawer();
+    } else {
+      openStyleDrawer();
+    }
+  });
+}
+if (styleDrawerClose) {
+  styleDrawerClose.addEventListener("click", closeStyleDrawer);
+}
+if (styleDrawerOk) {
+  styleDrawerOk.addEventListener("click", applyPendingStyleSelection);
+}
+if (styleDrawerBackdrop) {
+  styleDrawerBackdrop.addEventListener("click", closeStyleDrawer);
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeStyleDrawer();
+  }
+});
 
+applyRemoteConfig();
 loadStyles();
 loadRemotePreferences();
+refreshCameraOptions();
 connectSocket();
+updateViewportClass();
+window.addEventListener("resize", updateViewportClass);
+window.addEventListener("orientationchange", updateViewportClass);
