@@ -26,6 +26,14 @@
       <button class="remote-timer" data-delay="5">5s</button>
       <button class="remote-timer" data-delay="10">10s</button>
     </section>
+    <section class="remote-camera" aria-label="Phone camera capture">
+      <button class="remote-camera-toggle" type="button">Use Phone Camera</button>
+      <div class="remote-camera-preview-wrap">
+        <video class="remote-camera-preview" playsinline muted></video>
+      </div>
+      <button class="remote-camera-capture" type="button">Capture from Phone</button>
+      <p class="remote-camera-status" aria-live="polite"></p>
+    </section>
     <section class="remote-progress" aria-live="polite">
       <div class="remote-progress__meta">
         <span class="remote-progress__label">Ready</span>
@@ -34,6 +42,10 @@
       <div class="remote-progress__bar">
         <span class="remote-progress__fill"></span>
       </div>
+    </section>
+    <section class="remote-result" aria-label="Finished result">
+      <img class="remote-result__image" alt="Finished generated image" />
+      <a class="remote-result__save" download="photobooth-result.png" target="_blank" rel="noreferrer">Save to phone</a>
     </section>
     <div class="remote-actions">
       <button class="remote-action">Take Selfie</button>

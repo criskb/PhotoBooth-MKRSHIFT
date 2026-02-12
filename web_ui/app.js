@@ -48,6 +48,8 @@ const settingsEnabledInput = document.querySelector(".settings-input--enabled");
 const settingsHidePrintInput = document.querySelector(".settings-input--hide-print");
 const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsHideQrInput = document.querySelector(".settings-input--hide-qr");
+const settingsRemoteResultInput = document.querySelector(".settings-input--remote-result");
+const settingsRemoteCameraInput = document.querySelector(".settings-input--remote-camera");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsWatermarkPreview = document.querySelector(".settings-watermark__image");
 const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
@@ -120,6 +122,8 @@ let watermarkText = "MKRShift";
 let uploadEnabled = true;
 let hidePrintEnabled = false;
 let hideQrEnabled = false;
+let remoteResultEnabled = true;
+let remoteCameraCaptureEnabled = false;
 let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
 const uiPreferencesKeys = {
@@ -250,6 +254,7 @@ function connectRemoteSocket() {
     if (selectedStyle) {
       sendRemoteMessage({ type: "style", style: selectedStyle, source: "booth" });
     }
+    broadcastRemoteConfig();
   });
   remoteSocket.addEventListener("message", (event) => {
     if (!event?.data) {
@@ -263,6 +268,12 @@ function connectRemoteSocket() {
         );
         startCountdown(delay, payload.source ?? "remote");
       }
+      if (payload?.type === "capture-image" && typeof payload.image === "string") {
+        if (!remoteCameraCaptureEnabled) {
+          return;
+        }
+        queueSelfieWithImage(payload.image, payload.source ?? "remote-camera");
+      }
       if (payload?.type === "style" && typeof payload.style === "string") {
         applyStyleSelection(payload.style, { source: payload.source ?? "remote" });
       }
@@ -273,6 +284,7 @@ function connectRemoteSocket() {
         if (selectedStyle) {
           sendRemoteMessage({ type: "style", style: selectedStyle, source: "booth" });
         }
+        broadcastRemoteConfig();
         if (lastRemoteProgress) {
           sendRemoteMessage({ type: "progress", ...lastRemoteProgress, source: "booth" });
         }
@@ -294,6 +306,16 @@ function sendRemoteMessage(payload) {
     return;
   }
   remoteSocket.send(JSON.stringify(payload));
+}
+
+
+function broadcastRemoteConfig() {
+  sendRemoteMessage({
+    type: "remote-config",
+    showResultOnRemote: remoteResultEnabled,
+    allowRemoteCameraCapture: remoteCameraCaptureEnabled,
+    source: "booth",
+  });
 }
 
 function clearStylePreview() {
@@ -364,12 +386,15 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
 
 function updateRemoteProgress(payload) {
   const promptId = payload.promptId ?? currentPromptId ?? lastRemoteProgress?.promptId ?? null;
-  lastRemoteProgress = { ...payload, promptId, comfyServerUrl };
+  const outputUrl = payload.outputUrl ?? lastRemoteProgress?.outputUrl ?? lastOutputUrl ?? null;
+  lastRemoteProgress = { ...payload, promptId, comfyServerUrl, outputUrl };
   sendRemoteMessage({
     type: "progress",
     ...payload,
     promptId,
     comfyServerUrl,
+    outputUrl,
+    showResultOnRemote: remoteResultEnabled,
     source: "booth",
   });
 }
@@ -537,6 +562,18 @@ async function queueSelfie(source = "tap") {
     return;
   }
   const imageData = captureFrame();
+  await queueSelfieWithImage(imageData, source);
+}
+
+async function queueSelfieWithImage(imageData, source = "tap") {
+  if (isQueueing) {
+    return;
+  }
+  if (!selectedStyle) {
+    statusLabel.textContent = "Pick a Style";
+    statusMeta.textContent = "Select a style before taking a selfie.";
+    return;
+  }
   if (!imageData) {
     statusLabel.textContent = "Camera Warming Up";
     statusMeta.textContent = "Please wait for the camera feed.";
@@ -578,6 +615,7 @@ async function queueSelfie(source = "tap") {
     label: "Queueing",
     percent: 0,
     complete: false,
+    outputUrl: null,
   });
   try {
     const response = await fetch("/api/selfie", {
@@ -603,6 +641,7 @@ async function queueSelfie(source = "tap") {
       label: "Queued",
       percent: 0,
       complete: false,
+      outputUrl: null,
     });
     startProgressPolling();
   } catch (error) {
@@ -623,6 +662,7 @@ async function queueSelfie(source = "tap") {
       label: "Error",
       percent: 0,
       complete: false,
+      outputUrl: null,
     });
   } finally {
     isQueueing = false;
@@ -1085,6 +1125,14 @@ function loadPrinterConfig() {
     if (hideQrRaw !== null) {
       hideQrEnabled = hideQrRaw === "true";
     }
+    const remoteResultRaw = localStorage.getItem("remoteResultEnabled");
+    if (remoteResultRaw !== null) {
+      remoteResultEnabled = remoteResultRaw === "true";
+    }
+    const remoteCameraRaw = localStorage.getItem("remoteCameraCaptureEnabled");
+    if (remoteCameraRaw !== null) {
+      remoteCameraCaptureEnabled = remoteCameraRaw === "true";
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
@@ -1100,6 +1148,8 @@ function loadPrinterConfig() {
     uploadEnabled = true;
     hidePrintEnabled = false;
     hideQrEnabled = false;
+    remoteResultEnabled = true;
+    remoteCameraCaptureEnabled = false;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
@@ -1120,6 +1170,12 @@ function loadPrinterConfig() {
   settingsUploadsInput.checked = uploadEnabled;
   if (settingsHideQrInput) {
     settingsHideQrInput.checked = hideQrEnabled;
+  }
+  if (settingsRemoteResultInput) {
+    settingsRemoteResultInput.checked = remoteResultEnabled;
+  }
+  if (settingsRemoteCameraInput) {
+    settingsRemoteCameraInput.checked = remoteCameraCaptureEnabled;
   }
   settingsWatermarkInput.checked = watermarkEnabled;
   if (settingsWatermarkTextInput) {
@@ -1198,9 +1254,19 @@ async function savePrinterConfig() {
     hideQrEnabled = settingsHideQrInput.checked;
     localStorage.setItem("hideQrEnabled", String(hideQrEnabled));
   }
+  if (settingsRemoteResultInput) {
+    remoteResultEnabled = settingsRemoteResultInput.checked;
+    localStorage.setItem("remoteResultEnabled", String(remoteResultEnabled));
+  }
+  if (settingsRemoteCameraInput) {
+    remoteCameraCaptureEnabled = settingsRemoteCameraInput.checked;
+    localStorage.setItem("remoteCameraCaptureEnabled", String(remoteCameraCaptureEnabled));
+  }
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
+  broadcastRemoteConfig();
+  updateRemoteProgress(lastRemoteProgress);
   if (cameraChanged) {
     await startCamera();
   }

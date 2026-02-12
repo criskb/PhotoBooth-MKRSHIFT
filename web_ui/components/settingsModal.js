@@ -81,6 +81,14 @@ export function renderSettingsModal() {
           Hide QR downloads
         </label>
         <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--remote-result" type="checkbox" />
+          Show finished image on phone remote
+        </label>
+        <label class="settings-field settings-field--toggle">
+          <input class="settings-input settings-input--remote-camera" type="checkbox" />
+          Allow phone camera capture from remote
+        </label>
+        <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--watermark" type="checkbox" />
           Add MKRSHIFT watermark on upload/print
         </label>
