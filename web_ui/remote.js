@@ -2,6 +2,10 @@ const timerButtons = Array.from(document.querySelectorAll(".remote-timer"));
 const actionButton = document.querySelector(".remote-action");
 const statusLabel = document.querySelector(".remote-status");
 const styleList = document.querySelector(".remote-style-list");
+const styleDrawer = document.querySelector(".remote-style-drawer");
+const styleDrawerBackdrop = document.querySelector(".remote-style-drawer-backdrop");
+const styleDrawerToggle = document.querySelector(".remote-styles-toggle");
+const styleDrawerClose = document.querySelector(".remote-style-drawer__close");
 const styleStatus = document.querySelector(".remote-style-status");
 const stylePreview = document.querySelector(".remote-style-preview");
 const stylePreviewImage = document.querySelector(".remote-style-preview__image");
@@ -92,6 +96,63 @@ async function refreshCameraOptions() {
 
 function setStatus(message) {
   statusLabel.textContent = message;
+}
+
+function isPhoneLayout() {
+  return document.body.classList.contains("remote-layout--phone");
+}
+
+function openStyleDrawer() {
+  if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
+    return;
+  }
+  styleDrawer.hidden = false;
+  styleDrawerBackdrop.hidden = false;
+  styleDrawer.classList.add("remote-style-drawer--open");
+  styleDrawerBackdrop.classList.add("remote-style-drawer-backdrop--visible");
+  styleDrawerToggle.setAttribute("aria-expanded", "true");
+}
+
+function closeStyleDrawer() {
+  if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
+    return;
+  }
+  styleDrawer.classList.remove("remote-style-drawer--open");
+  styleDrawerBackdrop.classList.remove("remote-style-drawer-backdrop--visible");
+  styleDrawer.hidden = true;
+  styleDrawerBackdrop.hidden = true;
+  styleDrawerToggle.setAttribute("aria-expanded", "false");
+}
+
+function syncStyleDrawerForViewport() {
+  if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
+    return;
+  }
+  if (!isPhoneLayout()) {
+    styleDrawer.hidden = false;
+    styleDrawerBackdrop.hidden = true;
+    styleDrawer.classList.remove("remote-style-drawer--open");
+    styleDrawerBackdrop.classList.remove("remote-style-drawer-backdrop--visible");
+    styleDrawerToggle.setAttribute("aria-expanded", "false");
+    return;
+  }
+  closeStyleDrawer();
+}
+
+function updateViewportClass() {
+  const body = document.body;
+  if (!body) {
+    return;
+  }
+  const width = window.innerWidth || 0;
+  const height = window.innerHeight || 0;
+  const isLandscape = width > height;
+  const isTablet = Math.max(width, height) >= 900;
+  body.classList.toggle("remote-layout--tablet", isTablet);
+  body.classList.toggle("remote-layout--phone", !isTablet);
+  body.classList.toggle("remote-layout--landscape", isLandscape);
+  body.classList.toggle("remote-layout--portrait", !isLandscape);
+  syncStyleDrawerForViewport();
 }
 
 function setStyleStatus(message) {
@@ -258,6 +319,9 @@ function applyRemoteConfig() {
   }
   if (!allowRemoteCameraCapture) {
     stopPhoneCamera();
+    if (stylePreview && stylePreviewImage?.src) {
+      stylePreview.classList.add("remote-style-preview--visible");
+    }
   }
 }
 
@@ -592,6 +656,9 @@ async function loadStyles() {
       button.addEventListener("click", () => {
         setSelectedStyle(style);
         sendStyle(style);
+        if (isPhoneLayout()) {
+          closeStyleDrawer();
+        }
       });
       styleList.appendChild(button);
     });
@@ -656,9 +723,36 @@ if (remoteCameraSelect) {
     }
   });
 }
+if (styleDrawerToggle) {
+  styleDrawerToggle.addEventListener("click", () => {
+    if (!isPhoneLayout()) {
+      return;
+    }
+    const isOpen = styleDrawer && !styleDrawer.hidden;
+    if (isOpen) {
+      closeStyleDrawer();
+    } else {
+      openStyleDrawer();
+    }
+  });
+}
+if (styleDrawerClose) {
+  styleDrawerClose.addEventListener("click", closeStyleDrawer);
+}
+if (styleDrawerBackdrop) {
+  styleDrawerBackdrop.addEventListener("click", closeStyleDrawer);
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeStyleDrawer();
+  }
+});
 
 applyRemoteConfig();
 loadStyles();
 loadRemotePreferences();
 refreshCameraOptions();
 connectSocket();
+updateViewportClass();
+window.addEventListener("resize", updateViewportClass);
+window.addEventListener("orientationchange", updateViewportClass);
