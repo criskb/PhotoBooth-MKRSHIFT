@@ -6,6 +6,7 @@ const styleDrawer = document.querySelector(".remote-style-drawer");
 const styleDrawerBackdrop = document.querySelector(".remote-style-drawer-backdrop");
 const styleDrawerToggle = document.querySelector(".remote-styles-toggle");
 const styleDrawerClose = document.querySelector(".remote-style-drawer__close");
+const styleDrawerOk = document.querySelector(".remote-style-drawer__ok");
 const styleStatus = document.querySelector(".remote-style-status");
 const stylePreview = document.querySelector(".remote-style-preview");
 const stylePreviewImage = document.querySelector(".remote-style-preview__image");
@@ -38,6 +39,7 @@ let allowRemoteCameraCapture = false;
 let phoneCameraStream = null;
 let availableCameraDevices = [];
 let selectedRemoteCameraDeviceId = "";
+let pendingStyleSelection = null;
 const remotePreferenceKeys = {
   selectedDelay: "remoteSelectedDelay",
   selectedStyle: "remoteSelectedStyle",
@@ -111,6 +113,13 @@ function openStyleDrawer() {
   styleDrawer.classList.add("remote-style-drawer--open");
   styleDrawerBackdrop.classList.add("remote-style-drawer-backdrop--visible");
   styleDrawerToggle.setAttribute("aria-expanded", "true");
+  if (styleDrawerOk) {
+    const pending = pendingStyleSelection ?? selectedStyle;
+    styleDrawerOk.disabled = !pending || pending === selectedStyle;
+  }
+  if (!pendingStyleSelection && selectedStyle) {
+    setPendingStyle(selectedStyle);
+  }
 }
 
 function closeStyleDrawer() {
@@ -128,12 +137,23 @@ function syncStyleDrawerForViewport() {
   if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
     return;
   }
-  if (!isPhoneLayout()) {
+  if (!allowRemoteCameraCapture) {
     styleDrawer.hidden = false;
     styleDrawerBackdrop.hidden = true;
     styleDrawer.classList.remove("remote-style-drawer--open");
     styleDrawerBackdrop.classList.remove("remote-style-drawer-backdrop--visible");
     styleDrawerToggle.setAttribute("aria-expanded", "false");
+    if (styleDrawerOk) {
+      styleDrawerOk.hidden = true;
+      styleDrawerOk.disabled = true;
+    }
+    return;
+  }
+  if (styleDrawerOk) {
+    styleDrawerOk.hidden = false;
+    styleDrawerOk.disabled = !pendingStyleSelection || pendingStyleSelection === selectedStyle;
+  }
+  if (!isPhoneLayout() && !document.body.classList.contains("remote-layout--tablet")) {
     return;
   }
   closeStyleDrawer();
@@ -317,6 +337,17 @@ function applyRemoteConfig() {
   if (remoteCameraSelect) {
     remoteCameraSelect.disabled = !allowRemoteCameraCapture;
   }
+  if (styleDrawerToggle) {
+    styleDrawerToggle.style.display = allowRemoteCameraCapture ? "inline-flex" : "none";
+  }
+  document.body.classList.toggle("remote-camera-mode", allowRemoteCameraCapture);
+  if (stylePreview) {
+    stylePreview.classList.toggle("remote-style-preview--drawer-only", allowRemoteCameraCapture);
+  }
+  if (!allowRemoteCameraCapture) {
+    pendingStyleSelection = null;
+  }
+  syncStyleDrawerForViewport();
   if (!allowRemoteCameraCapture) {
     stopPhoneCamera();
     if (stylePreview && stylePreviewImage?.src) {
@@ -573,6 +604,21 @@ function sendStyle(style) {
   setStatus(`Style sent: ${toTitleCase(style)}`);
 }
 
+function applyPendingStyleSelection() {
+  if (!pendingStyleSelection) {
+    return;
+  }
+  const nextStyle = pendingStyleSelection;
+  pendingStyleSelection = null;
+  setSelectedStyle(nextStyle);
+  sendStyle(nextStyle);
+  setStyleStatus(`Selected: ${toTitleCase(nextStyle)}`);
+  if (styleDrawerOk) {
+    styleDrawerOk.disabled = true;
+  }
+  closeStyleDrawer();
+}
+
 function sendExit() {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     setStatus("Not connected yet.");
@@ -604,6 +650,22 @@ function setSelectedStyle(style, { announce = true } = {}) {
     updateStylePreview(style);
   } else {
     clearStylePreview();
+  }
+}
+
+
+function setPendingStyle(style) {
+  pendingStyleSelection = style;
+  const styleButtons = Array.from(document.querySelectorAll(".remote-style"));
+  styleButtons.forEach((button) => {
+    button.classList.toggle("remote-style--active", button.dataset.style === style);
+  });
+  if (style) {
+    updateStylePreview(style);
+    setStyleStatus(`Pending: ${toTitleCase(style)} (tap OK to confirm)`);
+  }
+  if (styleDrawerOk) {
+    styleDrawerOk.disabled = !style || style === selectedStyle;
   }
 }
 
@@ -654,9 +716,13 @@ async function loadStyles() {
       button.textContent = toTitleCase(style);
       button.dataset.style = style;
       button.addEventListener("click", () => {
+        if (allowRemoteCameraCapture) {
+          setPendingStyle(style);
+          return;
+        }
         setSelectedStyle(style);
         sendStyle(style);
-        if (isPhoneLayout()) {
+        if (isPhoneLayout() || allowRemoteCameraCapture) {
           closeStyleDrawer();
         }
       });
@@ -725,7 +791,7 @@ if (remoteCameraSelect) {
 }
 if (styleDrawerToggle) {
   styleDrawerToggle.addEventListener("click", () => {
-    if (!isPhoneLayout()) {
+    if (!allowRemoteCameraCapture) {
       return;
     }
     const isOpen = styleDrawer && !styleDrawer.hidden;
@@ -738,6 +804,9 @@ if (styleDrawerToggle) {
 }
 if (styleDrawerClose) {
   styleDrawerClose.addEventListener("click", closeStyleDrawer);
+}
+if (styleDrawerOk) {
+  styleDrawerOk.addEventListener("click", applyPendingStyleSelection);
 }
 if (styleDrawerBackdrop) {
   styleDrawerBackdrop.addEventListener("click", closeStyleDrawer);

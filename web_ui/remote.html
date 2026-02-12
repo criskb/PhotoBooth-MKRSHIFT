@@ -23,12 +23,13 @@
           <p class="remote-style-drawer__title">Select a Style</p>
           <button class="remote-style-drawer__close" type="button" aria-label="Close style drawer">✕</button>
         </div>
+        <section class="remote-style-preview" aria-label="Selected style preview">
+          <img class="remote-style-preview__image" alt="Selected style preview" />
+        </section>
         <div class="remote-style-list"></div>
+        <button class="remote-style-drawer__ok" type="button" disabled>OK</button>
       </div>
       <p class="remote-style-status" aria-live="polite">Loading styles…</p>
-    </section>
-    <section class="remote-style-preview" aria-label="Selected style preview">
-      <img class="remote-style-preview__image" alt="Selected style preview" />
     </section>
     <section class="remote-timers" aria-label="Timer options">
       <button class="remote-timer remote-timer--active" data-delay="0">0s</button>
