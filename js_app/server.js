@@ -1030,6 +1030,18 @@ remoteWss.on("connection", (socket) => {
         });
         return;
       }
+      if (payload?.type === "capture-image" && typeof payload.image === "string") {
+        const image = payload.image.trim();
+        if (!image) {
+          return;
+        }
+        broadcastRemote({
+          type: "capture-image",
+          image,
+          source: payload.source ?? "remote",
+        });
+        return;
+      }
       if (payload?.type === "style" && typeof payload.style === "string") {
         const style = payload.style.trim();
         if (!style) {
@@ -1052,6 +1064,17 @@ remoteWss.on("connection", (socket) => {
           complete: Boolean(payload.complete),
           promptId: payload.promptId ?? null,
           comfyServerUrl: payload.comfyServerUrl ?? null,
+          outputUrl: payload.outputUrl ?? null,
+          showResultOnRemote: payload.showResultOnRemote !== false,
+          source: payload.source ?? "booth",
+        });
+        return;
+      }
+      if (payload?.type === "remote-config") {
+        broadcastRemote({
+          type: "remote-config",
+          showResultOnRemote: payload.showResultOnRemote !== false,
+          allowRemoteCameraCapture: Boolean(payload.allowRemoteCameraCapture),
           source: payload.source ?? "booth",
         });
         return;
