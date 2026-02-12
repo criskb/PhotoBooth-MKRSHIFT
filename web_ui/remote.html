@@ -27,6 +27,12 @@
       <button class="remote-timer" data-delay="10">10s</button>
     </section>
     <section class="remote-camera" aria-label="Phone camera capture">
+      <label class="remote-camera-select-wrap">
+        Camera
+        <select class="remote-camera-select" aria-label="Select phone camera">
+          <option value="">Default camera</option>
+        </select>
+      </label>
       <button class="remote-camera-toggle" type="button">Use Phone Camera</button>
       <div class="remote-camera-preview-wrap">
         <video class="remote-camera-preview" playsinline muted></video>

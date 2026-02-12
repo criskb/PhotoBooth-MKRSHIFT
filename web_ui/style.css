@@ -1716,6 +1716,27 @@ button:focus-visible {
   display: flex;
 }
 
+
+.remote-camera-select-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: rgba(247, 247, 251, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.remote-camera-select {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(18, 22, 33, 0.75);
+  color: #f7f7fb;
+}
+
 .remote-camera-toggle,
 .remote-camera-capture,
 .remote-result__save {
