@@ -193,11 +193,17 @@ function extractHostedCredits(payload) {
   }
   const preferredPaths = [
     ["credits_remaining"],
+    ["credits_available"],
+    ["available_credits"],
     ["remaining_credits"],
     ["tokens_remaining"],
+    ["tokens_available"],
+    ["available_tokens"],
     ["remaining_tokens"],
     ["credits", "remaining"],
+    ["credits", "available"],
     ["tokens", "remaining"],
+    ["tokens", "available"],
     ["balance", "credits"],
   ];
   for (const pathKeys of preferredPaths) {
@@ -217,10 +223,22 @@ function extractHostedCredits(payload) {
       }
     }
   }
-  return (
-    extractNumericFromObject(payload, /remaining.*(credit|token)|credit.*remaining|token.*remaining/i) ??
-    extractNumericFromObject(payload, /credit|token|balance/i)
+  const total = extractNumericFromObject(payload, /(total|limit).*(credit|token)|(credit|token).*(total|limit)/i);
+  const used = extractNumericFromObject(payload, /(used|consumed|spent).*(credit|token)|(credit|token).*(used|consumed|spent)/i);
+  if (Number.isFinite(total) && Number.isFinite(used)) {
+    const remaining = total - used;
+    if (Number.isFinite(remaining)) {
+      return remaining;
+    }
+  }
+  const remainingLike = extractNumericFromObject(
+    payload,
+    /(available|remaining).*(credit|token)|(credit|token).*(available|remaining)/i
   );
+  if (Number.isFinite(remainingLike)) {
+    return remainingLike;
+  }
+  return extractNumericFromObject(payload, /credit|token|balance/i);
 }
 
 async function fetchHostedCreditsForUrl(serverUrl, apiKey) {
@@ -984,8 +1002,8 @@ async function uploadBufferToFreeimage(buffer, apiKey) {
     return null;
   }
   return (
-    result?.image?.url ??
     result?.image?.display_url ??
+    result?.image?.url ??
     result?.data?.link ??
     result?.url ??
     null
@@ -1619,8 +1637,8 @@ const server = http.createServer((req, res) => {
           throw new Error("Upload response missing JSON");
         }
         const link =
-          result?.image?.url ??
           result?.image?.display_url ??
+          result?.image?.url ??
           result?.data?.link ??
           result?.url;
         if (!link) {
