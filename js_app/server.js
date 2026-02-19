@@ -115,6 +115,16 @@ function normalizeStyleName(value) {
     .replace(/\s+/g, " ");
 }
 
+function extractHostedWorkflowIdFromServerUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)/i);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function loadComfyWorkflowMap() {
   const mapPath = path.join(workflowDir, "comfyicu-workflow-map.json");
   if (!fs.existsSync(mapPath)) {
@@ -583,16 +593,6 @@ function normalizeHostedOutputCandidate(candidate) {
     return `https://r2.comfy.icu/${trimmed}`;
   }
   return null;
-}
-
-function extractHostedWorkflowIdFromServerUrl(serverUrl) {
-  try {
-    const url = new URL(serverUrl);
-    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)/i);
-    return match?.[1] ? decodeURIComponent(match[1]) : null;
-  } catch (error) {
-    return null;
-  }
 }
 
 function extractHostedRunId(payload, fallbackPromptId) {
@@ -1229,6 +1229,19 @@ const server = http.createServer((req, res) => {
             hostedAccelerator: acceleratorOverride || undefined,
           });
           const resolvedPromptId = result?.prompt_id ?? promptId;
+          if (result?.hostedWorkflowApi) {
+            const hostedWorkflowId = extractHostedWorkflowIdFromServerUrl(effectiveComfyServerUrl);
+            const hostedRunId =
+              result?.id ??
+              result?.run_id ??
+              result?.job_id ??
+              result?.data?.id ??
+              result?.data?.run_id ??
+              resolvedPromptId;
+            console.info(
+              `Comfy.ICU run queued (workflowId: ${hostedWorkflowId ?? "unknown"}, runId: ${hostedRunId ?? "unknown"})`
+            );
+          }
           promptToCapture.set(resolvedPromptId, safeId);
           promptToServerUrl.set(resolvedPromptId, effectiveComfyServerUrl);
           promptToQueueResult.set(resolvedPromptId, result ?? null);
