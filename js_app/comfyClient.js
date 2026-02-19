@@ -77,6 +77,16 @@ function isHostedWorkflowApiUrl(serverUrl) {
   }
 }
 
+function extractHostedWorkflowId(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)$/i);
+    return match?.[1] ?? null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function isRemoteServerUrl(serverUrl) {
   try {
     const url = new URL(serverUrl);
@@ -178,11 +188,17 @@ export async function sendWorkflow({
 }) {
   const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
   const hostedWorkflowApi = isHostedWorkflowApiUrl(normalizedServerUrl);
-  const workflow = hostedWorkflowApi ? null : loadWorkflowJson(workflowDir, styleName);
+  const workflow = loadWorkflowJson(workflowDir, styleName);
+  const hostedWorkflowId = hostedWorkflowApi ? extractHostedWorkflowId(normalizedServerUrl) : null;
   let inputImage = inputImagePath;
   if (inputImageBuffer && isRemoteServerUrl(normalizedServerUrl)) {
     if (hostedWorkflowApi) {
-      inputImage = `data:image/png;base64,${Buffer.from(inputImageBuffer).toString("base64")}`;
+      inputImage = await uploadHostedInputImage({
+        serverUrl: normalizedServerUrl,
+        apiKey,
+        buffer: inputImageBuffer,
+        fileName: "photobooth-input.png",
+      });
     } else {
       const uploadName = await uploadInputImage({
         serverUrl: normalizedServerUrl,
@@ -204,10 +220,12 @@ export async function sendWorkflow({
     : ["/prompt"];
   const requestPayload = hostedWorkflowApi
     ? {
+        workflow_id: hostedWorkflowId,
         client_id: resolvedClientId,
         prompt_id: resolvedPromptId,
         run_id: resolvedPromptId,
         id: resolvedPromptId,
+        prompt: payload,
         inputs: {
           image: inputImage,
           input_image: inputImage,
@@ -241,8 +259,6 @@ export async function sendWorkflow({
     if (
       hostedWorkflowApi &&
       response.status === 413 &&
-      typeof requestPayload?.inputs?.image === "string" &&
-      requestPayload.inputs.image.startsWith("data:image/") &&
       !retriedAfterHostedUpload &&
       inputImageBuffer
     ) {
