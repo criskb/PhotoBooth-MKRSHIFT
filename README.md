@@ -267,6 +267,7 @@ If hosted file download still fails, then:
 - **Run queued but no output**
   - Confirm your workflow writes to `/output` via `SaveImage` nodes.
   - Confirm Comfy.ICU can access the provided input file URL.
+  - Hosted output URLs can follow: `https://r2.comfy.icu/workflows/<workflow_id>/output/<run_id>/ComfyUI_00001_.png`; the server now builds this fallback URL when API output URL fields are missing.
 - **Tokens/credits going negative**
   - New runs are refused when hosted balance probes report below your configured Settings minimum.
   - If the provider returns insufficient balance text (`insufficient`, `credit`, `token`, `quota`, `payment required`) during queue, the request aborts with an explicit balance-exhausted error.

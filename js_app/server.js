@@ -551,6 +551,51 @@ function normalizeHostedOutputCandidate(candidate) {
   return null;
 }
 
+function extractHostedWorkflowIdFromServerUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)/i);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function extractHostedRunId(payload, fallbackPromptId) {
+  const candidate =
+    payload?.id ??
+    payload?.run_id ??
+    payload?.runId ??
+    payload?.prompt_id ??
+    payload?.promptId ??
+    payload?.result?.id ??
+    payload?.result?.run_id ??
+    payload?.data?.id ??
+    payload?.data?.run_id ??
+    fallbackPromptId;
+  if (typeof candidate !== "string" || !candidate.trim()) {
+    return null;
+  }
+  return candidate.trim();
+}
+
+function buildHostedR2OutputUrl(serverUrl, runPayload, fallbackPromptId) {
+  const workflowId = extractHostedWorkflowIdFromServerUrl(serverUrl);
+  const runId = extractHostedRunId(runPayload, fallbackPromptId);
+  if (!workflowId || !runId) {
+    return null;
+  }
+  const outputName =
+    runPayload?.output_name ??
+    runPayload?.outputName ??
+    runPayload?.result?.output_name ??
+    runPayload?.data?.output_name ??
+    "ComfyUI_00001_.png";
+  return `https://r2.comfy.icu/workflows/${encodeURIComponent(workflowId)}/output/${encodeURIComponent(
+    runId
+  )}/${encodeURIComponent(outputName)}`;
+}
+
 function pickHostedOutputUrl(payload) {
   const candidateLists = [
     payload,
@@ -1157,7 +1202,11 @@ const server = http.createServer((req, res) => {
           const status = String(rawStatus).toLowerCase();
           const complete = ["succeeded", "success", "completed", "done", "finished"].includes(status);
           const failed = ["failed", "error", "cancelled", "canceled"].includes(status);
-          const outputUrl = pickHostedOutputUrl(runStatus) || pickHostedOutputUrl(queueResult);
+          const outputUrl =
+            pickHostedOutputUrl(runStatus) ||
+            buildHostedR2OutputUrl(requestComfyUrl, runStatus, promptId) ||
+            pickHostedOutputUrl(queueResult) ||
+            buildHostedR2OutputUrl(requestComfyUrl, queueResult, promptId);
           const hasOutput = Boolean(outputUrl);
           const percent = failed
             ? 100
