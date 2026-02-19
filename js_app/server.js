@@ -1331,7 +1331,8 @@ const server = http.createServer((req, res) => {
             responsePayload.label = "Finalizing";
           }
           if (
-            responsePayload.complete &&
+            complete &&
+            !failed &&
             hostedOutputPath &&
             !outputSaved.has(promptId)
           ) {
