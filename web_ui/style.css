@@ -972,6 +972,16 @@ button:focus-visible {
   white-space: pre-line;
 }
 
+.settings-comfy-credits {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.8rem;
+  background: rgba(12, 16, 26, 0.55);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(247, 247, 251, 0.9);
+}
+
 .settings-actions {
   display: flex;
   gap: 0.75rem;

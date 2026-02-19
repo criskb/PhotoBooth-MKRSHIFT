@@ -156,6 +156,73 @@ function buildComfyHeaders() {
   };
 }
 
+function extractNumericFromObject(payload, keyMatcher) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  for (const [key, value] of Object.entries(payload)) {
+    if (keyMatcher.test(String(key))) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+    }
+    if (value && typeof value === "object") {
+      const nested = extractNumericFromObject(value, keyMatcher);
+      if (Number.isFinite(nested)) {
+        return nested;
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchHostedCreditsForUrl(serverUrl, apiKey) {
+  let origin = "";
+  try {
+    origin = new URL(serverUrl).origin;
+  } catch (error) {
+    return null;
+  }
+  const candidates = [
+    `${origin}/api/v1/me`,
+    `${origin}/api/v1/account`,
+    `${origin}/api/v1/user`,
+    `${origin}/api/v1/credits`,
+  ];
+  for (const target of candidates) {
+    try {
+      const response = await fetch(target, {
+        headers: {
+          accept: "application/json",
+          ...(apiKey
+            ? {
+                Authorization: `Bearer ${apiKey}`,
+                "X-API-Key": apiKey,
+              }
+            : {}),
+        },
+      });
+      if (!response.ok) {
+        continue;
+      }
+      const payload = await response.json().catch(() => null);
+      if (!payload || typeof payload !== "object") {
+        continue;
+      }
+      const credits =
+        extractNumericFromObject(payload, /remaining.*(credit|token)|credit.*remaining|token.*remaining/i) ??
+        extractNumericFromObject(payload, /credit|token|balance/i);
+      if (Number.isFinite(credits)) {
+        return credits;
+      }
+    } catch (error) {
+      // continue probing
+    }
+  }
+  return null;
+}
+
 function isRemoteComfyServerUrl(serverUrl) {
   try {
     const url = new URL(serverUrl);
@@ -901,6 +968,30 @@ const server = http.createServer((req, res) => {
         uptimeSeconds: Math.floor(process.uptime()),
       })
     );
+    return;
+  }
+
+  if (req.url.startsWith("/api/comfy-credits")) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const serverParam = normalizeComfyServerUrl(url.searchParams.get("comfyServerUrl"));
+    const keyHeader = req.headers["x-comfy-api-key"];
+    const apiKey = normalizeApiKey(keyHeader);
+    const serverToQuery = serverParam ?? comfyServerUrl;
+    const isHosted = /comfy\.icu/i.test(serverToQuery) || /\/api\/v1\/workflows(\/|$)/i.test(serverToQuery);
+    if (!isHosted) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ hosted: false, credits: null }));
+      return;
+    }
+    fetchHostedCreditsForUrl(serverToQuery, apiKey || comfyApiKey)
+      .then((credits) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ hosted: true, credits: Number.isFinite(credits) ? credits : null }));
+      })
+      .catch((error) => {
+        res.writeHead(500);
+        res.end(`Credits lookup failed: ${error.message}`);
+      });
     return;
   }
 

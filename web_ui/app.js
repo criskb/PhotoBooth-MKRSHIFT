@@ -45,6 +45,7 @@ const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
+const settingsComfyCredits = document.querySelector(".settings-comfy-credits");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
 const settingsCameraInput = document.querySelector(".settings-input--camera");
 const settingsMirrorInput = document.querySelector(".settings-input--mirror");
@@ -1282,6 +1283,49 @@ async function savePrinterConfig() {
   if (cameraChanged) {
     await startCamera();
   }
+  await refreshHostedCredits();
+}
+
+async function refreshHostedCredits() {
+  if (!settingsComfyCredits) {
+    return;
+  }
+  const endpointInput = settingsComfyInput?.value?.trim?.() || comfyServerUrl || "";
+  const keyInput = settingsComfyKeyInput?.value?.trim?.() || comfyApiKey || "";
+  if (!endpointInput || !/comfy\.icu|\/api\/v1\/workflows/i.test(endpointInput)) {
+    settingsComfyCredits.textContent = "Remaining credits: n/a (not hosted)";
+    return;
+  }
+  if (!keyInput) {
+    settingsComfyCredits.textContent = "Remaining credits: add API key";
+    return;
+  }
+  settingsComfyCredits.textContent = "Remaining credits: checking...";
+  try {
+    const response = await fetch(
+      `/api/comfy-credits?comfyServerUrl=${encodeURIComponent(endpointInput)}`,
+      {
+        headers: {
+          "x-comfy-api-key": keyInput,
+        },
+      }
+    );
+    if (!response.ok) {
+      throw new Error("lookup failed");
+    }
+    const payload = await response.json();
+    if (!payload?.hosted) {
+      settingsComfyCredits.textContent = "Remaining credits: n/a (not hosted)";
+      return;
+    }
+    if (Number.isFinite(Number(payload?.credits))) {
+      settingsComfyCredits.textContent = `Remaining credits: ${Number(payload.credits)}`;
+      return;
+    }
+    settingsComfyCredits.textContent = "Remaining credits: unavailable";
+  } catch (error) {
+    settingsComfyCredits.textContent = "Remaining credits: unavailable";
+  }
 }
 
 async function openSettings() {
@@ -1294,6 +1338,7 @@ async function openSettings() {
   }
   loadPrinters(printerConfig.name);
   await refreshCameraOptions();
+  await refreshHostedCredits();
 }
 
 function handlePrinterSelection() {
