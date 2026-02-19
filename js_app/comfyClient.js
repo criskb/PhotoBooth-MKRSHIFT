@@ -159,6 +159,71 @@ function isRemoteServerUrl(serverUrl) {
   }
 }
 
+function extractNumericFromObject(payload, keyMatcher) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  for (const [key, value] of Object.entries(payload)) {
+    if (keyMatcher.test(String(key))) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+    }
+    if (value && typeof value === "object") {
+      const nested = extractNumericFromObject(value, keyMatcher);
+      if (Number.isFinite(nested)) {
+        return nested;
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchHostedCreditBalance({ serverUrl, apiKey }) {
+  let origin = "";
+  try {
+    origin = new URL(serverUrl).origin;
+  } catch (error) {
+    return null;
+  }
+  if (!origin) {
+    return null;
+  }
+  const candidates = [
+    `${origin}/api/v1/me`,
+    `${origin}/api/v1/account`,
+    `${origin}/api/v1/user`,
+    `${origin}/api/v1/credits`,
+  ];
+  for (const target of candidates) {
+    try {
+      const response = await fetch(target, {
+        headers: {
+          accept: "application/json",
+          ...buildComfyHeaders(apiKey),
+        },
+      });
+      if (!response.ok) {
+        continue;
+      }
+      const payload = await response.json().catch(() => null);
+      if (!payload || typeof payload !== "object") {
+        continue;
+      }
+      const remaining =
+        extractNumericFromObject(payload, /remaining.*(credit|token)|credit.*remaining|token.*remaining/i) ??
+        extractNumericFromObject(payload, /credit|token|balance/i);
+      if (Number.isFinite(remaining)) {
+        return remaining;
+      }
+    } catch (error) {
+      // ignore and continue probing compatible endpoints
+    }
+  }
+  return null;
+}
+
 async function uploadInputImage({ serverUrl, apiKey, buffer, fileName }) {
   const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
   const formData = new FormData();
@@ -308,6 +373,17 @@ export async function sendWorkflow({
         client_id: resolvedClientId,
         prompt_id: resolvedPromptId,
       };
+  if (hostedWorkflowApi) {
+    const remainingCredits = await fetchHostedCreditBalance({
+      serverUrl: normalizedServerUrl,
+      apiKey,
+    });
+    if (Number.isFinite(remainingCredits) && remainingCredits <= 0) {
+      throw new Error(
+        `Hosted credits/tokens are depleted (${remainingCredits}). Refusing to queue run to avoid overdraft.`
+      );
+    }
+  }
   let result = null;
   let lastError = null;
   let retriedAfterHostedUpload = false;
@@ -339,6 +415,10 @@ export async function sendWorkflow({
       break;
     }
     lastError = `POST ${endpoint} -> ${response.status} ${message}`;
+    if (/insufficient|credit|token|quota|payment|required/i.test(message)) {
+      lastError = `${lastError}. Hosted balance appears exhausted; run was refused.`;
+      break;
+    }
     if (response.status !== 404 && response.status !== 405) {
       break;
     }

@@ -227,6 +227,7 @@ In the app Settings:
   - Specific workflow mode: `https://comfy.icu/api/v1/workflows/<workflow_id>`
   - Collection mode: `https://comfy.icu/api/v1/workflows/`
 - **ComfyUI API Key**: paste your Comfy.ICU token.
+- **Hosted credit safety**: queueing now checks for remaining hosted credits/tokens (when provider endpoints expose this) and refuses to start new runs if balance is `<= 0`.
 
 ### 4) How this app sends hosted runs
 
@@ -264,6 +265,10 @@ If hosted file download still fails, then:
 - **Run queued but no output**
   - Confirm your workflow writes to `/output` via `SaveImage` nodes.
   - Confirm Comfy.ICU can access the provided input file URL.
+- **Tokens/credits going negative**
+  - New runs are refused when hosted balance probes report `<= 0`.
+  - If the provider returns insufficient balance text (`insufficient`, `credit`, `token`, `quota`, `payment required`) during queue, the request aborts with an explicit balance-exhausted error.
+  - Note: if provider endpoints do not expose current balance, hard pre-check cannot be guaranteed; server-side provider enforcement is still the source of truth.
 
 ## Legacy Python notes
 
