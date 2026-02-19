@@ -651,7 +651,8 @@ async function queueSelfieWithImage(imageData, source = "tap") {
     startProgressPolling();
   } catch (error) {
     statusLabel.textContent = "Queue Failed";
-    statusMeta.textContent = "Unable to send workflow to ComfyUI.";
+    const details = error?.message ? ` ${error.message}` : "";
+    statusMeta.textContent = `Unable to send workflow to ComfyUI.${details}`;
     progressLabels.forEach((element) => {
       element.textContent = "Error";
     });

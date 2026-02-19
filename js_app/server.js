@@ -85,6 +85,25 @@ function normalizeApiKey(value) {
   return value.trim();
 }
 
+
+function isComfyIcuWorkflowCollectionUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return /\/api\/v1\/workflows\/?$/i.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function shouldUseComfyWebsocket(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return !/\/api\/v1\/workflows(\/|$)/i.test(url.pathname);
+  } catch (error) {
+    return true;
+  }
+}
+
 function buildComfyHeaders() {
   if (!comfyApiKey) {
     return {};
@@ -287,6 +306,11 @@ function connectComfyWebsocket() {
     } catch (error) {
       // noop
     }
+  }
+  if (!shouldUseComfyWebsocket(comfyServerUrl)) {
+    comfySocket = null;
+    comfySocketReady = false;
+    return;
   }
   const wsUrl = `${comfyServerUrl.replace(/^http/, "ws")}/ws?clientId=${encodeURIComponent(
     comfyClientId
@@ -652,6 +676,11 @@ const server = http.createServer((req, res) => {
           return;
         }
         try {
+          if (isComfyIcuWorkflowCollectionUrl(comfyServerUrl)) {
+            throw new Error(
+              "Comfy.ICU URL is incomplete. Paste your full workflow endpoint (for example: https://comfy.icu/api/v1/workflows/<workflow-id>)."
+            );
+          }
           const captureId = `capture-${Date.now()}-${crypto.randomUUID()}`;
           const safeId = safeFileName(captureId);
           const captureName = `${safeId}.png`;
