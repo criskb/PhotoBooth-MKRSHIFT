@@ -8,15 +8,21 @@ export function renderSettingsModal() {
           <input
             class="settings-input form-input settings-input--comfy"
             type="url"
-            placeholder="http://127.0.0.1:8188"
+            placeholder="http://127.0.0.1:8188 or your hosted API URL"
           />
         </label>
+        <p class="settings-help">
+          Enter the exact Comfy API URL from your provider. Local ComfyUI usually uses
+          <strong>http://127.0.0.1:8188</strong>. Hosted services can use either a workflow URL with ID, or the collection URL
+          <code>https://comfy.icu/api/v1/workflows/</code>. When using the collection URL, style button
+          names must match hosted workflow names so the app can auto-pick the workflow ID.
+        </p>
         <label class="settings-field">
           ComfyUI API Key (for hosted services)
           <input
             class="settings-input form-input settings-input--comfy-key"
             type="password"
-            placeholder="Optional API token"
+            placeholder="Comfy.ICU auth token"
             autocomplete="off"
           />
         </label>

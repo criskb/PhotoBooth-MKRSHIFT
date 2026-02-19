@@ -160,10 +160,15 @@ function normalizeComfyInput(value) {
   if (!trimmed) {
     return "";
   }
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)) {
-    return trimmed;
+  const withProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  try {
+    const url = new URL(withProtocol);
+    return url.toString().replace(/\/$/, "");
+  } catch (error) {
+    return withProtocol;
   }
-  return `https://${trimmed}`;
 }
 
 function updateTimerLabel() {
@@ -652,7 +657,8 @@ async function queueSelfieWithImage(imageData, source = "tap") {
     startProgressPolling();
   } catch (error) {
     statusLabel.textContent = "Queue Failed";
-    statusMeta.textContent = "Unable to send workflow to ComfyUI.";
+    const details = error?.message ? ` ${error.message}` : "";
+    statusMeta.textContent = `Unable to send workflow to ComfyUI.${details}`;
     progressLabels.forEach((element) => {
       element.textContent = "Error";
     });
