@@ -465,23 +465,33 @@ function isHostedWorkflowApiUrl(serverUrl) {
 }
 
 function pickHostedOutputUrl(payload) {
-  const candidate =
-    payload?.output_url ??
-    payload?.image_url ??
-    payload?.result?.output_url ??
-    payload?.result?.image_url ??
-    payload?.data?.output_url ??
-    payload?.data?.image_url ??
-    payload?.outputs?.[0]?.url ??
-    payload?.images?.[0]?.url ??
-    payload?.output?.url ??
-    payload?.output?.images?.[0]?.url ??
-    payload?.output?.files?.[0]?.url ??
-    payload?.result?.output?.images?.[0]?.url ??
-    payload?.result?.output?.files?.[0]?.url ??
-    null;
-  if (typeof candidate === "string" && candidate.trim()) {
-    return candidate;
+  const candidateLists = [
+    payload,
+    payload?.output,
+    payload?.result,
+    payload?.result?.output,
+    payload?.data,
+    payload?.data?.output,
+  ].filter(Boolean);
+
+  for (const candidate of candidateLists) {
+    const direct = candidate?.output_url ?? candidate?.image_url ?? candidate?.url;
+    if (typeof direct === "string" && direct.trim()) {
+      return direct;
+    }
+
+    const collections = [candidate?.outputs, candidate?.images, candidate?.files].filter(Boolean);
+    for (const collection of collections) {
+      if (!Array.isArray(collection)) {
+        continue;
+      }
+      for (const entry of collection) {
+        const url = entry?.url ?? entry?.output_url ?? entry?.image_url;
+        if (typeof url === "string" && url.trim()) {
+          return url;
+        }
+      }
+    }
   }
   return null;
 }
@@ -1034,6 +1044,13 @@ const server = http.createServer((req, res) => {
               ? runStatus?.error ?? runStatus?.message ?? runStatus?.result?.error ?? "Hosted run failed"
               : null,
           };
+          if (responsePayload.complete && responsePayload.outputUrl) {
+            outputByPrompt.set(promptId, {
+              filename: responsePayload.outputUrl,
+              type: "hosted",
+              subfolder: "",
+            });
+          }
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(responsePayload));
         })

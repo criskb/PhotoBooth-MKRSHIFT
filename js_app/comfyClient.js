@@ -69,17 +69,31 @@ function applyRandomSeeds(workflowPrompt) {
   if (!workflowPrompt || typeof workflowPrompt !== "object") {
     return workflowPrompt;
   }
+  const shouldRandomizeSeedInput = (key) => /(^|[_-])seed$/i.test(String(key ?? ""));
+  const isSeedLikeValue = (value) => {
+    if (Number.isFinite(Number(value))) {
+      return true;
+    }
+    if (typeof value !== "string") {
+      return false;
+    }
+    const trimmed = value.trim().toLowerCase();
+    return trimmed === "randomize" || /^\d+$/.test(trimmed);
+  };
   Object.values(workflowPrompt).forEach((node) => {
     const inputs = node?.inputs;
     if (!inputs || typeof inputs !== "object") {
       return;
     }
-    if (Object.prototype.hasOwnProperty.call(inputs, "seed") && Number.isFinite(Number(inputs.seed))) {
-      inputs.seed = randomSeedValue();
-    }
-    if (Object.prototype.hasOwnProperty.call(inputs, "noise_seed") && Number.isFinite(Number(inputs.noise_seed))) {
-      inputs.noise_seed = randomSeedValue();
-    }
+    Object.keys(inputs).forEach((key) => {
+      if (!shouldRandomizeSeedInput(key)) {
+        return;
+      }
+      if (!isSeedLikeValue(inputs[key])) {
+        return;
+      }
+      inputs[key] = randomSeedValue();
+    });
   });
   return workflowPrompt;
 }
