@@ -20,7 +20,7 @@ const galleryInputDir = path.join(galleryDir, "input");
 const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
-let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+let comfyServerUrl = normalizeComfyServerUrl(process.env.COMFY_SERVER_URL) ?? "http://127.0.0.1:8188";
 let comfyApiKey = process.env.COMFY_API_KEY ?? "";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
@@ -32,6 +32,7 @@ const progressMetaByPrompt = new Map();
 const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
+let comfySocketRetryCount = 0;
 let lastPromptId = null;
 const remoteClients = new Set();
 
@@ -81,6 +82,43 @@ function normalizeApiKey(value) {
     return "";
   }
   return value.trim();
+}
+
+
+function isComfyIcuWorkflowCollectionUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return /\/api\/v1\/workflows\/?$/i.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function shouldUseComfyWebsocket(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return !/\/api\/v1\/workflows(\/|$)/i.test(url.pathname) && !/\/api\/v1\/workflows\/[^/]+$/i.test(url.pathname);
+  } catch (error) {
+    return true;
+  }
+}
+
+function normalizeStyleName(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.json$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function buildComfyApiUrls(baseUrl) {
+  const normalized = normalizeComfyServerUrl(baseUrl) ?? baseUrl;
+  return {
+    historyUrl: `${normalized}/history`,
+    progressUrl: `${normalized}/progress`,
+    viewUrl: `${normalized}/view`,
+  };
 }
 
 function buildComfyHeaders() {
@@ -286,6 +324,11 @@ function connectComfyWebsocket() {
       // noop
     }
   }
+  if (!shouldUseComfyWebsocket(comfyServerUrl)) {
+    comfySocket = null;
+    comfySocketReady = false;
+    return;
+  }
   const wsUrl = `${comfyServerUrl.replace(/^http/, "ws")}/ws?clientId=${encodeURIComponent(
     comfyClientId
   )}`;
@@ -294,6 +337,7 @@ function connectComfyWebsocket() {
   comfySocketReady = false;
   comfySocket.on("open", () => {
     comfySocketReady = true;
+    comfySocketRetryCount = 0;
     console.info("ComfyUI WebSocket connected.");
   });
   comfySocket.on("message", (data, isBinary) => {
@@ -313,10 +357,17 @@ function connectComfyWebsocket() {
   });
   comfySocket.on("close", () => {
     comfySocketReady = false;
-    console.warn("ComfyUI WebSocket closed; reconnecting.");
+    comfySocketRetryCount += 1;
+    const remoteServer = isRemoteComfyServerUrl(comfyServerUrl);
+    const retryDelayMs = Math.min(1500 * Math.max(comfySocketRetryCount, 1), 10000);
+    if (remoteServer && comfySocketRetryCount >= 5) {
+      console.warn("ComfyUI WebSocket unavailable for remote host; using HTTP polling only.");
+      return;
+    }
+    console.warn(`ComfyUI WebSocket closed; reconnecting in ${retryDelayMs}ms.`);
     setTimeout(() => {
       connectComfyWebsocket();
-    }, 1500);
+    }, retryDelayMs);
   });
   comfySocket.on("error", () => {
     comfySocketReady = false;
@@ -330,6 +381,7 @@ fs.mkdirSync(galleryInputDir, { recursive: true });
 fs.mkdirSync(galleryOutputDir, { recursive: true });
 
 const promptToCapture = new Map();
+const promptToServerUrl = new Map();
 const outputSaved = new Set();
 
 function readJsonBody(req) {
@@ -375,6 +427,49 @@ async function fetchComfyJson(url) {
     throw new Error(`ComfyUI error: ${response.status}`);
   }
   return response.json();
+}
+
+async function resolveComfyServerUrlForStyle(baseServerUrl, styleName) {
+  if (!isComfyIcuWorkflowCollectionUrl(baseServerUrl)) {
+    return baseServerUrl;
+  }
+  const collectionUrl = `${baseServerUrl.replace(/\/$/, "")}`;
+  const listResult = await fetchComfyJson(collectionUrl);
+  const workflows =
+    (Array.isArray(listResult) && listResult) ||
+    (Array.isArray(listResult?.workflows) && listResult.workflows) ||
+    (Array.isArray(listResult?.data) && listResult.data) ||
+    [];
+  if (workflows.length === 0) {
+    throw new Error("No workflows returned by Comfy.ICU for this token.");
+  }
+  const wanted = normalizeStyleName(styleName);
+  const match = workflows.find((workflow) => {
+    const candidates = [
+      workflow?.name,
+      workflow?.title,
+      workflow?.slug,
+      workflow?.workflow_name,
+      workflow?.metadata?.name,
+    ];
+    return candidates.some((candidate) => normalizeStyleName(candidate) === wanted);
+  });
+  if (!match) {
+    const available = workflows
+      .map((workflow) => workflow?.name ?? workflow?.title ?? workflow?.slug)
+      .filter(Boolean)
+      .slice(0, 8)
+      .join(", ");
+    throw new Error(
+      `No hosted workflow matched style "${styleName}". Rename your hosted workflow to match the style button name. Available: ${available || "(none)"}`
+    );
+  }
+  const workflowId =
+    match?.id ?? match?.workflow_id ?? match?.workflowId ?? match?.uuid ?? match?.slug ?? null;
+  if (!workflowId) {
+    throw new Error(`Matched workflow "${styleName}" is missing an id in API response.`);
+  }
+  return `${collectionUrl}/${encodeURIComponent(String(workflowId))}`;
 }
 
 function parseComfyProgressPercent(progressPayload) {
@@ -642,6 +737,7 @@ const server = http.createServer((req, res) => {
           return;
         }
         try {
+          const effectiveComfyServerUrl = await resolveComfyServerUrlForStyle(comfyServerUrl, style);
           const captureId = `capture-${Date.now()}-${crypto.randomUUID()}`;
           const safeId = safeFileName(captureId);
           const captureName = `${safeId}.png`;
@@ -649,7 +745,7 @@ const server = http.createServer((req, res) => {
           writeImageBuffer(buffer, path.join(galleryInputDir, captureName));
           let inputImagePath = null;
           let inputImageBuffer = null;
-          if (isRemoteComfyServerUrl(comfyServerUrl)) {
+          if (isRemoteComfyServerUrl(effectiveComfyServerUrl)) {
             inputImageBuffer = buffer;
           } else {
             inputImagePath = comfyInputPath;
@@ -664,13 +760,14 @@ const server = http.createServer((req, res) => {
             stylePrompt: null,
             inputImagePath,
             inputImageBuffer,
-            serverUrl: comfyServerUrl,
+            serverUrl: effectiveComfyServerUrl,
             clientId: comfyClientId,
             promptId,
             apiKey: comfyApiKey,
           });
           const resolvedPromptId = result?.prompt_id ?? promptId;
           promptToCapture.set(resolvedPromptId, safeId);
+          promptToServerUrl.set(resolvedPromptId, effectiveComfyServerUrl);
           lastPromptId = resolvedPromptId;
           progressMetaByPrompt.set(resolvedPromptId, buildWorkflowStepMeta(workflow));
           res.writeHead(202, { "Content-Type": "application/json" });
@@ -708,9 +805,11 @@ const server = http.createServer((req, res) => {
       res.end("Missing promptId");
       return;
     }
+    const requestComfyUrl = promptToServerUrl.get(promptId) ?? comfyServerUrl;
+    const comfyUrls = buildComfyApiUrls(requestComfyUrl);
     Promise.allSettled([
-      fetchComfyJson(`${comfyProgressUrl}?prompt_id=${encodeURIComponent(promptId)}`),
-      fetchComfyJson(`${comfyHistoryUrl}/${encodeURIComponent(promptId)}`),
+      fetchComfyJson(`${comfyUrls.progressUrl}?prompt_id=${encodeURIComponent(promptId)}`),
+      fetchComfyJson(`${comfyUrls.historyUrl}/${encodeURIComponent(promptId)}`),
     ])
       .then((results) => {
         const progressResult = results[0].status === "fulfilled" ? results[0].value : null;
@@ -762,7 +861,9 @@ const server = http.createServer((req, res) => {
           outputUrl: outputImage
             ? `/api/output?filename=${encodeURIComponent(outputImage.filename)}&type=${
                 outputImage.type ?? "output"
-              }&subfolder=${encodeURIComponent(outputImage.subfolder ?? "")}`
+              }&subfolder=${encodeURIComponent(outputImage.subfolder ?? "")}&promptId=${encodeURIComponent(
+                promptId
+              )}`
             : fallbackOutputUrl,
           previewUrl: buildPreviewUrl(resolvePreviewPayload(progressResult)),
         };
@@ -794,7 +895,10 @@ const server = http.createServer((req, res) => {
     }
     const type = url.searchParams.get("type") ?? "output";
     const subfolder = url.searchParams.get("subfolder") ?? "";
-    const target = `${comfyViewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
+    const promptId = url.searchParams.get("promptId");
+    const requestComfyUrl = (promptId && promptToServerUrl.get(promptId)) ?? comfyServerUrl;
+    const comfyUrls = buildComfyApiUrls(requestComfyUrl);
+    const target = `${comfyUrls.viewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
       type
     )}&subfolder=${encodeURIComponent(subfolder)}`;
     fetch(target, { headers: buildComfyHeaders() })
