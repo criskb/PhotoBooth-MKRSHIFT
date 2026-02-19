@@ -49,7 +49,6 @@ function normalizeComfyBaseUrl(value) {
       ? trimmed
       : `https://${trimmed}`;
     const url = new URL(withProtocol);
-    url.pathname = url.pathname.replace(/\/api\/v1\/workflows\/?$/i, "");
     return url.toString().replace(/\/$/, "");
   } catch (error) {
     return trimmed.replace(/\/$/, "");

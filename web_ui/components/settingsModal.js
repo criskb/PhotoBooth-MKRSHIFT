@@ -8,13 +8,13 @@ export function renderSettingsModal() {
           <input
             class="settings-input form-input settings-input--comfy"
             type="url"
-            placeholder="http://127.0.0.1:8188 or https://comfy.icu"
+            placeholder="http://127.0.0.1:8188 or your hosted API URL"
           />
         </label>
         <p class="settings-help">
-          Enter the ComfyUI server base URL only. For Comfy.ICU use <strong>https://comfy.icu</strong>
-          (or your workspace host), not <code>/api/v1/workflows</code>. If pasted, that suffix is
-          removed automatically when saving.
+          Enter the exact Comfy API URL from your provider. Local ComfyUI usually uses
+          <strong>http://127.0.0.1:8188</strong>. Hosted services can include a path prefix
+          (example: <code>https://comfy.icu/api/v1/workflows/&lt;your-workflow-id&gt;</code>).
         </p>
         <label class="settings-field">
           ComfyUI API Key (for hosted services)
