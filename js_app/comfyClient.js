@@ -46,6 +46,30 @@ function extractWorkflowPrompt(workflowJson) {
   return workflowJson;
 }
 
+
+function randomSeedValue() {
+  return Math.floor(Math.random() * 1125899906842624);
+}
+
+function applyRandomSeeds(workflowPrompt) {
+  if (!workflowPrompt || typeof workflowPrompt !== "object") {
+    return workflowPrompt;
+  }
+  Object.values(workflowPrompt).forEach((node) => {
+    const inputs = node?.inputs;
+    if (!inputs || typeof inputs !== "object") {
+      return;
+    }
+    if (Object.prototype.hasOwnProperty.call(inputs, "seed") && Number.isFinite(Number(inputs.seed))) {
+      inputs.seed = randomSeedValue();
+    }
+    if (Object.prototype.hasOwnProperty.call(inputs, "noise_seed") && Number.isFinite(Number(inputs.noise_seed))) {
+      inputs.noise_seed = randomSeedValue();
+    }
+  });
+  return workflowPrompt;
+}
+
 function normalizeComfyBaseUrl(value) {
   if (typeof value !== "string") {
     return "";
@@ -233,7 +257,9 @@ export async function sendWorkflow({
       inputImage = uploadName;
     }
   }
-  const prompt = applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, inputImage);
+  const prompt = applyRandomSeeds(
+    applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, inputImage)
+  );
   if (hostedWorkflowApi && (!prompt || typeof prompt !== "object" || Object.keys(prompt).length === 0)) {
     throw new Error(
       `Hosted Comfy prompt is empty for style "${styleName}". Ensure workflows/${styleName}.json contains ComfyUI API JSON.`
@@ -243,10 +269,12 @@ export async function sendWorkflow({
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
   const endpointCandidates = hostedWorkflowApi ? ["/runs"] : ["/prompt"];
+  const requestedAccelerator = (process.env.COMFYICU_ACCELERATOR || process.env.COMFY_ACCELERATOR || "L4").trim();
   const requestPayload = hostedWorkflowApi
     ? {
         workflow_id: hostedWorkflowId,
         prompt,
+        ...(requestedAccelerator ? { accelerator: requestedAccelerator } : {}),
         ...(inputFiles ? { files: inputFiles } : {}),
       }
     : {
@@ -287,7 +315,9 @@ export async function sendWorkflow({
         buffer: inputImageBuffer,
         fileName: "photobooth-input.png",
       });
-      const promptWithUpload = applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, uploadedRef);
+      const promptWithUpload = applyRandomSeeds(
+        applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, uploadedRef)
+      );
       requestPayload.prompt = promptWithUpload;
       retriedAfterHostedUpload = true;
       index -= 1;

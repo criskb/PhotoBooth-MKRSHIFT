@@ -465,7 +465,7 @@ function isHostedWorkflowApiUrl(serverUrl) {
 }
 
 function pickHostedOutputUrl(payload) {
-  return (
+  const candidate =
     payload?.output_url ??
     payload?.image_url ??
     payload?.result?.output_url ??
@@ -474,8 +474,16 @@ function pickHostedOutputUrl(payload) {
     payload?.data?.image_url ??
     payload?.outputs?.[0]?.url ??
     payload?.images?.[0]?.url ??
-    null
-  );
+    payload?.output?.url ??
+    payload?.output?.images?.[0]?.url ??
+    payload?.output?.files?.[0]?.url ??
+    payload?.result?.output?.images?.[0]?.url ??
+    payload?.result?.output?.files?.[0]?.url ??
+    null;
+  if (typeof candidate === "string" && candidate.trim()) {
+    return candidate;
+  }
+  return null;
 }
 
 async function fetchHostedRunStatus(serverUrl, promptId) {
@@ -927,17 +935,28 @@ const server = http.createServer((req, res) => {
     if (hostedWorkflowApi) {
       fetchHostedRunStatus(requestComfyUrl, promptId)
         .then((runStatus) => {
-          const status = String(
-            runStatus?.status ?? runStatus?.state ?? runStatus?.result?.status ?? ""
-          ).toLowerCase();
+          const rawStatus =
+            runStatus?.status ??
+            runStatus?.state?.status ??
+            runStatus?.state ??
+            runStatus?.result?.status ??
+            runStatus?.data?.status ??
+            "";
+          const status = String(rawStatus).toLowerCase();
           const complete = ["succeeded", "success", "completed", "done", "finished"].includes(status);
           const failed = ["failed", "error", "cancelled", "canceled"].includes(status);
           const outputUrl = pickHostedOutputUrl(runStatus) || pickHostedOutputUrl(queueResult);
-          const percent = failed ? 100 : complete ? 100 : Math.max(parseComfyProgressPercent(runStatus), 5);
+          const hasOutput = Boolean(outputUrl);
+          const percent = failed
+            ? 100
+            : complete || hasOutput
+              ? 100
+              : Math.max(parseComfyProgressPercent(runStatus), 5);
           const responsePayload = {
             percent,
             label: failed ? "Failed" : complete ? "Complete" : "Sampling",
-            complete,
+            complete: complete || hasOutput,
+
             websocketConnected: false,
             outputUrl,
             previewUrl: pickHostedOutputUrl(runStatus?.preview) || null,
