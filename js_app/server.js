@@ -177,6 +177,42 @@ function extractNumericFromObject(payload, keyMatcher) {
   return null;
 }
 
+function extractHostedCredits(payload) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  const preferredPaths = [
+    ["credits_remaining"],
+    ["remaining_credits"],
+    ["tokens_remaining"],
+    ["remaining_tokens"],
+    ["credits", "remaining"],
+    ["tokens", "remaining"],
+    ["balance", "credits"],
+  ];
+  for (const pathKeys of preferredPaths) {
+    let cursor = payload;
+    let ok = true;
+    for (const key of pathKeys) {
+      if (!cursor || typeof cursor !== "object" || !(key in cursor)) {
+        ok = false;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (ok) {
+      const numeric = Number(cursor);
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+    }
+  }
+  return (
+    extractNumericFromObject(payload, /remaining.*(credit|token)|credit.*remaining|token.*remaining/i) ??
+    extractNumericFromObject(payload, /credit|token|balance/i)
+  );
+}
+
 async function fetchHostedCreditsForUrl(serverUrl, apiKey) {
   let origin = "";
   try {
@@ -210,9 +246,7 @@ async function fetchHostedCreditsForUrl(serverUrl, apiKey) {
       if (!payload || typeof payload !== "object") {
         continue;
       }
-      const credits =
-        extractNumericFromObject(payload, /remaining.*(credit|token)|credit.*remaining|token.*remaining/i) ??
-        extractNumericFromObject(payload, /credit|token|balance/i);
+      const credits = extractHostedCredits(payload);
       if (Number.isFinite(credits)) {
         return credits;
       }
@@ -549,6 +583,101 @@ function normalizeHostedOutputCandidate(candidate) {
     return `https://r2.comfy.icu/${trimmed}`;
   }
   return null;
+}
+
+function extractHostedWorkflowIdFromServerUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)/i);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function extractHostedRunId(payload, fallbackPromptId) {
+  const candidate =
+    payload?.id ??
+    payload?.run_id ??
+    payload?.runId ??
+    payload?.prompt_id ??
+    payload?.promptId ??
+    payload?.result?.id ??
+    payload?.result?.run_id ??
+    payload?.data?.id ??
+    payload?.data?.run_id ??
+    fallbackPromptId;
+  if (typeof candidate !== "string" || !candidate.trim()) {
+    return null;
+  }
+  return candidate.trim();
+}
+
+function buildHostedR2OutputUrl(serverUrl, runPayload, fallbackPromptId) {
+  const workflowId = extractHostedWorkflowIdFromServerUrl(serverUrl);
+  const runId = extractHostedRunId(runPayload, fallbackPromptId);
+  if (!workflowId || !runId) {
+    return null;
+  }
+  const outputName =
+    runPayload?.output_name ??
+    runPayload?.outputName ??
+    runPayload?.result?.output_name ??
+    runPayload?.data?.output_name ??
+    "ComfyUI_00001_.png";
+  return `https://r2.comfy.icu/workflows/${encodeURIComponent(workflowId)}/output/${encodeURIComponent(
+    runId
+  )}/${encodeURIComponent(outputName)}`;
+}
+
+function collectHostedOutputNames(payload) {
+  const names = new Set();
+  const walk = (value) => {
+    if (!value) {
+      return;
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/\.(png|jpg|jpeg|webp)$/i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+        names.add(trimmed.split("/").pop());
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === "object") {
+      Object.entries(value).forEach(([key, entry]) => {
+        if (/filename|name|path/i.test(key) && typeof entry === "string") {
+          walk(entry);
+        } else {
+          walk(entry);
+        }
+      });
+    }
+  };
+  walk(payload);
+  if (!names.size) {
+    names.add("ComfyUI_00001_.png");
+    names.add("ComfyUI_00001_.jpg");
+    names.add("ComfyUI_00001_.webp");
+  }
+  return Array.from(names);
+}
+
+function buildHostedR2OutputUrlCandidates(serverUrl, runPayload, fallbackPromptId) {
+  const workflowId = extractHostedWorkflowIdFromServerUrl(serverUrl);
+  const runId = extractHostedRunId(runPayload, fallbackPromptId);
+  if (!workflowId || !runId) {
+    return [];
+  }
+  return collectHostedOutputNames(runPayload).map(
+    (outputName) =>
+      `https://r2.comfy.icu/workflows/${encodeURIComponent(workflowId)}/output/${encodeURIComponent(
+        runId
+      )}/${encodeURIComponent(outputName)}`
+  );
 }
 
 function pickHostedOutputUrl(payload) {
@@ -1157,7 +1286,11 @@ const server = http.createServer((req, res) => {
           const status = String(rawStatus).toLowerCase();
           const complete = ["succeeded", "success", "completed", "done", "finished"].includes(status);
           const failed = ["failed", "error", "cancelled", "canceled"].includes(status);
-          const outputUrl = pickHostedOutputUrl(runStatus) || pickHostedOutputUrl(queueResult);
+          const outputUrl =
+            pickHostedOutputUrl(runStatus) ||
+            buildHostedR2OutputUrl(requestComfyUrl, runStatus, promptId) ||
+            pickHostedOutputUrl(queueResult) ||
+            buildHostedR2OutputUrl(requestComfyUrl, queueResult, promptId);
           const hasOutput = Boolean(outputUrl);
           const percent = failed
             ? 100
@@ -1185,16 +1318,25 @@ const server = http.createServer((req, res) => {
           }
           if (
             responsePayload.complete &&
-            responsePayload.outputUrl &&
             hostedOutputPath &&
             !outputSaved.has(promptId)
           ) {
             try {
-              const hostedResponse = await fetch(responsePayload.outputUrl);
-              if (hostedResponse.ok) {
+              const candidateUrls = [
+                responsePayload.outputUrl,
+                ...buildHostedR2OutputUrlCandidates(requestComfyUrl, runStatus, promptId),
+                ...buildHostedR2OutputUrlCandidates(requestComfyUrl, queueResult, promptId),
+              ].filter(Boolean);
+              for (const candidateUrl of candidateUrls) {
+                const hostedResponse = await fetch(candidateUrl);
+                if (!hostedResponse.ok) {
+                  continue;
+                }
                 const hostedBuffer = Buffer.from(await hostedResponse.arrayBuffer());
                 fs.writeFileSync(hostedOutputPath, hostedBuffer);
                 outputSaved.add(promptId);
+                responsePayload.outputUrl = candidateUrl;
+                break;
               }
             } catch (error) {
               // keep remote URL fallback when hosted file fetch fails
