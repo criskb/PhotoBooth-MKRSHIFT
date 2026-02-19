@@ -8,18 +8,27 @@ export function renderSettingsModal() {
           <input
             class="settings-input form-input settings-input--comfy"
             type="url"
-            placeholder="http://127.0.0.1:8188"
+            placeholder="http://127.0.0.1:8188 or https://comfy.icu"
           />
         </label>
+        <p class="settings-help">
+          Enter the ComfyUI server base URL only. For Comfy.ICU use <strong>https://comfy.icu</strong>
+          (or your workspace host), not <code>/api/v1/workflows</code>. If pasted, that suffix is
+          removed automatically when saving.
+        </p>
         <label class="settings-field">
           ComfyUI API Key (for hosted services)
           <input
             class="settings-input form-input settings-input--comfy-key"
             type="password"
-            placeholder="Optional API token"
+            placeholder="Comfy.ICU auth token"
             autocomplete="off"
           />
         </label>
+        <p class="settings-help settings-help--subtle">
+          The token is sent as both <code>Authorization: Bearer &lt;token&gt;</code> and
+          <code>X-API-Key</code>.
+        </p>
         <label class="settings-field">
           Camera Orientation
           <select class="settings-input form-input settings-input--orientation">
