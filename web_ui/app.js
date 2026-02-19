@@ -155,10 +155,16 @@ function normalizeComfyInput(value) {
   if (!trimmed) {
     return "";
   }
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)) {
-    return trimmed;
+  const withProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  try {
+    const url = new URL(withProtocol);
+    url.pathname = url.pathname.replace(/\/api\/v1\/workflows\/?$/i, "");
+    return url.toString().replace(/\/$/, "");
+  } catch (error) {
+    return withProtocol;
   }
-  return `https://${trimmed}`;
 }
 
 function updateTimerLabel() {

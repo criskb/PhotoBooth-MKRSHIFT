@@ -36,6 +36,26 @@ function applyPromptOverrides(workflow, stylePrompt, inputImage) {
   return updated;
 }
 
+function normalizeComfyBaseUrl(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    const withProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+    const url = new URL(withProtocol);
+    url.pathname = url.pathname.replace(/\/api\/v1\/workflows\/?$/i, "");
+    return url.toString().replace(/\/$/, "");
+  } catch (error) {
+    return trimmed.replace(/\/$/, "");
+  }
+}
+
 function buildComfyHeaders(apiKey) {
   if (!apiKey) {
     return {};
@@ -57,10 +77,11 @@ function isRemoteServerUrl(serverUrl) {
 }
 
 async function uploadInputImage({ serverUrl, apiKey, buffer, fileName }) {
+  const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
   const formData = new FormData();
   formData.append("image", new Blob([buffer], { type: "image/png" }), fileName);
   formData.append("type", "input");
-  const response = await fetch(`${serverUrl}/upload/image`, {
+  const response = await fetch(`${normalizedServerUrl}/upload/image`, {
     method: "POST",
     headers: buildComfyHeaders(apiKey),
     body: formData,
@@ -90,11 +111,12 @@ export async function sendWorkflow({
   promptId,
   apiKey,
 }) {
+  const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
   const workflow = loadWorkflowJson(workflowDir, styleName);
   let inputImage = inputImagePath;
-  if (inputImageBuffer && isRemoteServerUrl(serverUrl)) {
+  if (inputImageBuffer && isRemoteServerUrl(normalizedServerUrl)) {
     const uploadName = await uploadInputImage({
-      serverUrl,
+      serverUrl: normalizedServerUrl,
       apiKey,
       buffer: inputImageBuffer,
       fileName: "photobooth-input.png",
@@ -105,7 +127,7 @@ export async function sendWorkflow({
   const resolvedClientId = clientId ?? crypto.randomUUID();
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
-  const response = await fetch(`${serverUrl}/prompt`, {
+  const response = await fetch(`${normalizedServerUrl}/prompt`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

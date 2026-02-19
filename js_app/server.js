@@ -20,7 +20,7 @@ const galleryInputDir = path.join(galleryDir, "input");
 const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
-let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+let comfyServerUrl = normalizeComfyServerUrl(process.env.COMFY_SERVER_URL) ?? "http://127.0.0.1:8188";
 let comfyApiKey = process.env.COMFY_API_KEY ?? "";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
@@ -67,6 +67,7 @@ function normalizeComfyServerUrl(value) {
       ? trimmed
       : `https://${trimmed}`;
     const url = new URL(withProtocol);
+    url.pathname = url.pathname.replace(/\/api\/v1\/workflows\/?$/i, "");
     return url.toString().replace(/\/$/, "");
   } catch (error) {
     return null;
