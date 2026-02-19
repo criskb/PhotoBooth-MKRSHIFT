@@ -193,11 +193,37 @@ If you use hosted Comfy.ICU instead of a local ComfyUI install, use this exact s
 - Style buttons in the booth use these local files as the source `prompt` JSON.
 - If you use the hosted **collection** URL (`https://comfy.icu/api/v1/workflows/`), hosted workflow names should match your local style names so the app can resolve ids automatically.
 
+Optional (recommended): create a manual style-to-workflow-id mapping file at
+`workflows/comfyicu-workflow-map.json`.
+
+You can copy `workflows/comfyicu-workflow-map.example.json` and replace values with real Comfy.ICU
+workflow ids. Example:
+
+```json
+{
+  "clay": "4r8DLUYgcaMhGw-mf6l8P",
+  "lowpoly": "YOUR_WORKFLOW_ID"
+}
+```
+
+When this file exists, PhotoBooth uses it first to resolve the selected style to the correct hosted
+workflow id, so you do not need to rename workflows exactly.
+
+Debug endpoint:
+
+```bash
+curl http://localhost:8080/api/comfy-workflow-map
+```
+
+This returns each local style and the mapped workflow id (if configured), plus the expected map file
+path, so you can quickly confirm your mapping is loaded.
+
 ### 3) Configure PhotoBooth settings
 
 In the app Settings:
 
 - **ComfyUI API Endpoint**:
+  - Root host also works and is normalized to collection mode: `https://comfy.icu`
   - Specific workflow mode: `https://comfy.icu/api/v1/workflows/<workflow_id>`
   - Collection mode: `https://comfy.icu/api/v1/workflows/`
 - **ComfyUI API Key**: paste your Comfy.ICU token.

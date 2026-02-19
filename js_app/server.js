@@ -68,7 +68,9 @@ function normalizeComfyServerUrl(value) {
       ? trimmed
       : `https://${trimmed}`;
     const url = new URL(withProtocol);
-    url.pathname = url.pathname.replace(/\/api\/v1\/workflows\/?$/i, "");
+    if (url.hostname.toLowerCase() === "comfy.icu" && (url.pathname === "/" || url.pathname === "")) {
+      url.pathname = "/api/v1/workflows/";
+    }
     return url.toString().replace(/\/$/, "");
   } catch (error) {
     return null;
@@ -111,6 +113,28 @@ function normalizeStyleName(value) {
     .replace(/\.json$/i, "")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
+}
+
+function loadComfyWorkflowMap() {
+  const mapPath = path.join(workflowDir, "comfyicu-workflow-map.json");
+  if (!fs.existsSync(mapPath)) {
+    return null;
+  }
+  try {
+    const raw = fs.readFileSync(mapPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    console.warn(`Unable to read ${mapPath}: ${error.message}`);
+    return null;
+  }
+}
+
+function getComfyWorkflowMapPath() {
+  return path.join(workflowDir, "comfyicu-workflow-map.json");
 }
 
 function buildComfyApiUrls(baseUrl) {
@@ -473,10 +497,27 @@ async function fetchHostedRunStatus(serverUrl, promptId) {
 }
 
 async function resolveComfyServerUrlForStyle(baseServerUrl, styleName) {
-  if (!isComfyIcuWorkflowCollectionUrl(baseServerUrl)) {
+  const normalizedBaseUrl = normalizeComfyServerUrl(baseServerUrl) ?? baseServerUrl;
+  const map = loadComfyWorkflowMap();
+  if (map) {
+    const wanted = normalizeStyleName(styleName);
+    const mappedEntry = Object.entries(map).find(
+      ([key]) => normalizeStyleName(key) === wanted
+    );
+    const mappedId = mappedEntry?.[1];
+    if (typeof mappedId === "string" && mappedId.trim()) {
+      const collectionFromBase = `${normalizedBaseUrl.replace(/\/$/, "")}`;
+      if (/\/api\/v1\/workflows\/?$/i.test(new URL(collectionFromBase).pathname)) {
+        return `${collectionFromBase}/${encodeURIComponent(mappedId.trim())}`;
+      }
+      const origin = new URL(normalizedBaseUrl).origin;
+      return `${origin}/api/v1/workflows/${encodeURIComponent(mappedId.trim())}`;
+    }
+  }
+  if (!isComfyIcuWorkflowCollectionUrl(normalizedBaseUrl)) {
     return baseServerUrl;
   }
-  const collectionUrl = `${baseServerUrl.replace(/\/$/, "")}`;
+  const collectionUrl = `${normalizedBaseUrl.replace(/\/$/, "")}`;
   const listResult = await fetchComfyJson(collectionUrl);
   const workflows =
     (Array.isArray(listResult) && listResult) ||
@@ -504,7 +545,7 @@ async function resolveComfyServerUrlForStyle(baseServerUrl, styleName) {
       .slice(0, 8)
       .join(", ");
     throw new Error(
-      `No hosted workflow matched style "${styleName}". Rename your hosted workflow to match the style button name. Available: ${available || "(none)"}`
+      `No hosted workflow matched style "${styleName}". Rename your hosted workflow to match the style button name, or create ${getComfyWorkflowMapPath()} to map style names to workflow IDs. Available: ${available || "(none)"}`
     );
   }
   const workflowId =
@@ -686,6 +727,31 @@ const server = http.createServer((req, res) => {
     const styles = loadWorkflowStyles(workflowDir);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ styles }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/comfy-workflow-map")) {
+    const styles = loadWorkflowStyles(workflowDir);
+    const mapPath = getComfyWorkflowMapPath();
+    const configuredMap = loadComfyWorkflowMap() ?? {};
+    const resolved = styles.map((style) => {
+      const styleNormalized = normalizeStyleName(style);
+      const mapEntry = Object.entries(configuredMap).find(
+        ([key]) => normalizeStyleName(key) === styleNormalized
+      );
+      return {
+        style,
+        workflowId: typeof mapEntry?.[1] === "string" ? mapEntry[1] : null,
+      };
+    });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        mapPath,
+        mapConfigured: fs.existsSync(mapPath),
+        items: resolved,
+      })
+    );
     return;
   }
 
