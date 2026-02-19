@@ -10,7 +10,13 @@ export function loadWorkflowStyles(workflowDir) {
     .readdirSync(workflowDir)
     .filter((file) => file.endsWith(".json"))
     .map((file) => path.basename(file, ".json"))
-    .filter((name) => !name.startsWith("default") && !name.includes("_save"))
+    .filter(
+      (name) =>
+        !name.startsWith("default") &&
+        !name.includes("_save") &&
+        name !== "comfyicu-workflow-map" &&
+        name !== "comfyicu-workflow-map.example"
+    )
     .sort();
 }
 
