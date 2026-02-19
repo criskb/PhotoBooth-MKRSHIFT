@@ -223,22 +223,78 @@ function extractHostedCredits(payload) {
       }
     }
   }
-  const total = extractNumericFromObject(payload, /(total|limit).*(credit|token)|(credit|token).*(total|limit)/i);
-  const used = extractNumericFromObject(payload, /(used|consumed|spent).*(credit|token)|(credit|token).*(used|consumed|spent)/i);
-  if (Number.isFinite(total) && Number.isFinite(used)) {
+  const remainingCandidates = [];
+  const totalCandidates = [];
+  const usedCandidates = [];
+  const numericFromText = [];
+
+  const walk = (value, path = "") => {
+    if (value == null) {
+      return;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      if (/(available|remaining)/i.test(path) && /(credit|token|balance)/i.test(path)) {
+        remainingCandidates.push(value);
+      } else if (/(total|limit)/i.test(path) && /(credit|token|balance)/i.test(path)) {
+        totalCandidates.push(value);
+      } else if (/(used|consumed|spent)/i.test(path) && /(credit|token|balance)/i.test(path)) {
+        usedCandidates.push(value);
+      }
+      return;
+    }
+    if (typeof value === "string") {
+      const normalized = value.replace(/,/g, "");
+      const usedOfTotal = normalized.match(/used\s*(\d+(?:\.\d+)?)\s*of\s*(\d+(?:\.\d+)?)/i);
+      if (usedOfTotal) {
+        const used = Number(usedOfTotal[1]);
+        const total = Number(usedOfTotal[2]);
+        if (Number.isFinite(total) && Number.isFinite(used)) {
+          numericFromText.push(total - used);
+        }
+      }
+      const explicitRemaining = normalized.match(/(remaining|available)\D*(\d+(?:\.\d+)?)/i);
+      if (explicitRemaining) {
+        const remaining = Number(explicitRemaining[2]);
+        if (Number.isFinite(remaining)) {
+          numericFromText.push(remaining);
+        }
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((entry, idx) => walk(entry, `${path}[${idx}]`));
+      return;
+    }
+    if (typeof value === "object") {
+      Object.entries(value).forEach(([key, entry]) => {
+        const nextPath = path ? `${path}.${key}` : key;
+        walk(entry, nextPath);
+      });
+    }
+  };
+
+  walk(payload);
+
+  const remainingLike = [
+    ...remainingCandidates,
+    ...numericFromText,
+    extractNumericFromObject(payload, /(available|remaining).*(credit|token)|(credit|token).*(available|remaining)/i),
+  ].filter((value) => Number.isFinite(value));
+  if (remainingLike.length > 0) {
+    return Math.max(...remainingLike);
+  }
+
+  if (totalCandidates.length > 0 && usedCandidates.length > 0) {
+    const total = Math.max(...totalCandidates);
+    const used = Math.min(...usedCandidates);
     const remaining = total - used;
     if (Number.isFinite(remaining)) {
       return remaining;
     }
   }
-  const remainingLike = extractNumericFromObject(
-    payload,
-    /(available|remaining).*(credit|token)|(credit|token).*(available|remaining)/i
-  );
-  if (Number.isFinite(remainingLike)) {
-    return remainingLike;
-  }
-  return extractNumericFromObject(payload, /credit|token|balance/i);
+
+  const generic = extractNumericFromObject(payload, /credit|token|balance/i);
+  return Number.isFinite(generic) ? generic : null;
 }
 
 async function fetchHostedCreditsForUrl(serverUrl, apiKey) {
