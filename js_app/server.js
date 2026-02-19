@@ -464,6 +464,26 @@ function isHostedWorkflowApiUrl(serverUrl) {
   }
 }
 
+function normalizeHostedOutputCandidate(candidate) {
+  if (typeof candidate !== "string") {
+    return null;
+  }
+  const trimmed = candidate.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("data:")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/workflows/")) {
+    return `https://r2.comfy.icu${trimmed}`;
+  }
+  if (trimmed.startsWith("workflows/")) {
+    return `https://r2.comfy.icu/${trimmed}`;
+  }
+  return null;
+}
+
 function pickHostedOutputUrl(payload) {
   const candidateLists = [
     payload,
@@ -476,8 +496,9 @@ function pickHostedOutputUrl(payload) {
 
   for (const candidate of candidateLists) {
     const direct = candidate?.output_url ?? candidate?.image_url ?? candidate?.url;
-    if (typeof direct === "string" && direct.trim()) {
-      return direct;
+    const normalizedDirect = normalizeHostedOutputCandidate(direct);
+    if (normalizedDirect) {
+      return normalizedDirect;
     }
 
     const collections = [candidate?.outputs, candidate?.images, candidate?.files].filter(Boolean);
@@ -486,9 +507,21 @@ function pickHostedOutputUrl(payload) {
         continue;
       }
       for (const entry of collection) {
-        const url = entry?.url ?? entry?.output_url ?? entry?.image_url;
-        if (typeof url === "string" && url.trim()) {
-          return url;
+        const raw = typeof entry === "string"
+          ? entry
+          : entry?.url ?? entry?.output_url ?? entry?.image_url ?? entry?.path ?? entry?.name;
+        const normalized = normalizeHostedOutputCandidate(raw);
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+
+    if (candidate && typeof candidate === "object") {
+      for (const value of Object.values(candidate)) {
+        const normalized = normalizeHostedOutputCandidate(value);
+        if (normalized) {
+          return normalized;
         }
       }
     }
@@ -1035,7 +1068,7 @@ const server = http.createServer((req, res) => {
           const responsePayload = {
             percent,
             label: failed ? "Failed" : complete ? "Complete" : "Sampling",
-            complete: complete || hasOutput,
+            complete: failed ? true : complete && hasOutput,
 
             websocketConnected: false,
             outputUrl,
@@ -1044,6 +1077,9 @@ const server = http.createServer((req, res) => {
               ? runStatus?.error ?? runStatus?.message ?? runStatus?.result?.error ?? "Hosted run failed"
               : null,
           };
+          if (complete && !hasOutput && status) {
+            responsePayload.label = "Finalizing";
+          }
           if (responsePayload.complete && responsePayload.outputUrl) {
             outputByPrompt.set(promptId, {
               filename: responsePayload.outputUrl,
