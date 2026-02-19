@@ -42,6 +42,14 @@ function applyPromptOverrides(workflow, stylePrompt, inputImage) {
   return updated;
 }
 
+function assertApiWorkflowShape(workflowJson, styleName) {
+  if (workflowJson && typeof workflowJson === "object" && Array.isArray(workflowJson.nodes)) {
+    throw new Error(
+      `Workflow "${styleName}" appears to be UI graph JSON (has nodes/links). Export ComfyUI API JSON and save it as workflows/${styleName}.json.`
+    );
+  }
+}
+
 function extractWorkflowPrompt(workflowJson) {
   if (!workflowJson || typeof workflowJson !== "object" || Array.isArray(workflowJson)) {
     return {};
@@ -230,6 +238,7 @@ export async function sendWorkflow({
   const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
   const hostedWorkflowApi = isHostedWorkflowApiUrl(normalizedServerUrl);
   const workflow = loadWorkflowJson(workflowDir, styleName);
+  assertApiWorkflowShape(workflow, styleName);
   const hostedWorkflowId = hostedWorkflowApi ? extractHostedWorkflowId(normalizedServerUrl) : null;
   if (hostedWorkflowApi && !hostedWorkflowId) {
     throw new Error(
