@@ -20,7 +20,7 @@ const galleryInputDir = path.join(galleryDir, "input");
 const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
-let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+let comfyServerUrl = normalizeComfyServerUrl(process.env.COMFY_SERVER_URL) ?? "http://127.0.0.1:8188";
 let comfyApiKey = process.env.COMFY_API_KEY ?? "";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
@@ -32,6 +32,7 @@ const progressMetaByPrompt = new Map();
 const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
+let comfySocketRetryCount = 0;
 let lastPromptId = null;
 const remoteClients = new Set();
 
@@ -294,6 +295,7 @@ function connectComfyWebsocket() {
   comfySocketReady = false;
   comfySocket.on("open", () => {
     comfySocketReady = true;
+    comfySocketRetryCount = 0;
     console.info("ComfyUI WebSocket connected.");
   });
   comfySocket.on("message", (data, isBinary) => {
@@ -313,10 +315,17 @@ function connectComfyWebsocket() {
   });
   comfySocket.on("close", () => {
     comfySocketReady = false;
-    console.warn("ComfyUI WebSocket closed; reconnecting.");
+    comfySocketRetryCount += 1;
+    const remoteServer = isRemoteComfyServerUrl(comfyServerUrl);
+    const retryDelayMs = Math.min(1500 * Math.max(comfySocketRetryCount, 1), 10000);
+    if (remoteServer && comfySocketRetryCount >= 5) {
+      console.warn("ComfyUI WebSocket unavailable for remote host; using HTTP polling only.");
+      return;
+    }
+    console.warn(`ComfyUI WebSocket closed; reconnecting in ${retryDelayMs}ms.`);
     setTimeout(() => {
       connectComfyWebsocket();
-    }, 1500);
+    }, retryDelayMs);
   });
   comfySocket.on("error", () => {
     comfySocketReady = false;
