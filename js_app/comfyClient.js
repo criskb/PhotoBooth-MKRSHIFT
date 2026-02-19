@@ -246,12 +246,9 @@ export async function sendWorkflow({
           "/input/photobooth-input.png": inputImageUrl,
         };
       } else {
-        inputImage = await uploadHostedInputImage({
-          serverUrl: normalizedServerUrl,
-          apiKey,
-          buffer: inputImageBuffer,
-          fileName: "photobooth-input.png",
-        });
+        throw new Error(
+          "Hosted input URL is unavailable. Configure FREEIMAGE_HOST_KEY or set PHOTOBOOTH_PUBLIC_BASE_URL/PUBLIC_BASE_URL to a public tunnel URL so Comfy.ICU can download the capture."
+        );
       }
     } else {
       const uploadName = await uploadInputImage({
@@ -315,19 +312,8 @@ export async function sendWorkflow({
       !retriedAfterHostedUpload &&
       inputImageBuffer
     ) {
-      const uploadedRef = await uploadHostedInputImage({
-        serverUrl: normalizedServerUrl,
-        apiKey,
-        buffer: inputImageBuffer,
-        fileName: "photobooth-input.png",
-      });
-      const promptWithUpload = applyRandomSeeds(
-        applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, uploadedRef)
-      );
-      requestPayload.prompt = promptWithUpload;
-      retriedAfterHostedUpload = true;
-      index -= 1;
-      continue;
+      lastError = `POST ${endpoint} -> ${response.status} ${message}`;
+      break;
     }
     lastError = `POST ${endpoint} -> ${response.status} ${message}`;
     if (response.status !== 404 && response.status !== 405) {

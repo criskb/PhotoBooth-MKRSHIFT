@@ -237,7 +237,7 @@ For hosted Comfy.ICU, PhotoBooth now uses the docs-style model:
 - Uses latest captured booth image as the workflow input.
 - Provides the image to hosted runs via either:
   - `files` mapping (preferred): `"/input/photobooth-input.png" -> public URL`, or
-  - hosted upload fallback when `files` is not available.
+  - no hosted upload endpoint dependency (Comfy.ICU `/upload/image` can 404).
 
 This avoids large base64 payload errors and prevents `https://comfy.icu/upload/image -> 404` from blocking normal runs.
 
@@ -249,6 +249,7 @@ If your booth runs only on `localhost` or a private LAN IP, hosted file download
 
 If hosted file download still fails, then:
 
+- set `PHOTOBOOTH_PUBLIC_BASE_URL` (or `PUBLIC_BASE_URL`) to your public tunnel URL, or
 - expose the booth with a tunnel/reverse-proxy URL, or
 - set `FREEIMAGE_HOST_KEY` and verify the key is valid, or
 - use a deployment where Comfy.ICU can reach your `/api/gallery/image?...` URL.

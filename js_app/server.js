@@ -661,6 +661,15 @@ function getLanAddress() {
 }
 
 function resolveRemoteBaseUrl(req) {
+  const explicitBaseUrl = process.env.PHOTOBOOTH_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL;
+  if (explicitBaseUrl) {
+    try {
+      const normalized = new URL(explicitBaseUrl);
+      return normalized.toString().replace(/\/$/, "");
+    } catch (error) {
+      // ignore invalid override and fall back to header-based detection
+    }
+  }
   const forwardedProto = req.headers["x-forwarded-proto"];
   const protocol = typeof forwardedProto === "string" && forwardedProto.length > 0
     ? forwardedProto.split(",")[0].trim()
