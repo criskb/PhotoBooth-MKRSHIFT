@@ -209,7 +209,9 @@ export async function sendWorkflow({
       inputImage = uploadName;
     }
   }
-  const payload = applyPromptOverrides(workflow, stylePrompt, inputImage);
+  const payload = hostedWorkflowApi
+    ? null
+    : applyPromptOverrides(workflow, stylePrompt, inputImage);
   const resolvedClientId = clientId ?? crypto.randomUUID();
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
