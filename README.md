@@ -177,6 +177,90 @@ Some ComfyUI samplers expect a TTY. If you run in Docker, allocate a TTY (for ex
 
 Long-running image generations can exceed reverse-proxy defaults. Increase proxy timeout values (for example, `proxy_read_timeout`/`proxy_send_timeout` in Nginx) if you see 504s while jobs are still running.
 
+## Comfy.ICU setup (recommended API flow)
+
+If you use hosted Comfy.ICU instead of a local ComfyUI install, use this exact setup:
+
+### 1) Create API key and workflow
+
+1. Create a Comfy.ICU API key from your Comfy.ICU account settings.
+2. Create and test your workflow in Comfy.ICU.
+3. Copy the workflow URL/id (for example: `https://comfy.icu/api/v1/workflows/<workflow_id>`).
+
+### 2) Use matching local style files from `/workflows`
+
+- Keep your local workflow JSON files in this repo under `/workflows`.
+- Style buttons in the booth use these local files as the source `prompt` JSON.
+- If you use the hosted **collection** URL (`https://comfy.icu/api/v1/workflows/`), hosted workflow names should match your local style names so the app can resolve ids automatically.
+
+Optional (recommended): create a manual style-to-workflow-id mapping file at
+`workflows/comfyicu-workflow-map.json`.
+
+You can copy `workflows/comfyicu-workflow-map.example.json` and replace values with real Comfy.ICU
+workflow ids. Example:
+
+```json
+{
+  "clay": "4r8DLUYgcaMhGw-mf6l8P",
+  "lowpoly": "YOUR_WORKFLOW_ID"
+}
+```
+
+When this file exists, PhotoBooth uses it first to resolve the selected style to the correct hosted
+workflow id, so you do not need to rename workflows exactly.
+
+Debug endpoint:
+
+```bash
+curl http://localhost:8080/api/comfy-workflow-map
+```
+
+This returns each local style and the mapped workflow id (if configured), plus the expected map file
+path, so you can quickly confirm your mapping is loaded.
+
+### 3) Configure PhotoBooth settings
+
+In the app Settings:
+
+- **ComfyUI API Endpoint**:
+  - Root host also works and is normalized to collection mode: `https://comfy.icu`
+  - Specific workflow mode: `https://comfy.icu/api/v1/workflows/<workflow_id>`
+  - Collection mode: `https://comfy.icu/api/v1/workflows/`
+- **ComfyUI API Key**: paste your Comfy.ICU token.
+
+### 4) How this app sends hosted runs
+
+For hosted Comfy.ICU, PhotoBooth now uses the docs-style model:
+
+- Sends run creation to `/api/v1/workflows/<workflow_id>/runs`.
+- Sends your selected local style JSON as `prompt`.
+- Uses latest captured booth image as the workflow input.
+- Provides the image to hosted runs via either:
+  - `files` mapping (preferred): `"/input/photobooth-input.png" -> public URL`, or
+  - hosted upload fallback when `files` is not available.
+
+This avoids large base64 payload errors and prevents `https://comfy.icu/upload/image -> 404` from blocking normal runs.
+
+### 5) Important networking requirement for hosted files
+
+When using hosted Comfy.ICU with input image files, your PhotoBooth server must be reachable by Comfy.ICU (public URL or properly tunneled URL), because Comfy.ICU needs to download the image URL you provide in `files`.
+
+If your booth runs only on `localhost` with no public tunnel, hosted file download may fail. In that case:
+
+- expose the booth with a tunnel/reverse-proxy URL, or
+- use a deployment where Comfy.ICU can reach your `/api/gallery/image?...` URL.
+
+### 6) Quick troubleshooting
+
+- **`Queue failed ... /upload/image -> 404`**
+  - Ensure endpoint is `https://comfy.icu/api/v1/workflows/<id>` or collection URL.
+  - Update to latest code (this project now prefers `files` mapping for hosted runs).
+- **`Body exceeded 1mb limit`**
+  - Caused by oversized inline payloads; current code avoids this by not inlining base64 in hosted run body.
+- **Run queued but no output**
+  - Confirm your workflow writes to `/output` via `SaveImage` nodes.
+  - Confirm Comfy.ICU can access the provided input file URL.
+
 ## Legacy Python notes
 
 The previous Python implementation is deprecated and retained only for reference.
