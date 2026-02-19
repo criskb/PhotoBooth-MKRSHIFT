@@ -49,6 +49,9 @@ function normalizeComfyBaseUrl(value) {
       ? trimmed
       : `https://${trimmed}`;
     const url = new URL(withProtocol);
+    if (url.hostname.toLowerCase() === "comfy.icu" && (url.pathname === "/" || url.pathname === "")) {
+      url.pathname = "/api/v1/workflows/";
+    }
     return url.toString().replace(/\/$/, "");
   } catch (error) {
     return trimmed.replace(/\/$/, "");
@@ -68,7 +71,7 @@ function buildComfyHeaders(apiKey) {
 function isHostedWorkflowApiUrl(serverUrl) {
   try {
     const url = new URL(serverUrl);
-    return /\/api\/v1\/workflows(\/|$)/i.test(url.pathname);
+    return /\/api\/v1\/workflows(\/|$)/i.test(url.pathname) || url.hostname.toLowerCase() === "comfy.icu";
   } catch (error) {
     return false;
   }
