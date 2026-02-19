@@ -3,6 +3,7 @@ import { loadWorkflowJson } from "./workflowLoader.js";
 
 const HOSTED_MIN_REQUIRED_CREDITS = 2500;
 const HOSTED_ACCELERATOR = "L4";
+const ALLOWED_ACCELERATORS = new Set(["T4", "L4", "A10", "A100_40GB", "A100_80GB", "H100"]);
 
 function applyPromptOverrides(workflow, stylePrompt, inputImage) {
   if (!stylePrompt) {
@@ -316,6 +317,8 @@ export async function sendWorkflow({
   clientId,
   promptId,
   apiKey,
+  minHostedCredits,
+  hostedAccelerator,
 }) {
   const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
   const hostedWorkflowApi = isHostedWorkflowApiUrl(normalizedServerUrl);
@@ -363,7 +366,9 @@ export async function sendWorkflow({
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
   const endpointCandidates = hostedWorkflowApi ? ["/runs"] : ["/prompt"];
-  const accelerator = HOSTED_ACCELERATOR;
+  const accelerator = ALLOWED_ACCELERATORS.has(String(hostedAccelerator || "").trim())
+    ? String(hostedAccelerator).trim()
+    : HOSTED_ACCELERATOR;
   const requestPayload = hostedWorkflowApi
     ? {
         workflow_id: hostedWorkflowId,
@@ -381,9 +386,12 @@ export async function sendWorkflow({
       serverUrl: normalizedServerUrl,
       apiKey,
     });
-    if (Number.isFinite(remainingCredits) && remainingCredits < HOSTED_MIN_REQUIRED_CREDITS) {
+    const requiredCredits = Number.isFinite(Number(minHostedCredits))
+      ? Math.max(0, Math.floor(Number(minHostedCredits)))
+      : HOSTED_MIN_REQUIRED_CREDITS;
+    if (Number.isFinite(remainingCredits) && remainingCredits < requiredCredits) {
       throw new Error(
-        `Hosted credits/tokens are below minimum (${remainingCredits} < ${HOSTED_MIN_REQUIRED_CREDITS}). Refusing to queue run to avoid overdraft.`
+        `Hosted credits/tokens are below minimum (${remainingCredits} < ${requiredCredits}). Refusing to queue run to avoid overdraft.`
       );
     }
   }

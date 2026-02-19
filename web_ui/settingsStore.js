@@ -5,6 +5,8 @@ export const storageKeys = {
   freeimageApiKey: "freeimageApiKey",
   comfyApiKey: "comfyApiKey",
   comfyServerUrl: "comfyServerUrl",
+  comfyMinCredits: "comfyMinCredits",
+  comfyAccelerator: "comfyAccelerator",
   cameraOrientation: "cameraOrientation",
   cameraMirrored: "cameraMirrored",
   cameraDeviceId: "cameraDeviceId",

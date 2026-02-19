@@ -1031,6 +1031,9 @@ const server = http.createServer((req, res) => {
           typeof payload.comfyApiKey === "string" ? normalizeApiKey(payload.comfyApiKey) : null;
         const freeimageKeyOverride =
           typeof payload.freeimageApiKey === "string" ? payload.freeimageApiKey.trim() : "";
+        const minCreditsOverride = Number(payload.comfyMinCredits);
+        const acceleratorOverride =
+          typeof payload.comfyAccelerator === "string" ? payload.comfyAccelerator.trim() : "";
         if (comfyOverride) {
           setComfyServerUrl(comfyOverride);
         }
@@ -1090,6 +1093,11 @@ const server = http.createServer((req, res) => {
             clientId: comfyClientId,
             promptId,
             apiKey: comfyApiKey,
+            minHostedCredits:
+              Number.isFinite(minCreditsOverride) && minCreditsOverride >= 0
+                ? Math.floor(minCreditsOverride)
+                : undefined,
+            hostedAccelerator: acceleratorOverride || undefined,
           });
           const resolvedPromptId = result?.prompt_id ?? promptId;
           promptToCapture.set(resolvedPromptId, safeId);

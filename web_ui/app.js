@@ -46,6 +46,8 @@ const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
 const settingsComfyCredits = document.querySelector(".settings-comfy-credits");
+const settingsComfyMinCreditsInput = document.querySelector(".settings-input--comfy-min-credits");
+const settingsComfyAcceleratorInput = document.querySelector(".settings-input--comfy-accelerator");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
 const settingsCameraInput = document.querySelector(".settings-input--camera");
 const settingsMirrorInput = document.querySelector(".settings-input--mirror");
@@ -107,6 +109,8 @@ let lastOutputUrl = null;
 let printerConfig = { name: "", enabled: false, copies: 1 };
 let freeimageApiKey = "";
 let comfyApiKey = "";
+let comfyMinCredits = 2500;
+let comfyAccelerator = "L4";
 let selectedGalleryUrl = "";
 let galleryItems = [];
 let galleryFilterText = "";
@@ -637,6 +641,8 @@ async function queueSelfieWithImage(imageData, source = "tap") {
         comfyServerUrl,
         comfyApiKey: comfyApiKey || "",
         freeimageApiKey: freeimageApiKey || "",
+        comfyMinCredits,
+        comfyAccelerator,
       }),
     });
     if (!response.ok) {
@@ -1102,6 +1108,17 @@ function loadPrinterConfig() {
     if (comfyRaw) {
       comfyServerUrl = normalizeComfyInput(comfyRaw) || comfyRaw;
     }
+    const comfyMinCreditsRaw = readStoredValue(storageKeys.comfyMinCredits);
+    if (comfyMinCreditsRaw !== null) {
+      const parsed = Number(comfyMinCreditsRaw);
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        comfyMinCredits = Math.floor(parsed);
+      }
+    }
+    const comfyAcceleratorRaw = readStoredValue(storageKeys.comfyAccelerator);
+    if (comfyAcceleratorRaw) {
+      comfyAccelerator = comfyAcceleratorRaw;
+    }
     const orientationRaw = readStoredValue(storageKeys.cameraOrientation);
     if (orientationRaw) {
       cameraOrientation = Number(orientationRaw) || 0;
@@ -1166,6 +1183,12 @@ function loadPrinterConfig() {
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
+  if (settingsComfyMinCreditsInput) {
+    settingsComfyMinCreditsInput.value = String(comfyMinCredits);
+  }
+  if (settingsComfyAcceleratorInput) {
+    settingsComfyAcceleratorInput.value = comfyAccelerator;
+  }
   settingsOrientationInput.value = String(cameraOrientation || 0);
   if (settingsCameraInput) {
     settingsCameraInput.value = cameraDeviceId || "";
@@ -1233,6 +1256,15 @@ async function savePrinterConfig() {
   writeStoredValue(storageKeys.freeimageApiKey, freeimageApiKey);
   comfyApiKey = settingsComfyKeyInput.value.trim();
   writeStoredValue(storageKeys.comfyApiKey, comfyApiKey);
+  if (settingsComfyMinCreditsInput) {
+    const parsedMin = Number(settingsComfyMinCreditsInput.value);
+    comfyMinCredits = Number.isFinite(parsedMin) && parsedMin >= 0 ? Math.floor(parsedMin) : 2500;
+    writeStoredValue(storageKeys.comfyMinCredits, String(comfyMinCredits));
+  }
+  if (settingsComfyAcceleratorInput) {
+    comfyAccelerator = settingsComfyAcceleratorInput.value || "L4";
+    writeStoredValue(storageKeys.comfyAccelerator, comfyAccelerator);
+  }
   const normalizedComfy = normalizeComfyInput(settingsComfyInput.value);
   comfyServerUrl = normalizedComfy || defaultComfyServerUrl;
   writeStoredValue(storageKeys.comfyServerUrl, comfyServerUrl);
