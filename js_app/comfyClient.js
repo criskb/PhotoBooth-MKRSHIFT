@@ -9,6 +9,9 @@ function applyPromptOverrides(workflow, stylePrompt, inputImage) {
       const inputs = node.inputs ?? {};
       if (classType === "LoadImage" && inputImage) {
         inputs.image = inputImage;
+        if (!inputs.upload) {
+          inputs.upload = "image";
+        }
       }
       if (classType === "SaveImage" && !inputs.filename_prefix) {
         inputs.filename_prefix = "output";
@@ -27,6 +30,9 @@ function applyPromptOverrides(workflow, stylePrompt, inputImage) {
     }
     if (classType === "LoadImage" && inputImage) {
       inputs.image = inputImage;
+      if (!inputs.upload) {
+        inputs.upload = "image";
+      }
     }
     if (classType === "SaveImage" && !inputs.filename_prefix) {
       inputs.filename_prefix = "output";
@@ -269,7 +275,7 @@ export async function sendWorkflow({
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
   const endpointCandidates = hostedWorkflowApi ? ["/runs"] : ["/prompt"];
-  const requestedAccelerator = (process.env.COMFYICU_ACCELERATOR || process.env.COMFY_ACCELERATOR || "L4").trim();
+  const requestedAccelerator = "L4";
   const requestPayload = hostedWorkflowApi
     ? {
         workflow_id: hostedWorkflowId,
