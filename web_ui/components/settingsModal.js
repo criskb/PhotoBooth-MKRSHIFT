@@ -20,6 +20,28 @@ export function renderSettingsModal() {
             autocomplete="off"
           />
         </label>
+        <div class="settings-comfy-credits" aria-live="polite">Remaining credits: --</div>
+        <label class="settings-field">
+          Minimum hosted credits required
+          <input
+            class="settings-input form-input settings-input--comfy-min-credits"
+            type="number"
+            min="0"
+            step="1"
+            value="2500"
+          />
+        </label>
+        <label class="settings-field">
+          Hosted GPU accelerator
+          <select class="settings-input form-input settings-input--comfy-accelerator">
+            <option value="L4">L4 (default)</option>
+            <option value="T4">T4</option>
+            <option value="A10">A10</option>
+            <option value="A100_40GB">A100_40GB</option>
+            <option value="A100_80GB">A100_80GB</option>
+            <option value="H100">H100</option>
+          </select>
+        </label>
         <label class="settings-field">
           Camera Orientation
           <select class="settings-input form-input settings-input--orientation">

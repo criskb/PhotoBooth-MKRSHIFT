@@ -20,7 +20,7 @@ const galleryInputDir = path.join(galleryDir, "input");
 const galleryOutputDir = path.join(galleryDir, "output");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
-let comfyServerUrl = process.env.COMFY_SERVER_URL ?? "http://127.0.0.1:8188";
+let comfyServerUrl = normalizeComfyServerUrl(process.env.COMFY_SERVER_URL) ?? "http://127.0.0.1:8188";
 let comfyApiKey = process.env.COMFY_API_KEY ?? "";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
@@ -32,6 +32,7 @@ const progressMetaByPrompt = new Map();
 const outputByPrompt = new Map();
 let comfySocket = null;
 let comfySocketReady = false;
+let comfySocketRetryCount = 0;
 let lastPromptId = null;
 const remoteClients = new Set();
 
@@ -67,6 +68,9 @@ function normalizeComfyServerUrl(value) {
       ? trimmed
       : `https://${trimmed}`;
     const url = new URL(withProtocol);
+    if (url.hostname.toLowerCase() === "comfy.icu" && (url.pathname === "/" || url.pathname === "")) {
+      url.pathname = "/api/v1/workflows/";
+    }
     return url.toString().replace(/\/$/, "");
   } catch (error) {
     return null;
@@ -83,6 +87,65 @@ function normalizeApiKey(value) {
   return value.trim();
 }
 
+
+function isComfyIcuWorkflowCollectionUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return /\/api\/v1\/workflows\/?$/i.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function shouldUseComfyWebsocket(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return !/\/api\/v1\/workflows(\/|$)/i.test(url.pathname) && !/\/api\/v1\/workflows\/[^/]+$/i.test(url.pathname);
+  } catch (error) {
+    return true;
+  }
+}
+
+function normalizeStyleName(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.json$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function loadComfyWorkflowMap() {
+  const mapPath = path.join(workflowDir, "comfyicu-workflow-map.json");
+  if (!fs.existsSync(mapPath)) {
+    return null;
+  }
+  try {
+    const raw = fs.readFileSync(mapPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    console.warn(`Unable to read ${mapPath}: ${error.message}`);
+    return null;
+  }
+}
+
+function getComfyWorkflowMapPath() {
+  return path.join(workflowDir, "comfyicu-workflow-map.json");
+}
+
+function buildComfyApiUrls(baseUrl) {
+  const normalized = normalizeComfyServerUrl(baseUrl) ?? baseUrl;
+  return {
+    historyUrl: `${normalized}/history`,
+    progressUrl: `${normalized}/progress`,
+    viewUrl: `${normalized}/view`,
+  };
+}
+
 function buildComfyHeaders() {
   if (!comfyApiKey) {
     return {};
@@ -91,6 +154,107 @@ function buildComfyHeaders() {
     Authorization: `Bearer ${comfyApiKey}`,
     "X-API-Key": comfyApiKey,
   };
+}
+
+function extractNumericFromObject(payload, keyMatcher) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  for (const [key, value] of Object.entries(payload)) {
+    if (keyMatcher.test(String(key))) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+    }
+    if (value && typeof value === "object") {
+      const nested = extractNumericFromObject(value, keyMatcher);
+      if (Number.isFinite(nested)) {
+        return nested;
+      }
+    }
+  }
+  return null;
+}
+
+function extractHostedCredits(payload) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  const preferredPaths = [
+    ["credits_remaining"],
+    ["remaining_credits"],
+    ["tokens_remaining"],
+    ["remaining_tokens"],
+    ["credits", "remaining"],
+    ["tokens", "remaining"],
+    ["balance", "credits"],
+  ];
+  for (const pathKeys of preferredPaths) {
+    let cursor = payload;
+    let ok = true;
+    for (const key of pathKeys) {
+      if (!cursor || typeof cursor !== "object" || !(key in cursor)) {
+        ok = false;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (ok) {
+      const numeric = Number(cursor);
+      if (Number.isFinite(numeric)) {
+        return numeric;
+      }
+    }
+  }
+  return (
+    extractNumericFromObject(payload, /remaining.*(credit|token)|credit.*remaining|token.*remaining/i) ??
+    extractNumericFromObject(payload, /credit|token|balance/i)
+  );
+}
+
+async function fetchHostedCreditsForUrl(serverUrl, apiKey) {
+  let origin = "";
+  try {
+    origin = new URL(serverUrl).origin;
+  } catch (error) {
+    return null;
+  }
+  const candidates = [
+    `${origin}/api/v1/me`,
+    `${origin}/api/v1/account`,
+    `${origin}/api/v1/user`,
+    `${origin}/api/v1/credits`,
+  ];
+  for (const target of candidates) {
+    try {
+      const response = await fetch(target, {
+        headers: {
+          accept: "application/json",
+          ...(apiKey
+            ? {
+                Authorization: `Bearer ${apiKey}`,
+                "X-API-Key": apiKey,
+              }
+            : {}),
+        },
+      });
+      if (!response.ok) {
+        continue;
+      }
+      const payload = await response.json().catch(() => null);
+      if (!payload || typeof payload !== "object") {
+        continue;
+      }
+      const credits = extractHostedCredits(payload);
+      if (Number.isFinite(credits)) {
+        return credits;
+      }
+    } catch (error) {
+      // continue probing
+    }
+  }
+  return null;
 }
 
 function isRemoteComfyServerUrl(serverUrl) {
@@ -286,6 +450,11 @@ function connectComfyWebsocket() {
       // noop
     }
   }
+  if (!shouldUseComfyWebsocket(comfyServerUrl)) {
+    comfySocket = null;
+    comfySocketReady = false;
+    return;
+  }
   const wsUrl = `${comfyServerUrl.replace(/^http/, "ws")}/ws?clientId=${encodeURIComponent(
     comfyClientId
   )}`;
@@ -294,6 +463,7 @@ function connectComfyWebsocket() {
   comfySocketReady = false;
   comfySocket.on("open", () => {
     comfySocketReady = true;
+    comfySocketRetryCount = 0;
     console.info("ComfyUI WebSocket connected.");
   });
   comfySocket.on("message", (data, isBinary) => {
@@ -313,10 +483,17 @@ function connectComfyWebsocket() {
   });
   comfySocket.on("close", () => {
     comfySocketReady = false;
-    console.warn("ComfyUI WebSocket closed; reconnecting.");
+    comfySocketRetryCount += 1;
+    const remoteServer = isRemoteComfyServerUrl(comfyServerUrl);
+    const retryDelayMs = Math.min(1500 * Math.max(comfySocketRetryCount, 1), 10000);
+    if (remoteServer && comfySocketRetryCount >= 5) {
+      console.warn("ComfyUI WebSocket unavailable for remote host; using HTTP polling only.");
+      return;
+    }
+    console.warn(`ComfyUI WebSocket closed; reconnecting in ${retryDelayMs}ms.`);
     setTimeout(() => {
       connectComfyWebsocket();
-    }, 1500);
+    }, retryDelayMs);
   });
   comfySocket.on("error", () => {
     comfySocketReady = false;
@@ -330,6 +507,8 @@ fs.mkdirSync(galleryInputDir, { recursive: true });
 fs.mkdirSync(galleryOutputDir, { recursive: true });
 
 const promptToCapture = new Map();
+const promptToServerUrl = new Map();
+const promptToQueueResult = new Map();
 const outputSaved = new Set();
 
 function readJsonBody(req) {
@@ -375,6 +554,253 @@ async function fetchComfyJson(url) {
     throw new Error(`ComfyUI error: ${response.status}`);
   }
   return response.json();
+}
+
+function isHostedWorkflowApiUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return /\/api\/v1\/workflows(\/|$)/i.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function normalizeHostedOutputCandidate(candidate) {
+  if (typeof candidate !== "string") {
+    return null;
+  }
+  const trimmed = candidate.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("data:")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/workflows/")) {
+    return `https://r2.comfy.icu${trimmed}`;
+  }
+  if (trimmed.startsWith("workflows/")) {
+    return `https://r2.comfy.icu/${trimmed}`;
+  }
+  return null;
+}
+
+function extractHostedWorkflowIdFromServerUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)/i);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function extractHostedRunId(payload, fallbackPromptId) {
+  const candidate =
+    payload?.id ??
+    payload?.run_id ??
+    payload?.runId ??
+    payload?.prompt_id ??
+    payload?.promptId ??
+    payload?.result?.id ??
+    payload?.result?.run_id ??
+    payload?.data?.id ??
+    payload?.data?.run_id ??
+    fallbackPromptId;
+  if (typeof candidate !== "string" || !candidate.trim()) {
+    return null;
+  }
+  return candidate.trim();
+}
+
+function buildHostedR2OutputUrl(serverUrl, runPayload, fallbackPromptId) {
+  const workflowId = extractHostedWorkflowIdFromServerUrl(serverUrl);
+  const runId = extractHostedRunId(runPayload, fallbackPromptId);
+  if (!workflowId || !runId) {
+    return null;
+  }
+  const outputName =
+    runPayload?.output_name ??
+    runPayload?.outputName ??
+    runPayload?.result?.output_name ??
+    runPayload?.data?.output_name ??
+    "ComfyUI_00001_.png";
+  return `https://r2.comfy.icu/workflows/${encodeURIComponent(workflowId)}/output/${encodeURIComponent(
+    runId
+  )}/${encodeURIComponent(outputName)}`;
+}
+
+function collectHostedOutputNames(payload) {
+  const names = new Set();
+  const walk = (value) => {
+    if (!value) {
+      return;
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/\.(png|jpg|jpeg|webp)$/i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+        names.add(trimmed.split("/").pop());
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(walk);
+      return;
+    }
+    if (typeof value === "object") {
+      Object.entries(value).forEach(([key, entry]) => {
+        if (/filename|name|path/i.test(key) && typeof entry === "string") {
+          walk(entry);
+        } else {
+          walk(entry);
+        }
+      });
+    }
+  };
+  walk(payload);
+  if (!names.size) {
+    names.add("ComfyUI_00001_.png");
+    names.add("ComfyUI_00001_.jpg");
+    names.add("ComfyUI_00001_.webp");
+  }
+  return Array.from(names);
+}
+
+function buildHostedR2OutputUrlCandidates(serverUrl, runPayload, fallbackPromptId) {
+  const workflowId = extractHostedWorkflowIdFromServerUrl(serverUrl);
+  const runId = extractHostedRunId(runPayload, fallbackPromptId);
+  if (!workflowId || !runId) {
+    return [];
+  }
+  return collectHostedOutputNames(runPayload).map(
+    (outputName) =>
+      `https://r2.comfy.icu/workflows/${encodeURIComponent(workflowId)}/output/${encodeURIComponent(
+        runId
+      )}/${encodeURIComponent(outputName)}`
+  );
+}
+
+function pickHostedOutputUrl(payload) {
+  const candidateLists = [
+    payload,
+    payload?.output,
+    payload?.result,
+    payload?.result?.output,
+    payload?.data,
+    payload?.data?.output,
+  ].filter(Boolean);
+
+  for (const candidate of candidateLists) {
+    const direct = candidate?.output_url ?? candidate?.image_url ?? candidate?.url;
+    const normalizedDirect = normalizeHostedOutputCandidate(direct);
+    if (normalizedDirect) {
+      return normalizedDirect;
+    }
+
+    const collections = [candidate?.outputs, candidate?.images, candidate?.files].filter(Boolean);
+    for (const collection of collections) {
+      if (!Array.isArray(collection)) {
+        continue;
+      }
+      for (const entry of collection) {
+        const raw = typeof entry === "string"
+          ? entry
+          : entry?.url ?? entry?.output_url ?? entry?.image_url ?? entry?.path ?? entry?.name;
+        const normalized = normalizeHostedOutputCandidate(raw);
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+
+    if (candidate && typeof candidate === "object") {
+      for (const value of Object.values(candidate)) {
+        const normalized = normalizeHostedOutputCandidate(value);
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+async function fetchHostedRunStatus(serverUrl, promptId) {
+  const base = serverUrl.replace(/\/$/, "");
+  const candidates = [`${base}/runs/${encodeURIComponent(promptId)}`, `${base}/run/${encodeURIComponent(promptId)}`];
+  let lastError = null;
+  for (const target of candidates) {
+    const response = await fetch(target, { headers: buildComfyHeaders() });
+    if (response.ok) {
+      return response.json();
+    }
+    const message = await response.text().catch(() => "");
+    lastError = `GET ${target} -> ${response.status} ${message}`;
+    if (response.status !== 404 && response.status !== 405) {
+      break;
+    }
+  }
+  throw new Error(lastError ?? "Unable to fetch hosted run status");
+}
+
+async function resolveComfyServerUrlForStyle(baseServerUrl, styleName) {
+  const normalizedBaseUrl = normalizeComfyServerUrl(baseServerUrl) ?? baseServerUrl;
+  const map = loadComfyWorkflowMap();
+  if (map) {
+    const wanted = normalizeStyleName(styleName);
+    const mappedEntry = Object.entries(map).find(
+      ([key]) => normalizeStyleName(key) === wanted
+    );
+    const mappedId = mappedEntry?.[1];
+    if (typeof mappedId === "string" && mappedId.trim()) {
+      const collectionFromBase = `${normalizedBaseUrl.replace(/\/$/, "")}`;
+      if (/\/api\/v1\/workflows\/?$/i.test(new URL(collectionFromBase).pathname)) {
+        return `${collectionFromBase}/${encodeURIComponent(mappedId.trim())}`;
+      }
+      const origin = new URL(normalizedBaseUrl).origin;
+      return `${origin}/api/v1/workflows/${encodeURIComponent(mappedId.trim())}`;
+    }
+  }
+  if (!isComfyIcuWorkflowCollectionUrl(normalizedBaseUrl)) {
+    return baseServerUrl;
+  }
+  const collectionUrl = `${normalizedBaseUrl.replace(/\/$/, "")}`;
+  const listResult = await fetchComfyJson(collectionUrl);
+  const workflows =
+    (Array.isArray(listResult) && listResult) ||
+    (Array.isArray(listResult?.workflows) && listResult.workflows) ||
+    (Array.isArray(listResult?.data) && listResult.data) ||
+    [];
+  if (workflows.length === 0) {
+    throw new Error("No workflows returned by Comfy.ICU for this token.");
+  }
+  const wanted = normalizeStyleName(styleName);
+  const match = workflows.find((workflow) => {
+    const candidates = [
+      workflow?.name,
+      workflow?.title,
+      workflow?.slug,
+      workflow?.workflow_name,
+      workflow?.metadata?.name,
+    ];
+    return candidates.some((candidate) => normalizeStyleName(candidate) === wanted);
+  });
+  if (!match) {
+    const available = workflows
+      .map((workflow) => workflow?.name ?? workflow?.title ?? workflow?.slug)
+      .filter(Boolean)
+      .slice(0, 8)
+      .join(", ");
+    throw new Error(
+      `No hosted workflow matched style "${styleName}". Rename your hosted workflow to match the style button name, or create ${getComfyWorkflowMapPath()} to map style names to workflow IDs. Available: ${available || "(none)"}`
+    );
+  }
+  const workflowId =
+    match?.id ?? match?.workflow_id ?? match?.workflowId ?? match?.uuid ?? match?.slug ?? null;
+  if (!workflowId) {
+    throw new Error(`Matched workflow "${styleName}" is missing an id in API response.`);
+  }
+  return `${collectionUrl}/${encodeURIComponent(String(workflowId))}`;
 }
 
 function parseComfyProgressPercent(progressPayload) {
@@ -474,6 +900,15 @@ function getLanAddress() {
 }
 
 function resolveRemoteBaseUrl(req) {
+  const explicitBaseUrl = process.env.PHOTOBOOTH_PUBLIC_BASE_URL || process.env.PUBLIC_BASE_URL;
+  if (explicitBaseUrl) {
+    try {
+      const normalized = new URL(explicitBaseUrl);
+      return normalized.toString().replace(/\/$/, "");
+    } catch (error) {
+      // ignore invalid override and fall back to header-based detection
+    }
+  }
   const forwardedProto = req.headers["x-forwarded-proto"];
   const protocol = typeof forwardedProto === "string" && forwardedProto.length > 0
     ? forwardedProto.split(",")[0].trim()
@@ -513,6 +948,50 @@ async function saveTempImage(imageUrl, req) {
   return filePath;
 }
 
+
+
+function isPublicHostname(hostname) {
+  const lower = String(hostname || "").toLowerCase();
+  if (!lower || lower === "localhost" || lower === "127.0.0.1" || lower === "::1") {
+    return false;
+  }
+  if (/^10\./.test(lower) || /^192\.168\./.test(lower) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(lower)) {
+    return false;
+  }
+  return true;
+}
+
+async function uploadBufferToFreeimage(buffer, apiKey) {
+  if (!apiKey) {
+    return null;
+  }
+  const base64 = Buffer.from(buffer).toString("base64");
+  const formData = new FormData();
+  formData.append("key", apiKey);
+  formData.append("source", base64);
+  formData.append("format", "json");
+  const uploadResponse = await fetch("https://freeimage.host/api/1/upload", {
+    method: "POST",
+    body: formData,
+  });
+  let result = null;
+  try {
+    result = await uploadResponse.json();
+  } catch (error) {
+    result = null;
+  }
+  if (!uploadResponse.ok) {
+    return null;
+  }
+  return (
+    result?.image?.url ??
+    result?.image?.display_url ??
+    result?.data?.link ??
+    result?.url ??
+    null
+  );
+}
+
 function safeFileName(value) {
   return value.replace(/[^a-zA-Z0-9-_]/g, "_");
 }
@@ -548,6 +1027,31 @@ const server = http.createServer((req, res) => {
     const styles = loadWorkflowStyles(workflowDir);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ styles }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/comfy-workflow-map")) {
+    const styles = loadWorkflowStyles(workflowDir);
+    const mapPath = getComfyWorkflowMapPath();
+    const configuredMap = loadComfyWorkflowMap() ?? {};
+    const resolved = styles.map((style) => {
+      const styleNormalized = normalizeStyleName(style);
+      const mapEntry = Object.entries(configuredMap).find(
+        ([key]) => normalizeStyleName(key) === styleNormalized
+      );
+      return {
+        style,
+        workflowId: typeof mapEntry?.[1] === "string" ? mapEntry[1] : null,
+      };
+    });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        mapPath,
+        mapConfigured: fs.existsSync(mapPath),
+        items: resolved,
+      })
+    );
     return;
   }
 
@@ -596,6 +1100,30 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url.startsWith("/api/comfy-credits")) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const serverParam = normalizeComfyServerUrl(url.searchParams.get("comfyServerUrl"));
+    const keyHeader = req.headers["x-comfy-api-key"];
+    const apiKey = normalizeApiKey(keyHeader);
+    const serverToQuery = serverParam ?? comfyServerUrl;
+    const isHosted = /comfy\.icu/i.test(serverToQuery) || /\/api\/v1\/workflows(\/|$)/i.test(serverToQuery);
+    if (!isHosted) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ hosted: false, credits: null }));
+      return;
+    }
+    fetchHostedCreditsForUrl(serverToQuery, apiKey || comfyApiKey)
+      .then((credits) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ hosted: true, credits: Number.isFinite(credits) ? credits : null }));
+      })
+      .catch((error) => {
+        res.writeHead(500);
+        res.end(`Credits lookup failed: ${error.message}`);
+      });
+    return;
+  }
+
   if (req.url.startsWith("/api/remote-info")) {
     const baseUrl = resolveRemoteBaseUrl(req);
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -630,6 +1158,11 @@ const server = http.createServer((req, res) => {
         const comfyOverride = normalizeComfyServerUrl(payload.comfyServerUrl);
         const comfyKeyOverride =
           typeof payload.comfyApiKey === "string" ? normalizeApiKey(payload.comfyApiKey) : null;
+        const freeimageKeyOverride =
+          typeof payload.freeimageApiKey === "string" ? payload.freeimageApiKey.trim() : "";
+        const minCreditsOverride = Number(payload.comfyMinCredits);
+        const acceleratorOverride =
+          typeof payload.comfyAccelerator === "string" ? payload.comfyAccelerator.trim() : "";
         if (comfyOverride) {
           setComfyServerUrl(comfyOverride);
         }
@@ -642,6 +1175,7 @@ const server = http.createServer((req, res) => {
           return;
         }
         try {
+          const effectiveComfyServerUrl = await resolveComfyServerUrlForStyle(comfyServerUrl, style);
           const captureId = `capture-${Date.now()}-${crypto.randomUUID()}`;
           const safeId = safeFileName(captureId);
           const captureName = `${safeId}.png`;
@@ -649,11 +1183,30 @@ const server = http.createServer((req, res) => {
           writeImageBuffer(buffer, path.join(galleryInputDir, captureName));
           let inputImagePath = null;
           let inputImageBuffer = null;
-          if (isRemoteComfyServerUrl(comfyServerUrl)) {
+          if (isRemoteComfyServerUrl(effectiveComfyServerUrl)) {
             inputImageBuffer = buffer;
           } else {
             inputImagePath = comfyInputPath;
             writeImageBuffer(buffer, comfyInputPath);
+          }
+          const remoteBaseUrl = resolveRemoteBaseUrl(req);
+          let inputImageUrl = null;
+          try {
+            const remoteUrl = new URL(remoteBaseUrl);
+            if (isPublicHostname(remoteUrl.hostname)) {
+              inputImageUrl = `${remoteBaseUrl}/api/gallery/image?type=input&name=${encodeURIComponent(
+                captureName
+              )}`;
+            }
+          } catch (error) {
+            inputImageUrl = null;
+          }
+          const effectiveFreeimageKey = freeimageKeyOverride || freeimageHostKey;
+          if (!inputImageUrl && effectiveFreeimageKey) {
+            const uploaded = await uploadBufferToFreeimage(buffer, effectiveFreeimageKey);
+            if (uploaded) {
+              inputImageUrl = uploaded;
+            }
           }
           console.info(`Queueing ComfyUI prompt (clientId: ${comfyClientId}).`);
           const promptId = crypto.randomUUID();
@@ -664,13 +1217,21 @@ const server = http.createServer((req, res) => {
             stylePrompt: null,
             inputImagePath,
             inputImageBuffer,
-            serverUrl: comfyServerUrl,
+            inputImageUrl,
+            serverUrl: effectiveComfyServerUrl,
             clientId: comfyClientId,
             promptId,
             apiKey: comfyApiKey,
+            minHostedCredits:
+              Number.isFinite(minCreditsOverride) && minCreditsOverride >= 0
+                ? Math.floor(minCreditsOverride)
+                : undefined,
+            hostedAccelerator: acceleratorOverride || undefined,
           });
           const resolvedPromptId = result?.prompt_id ?? promptId;
           promptToCapture.set(resolvedPromptId, safeId);
+          promptToServerUrl.set(resolvedPromptId, effectiveComfyServerUrl);
+          promptToQueueResult.set(resolvedPromptId, result ?? null);
           lastPromptId = resolvedPromptId;
           progressMetaByPrompt.set(resolvedPromptId, buildWorkflowStepMeta(workflow));
           res.writeHead(202, { "Content-Type": "application/json" });
@@ -708,9 +1269,107 @@ const server = http.createServer((req, res) => {
       res.end("Missing promptId");
       return;
     }
+    const requestComfyUrl = promptToServerUrl.get(promptId) ?? comfyServerUrl;
+    const queueResult = promptToQueueResult.get(promptId);
+    const hostedWorkflowApi =
+      Boolean(queueResult?.hostedWorkflowApi) || isHostedWorkflowApiUrl(requestComfyUrl);
+    if (hostedWorkflowApi) {
+      fetchHostedRunStatus(requestComfyUrl, promptId)
+        .then(async (runStatus) => {
+          const rawStatus =
+            runStatus?.status ??
+            runStatus?.state?.status ??
+            runStatus?.state ??
+            runStatus?.result?.status ??
+            runStatus?.data?.status ??
+            "";
+          const status = String(rawStatus).toLowerCase();
+          const complete = ["succeeded", "success", "completed", "done", "finished"].includes(status);
+          const failed = ["failed", "error", "cancelled", "canceled"].includes(status);
+          const outputUrl =
+            pickHostedOutputUrl(runStatus) ||
+            buildHostedR2OutputUrl(requestComfyUrl, runStatus, promptId) ||
+            pickHostedOutputUrl(queueResult) ||
+            buildHostedR2OutputUrl(requestComfyUrl, queueResult, promptId);
+          const hasOutput = Boolean(outputUrl);
+          const percent = failed
+            ? 100
+            : complete || hasOutput
+              ? 100
+              : Math.max(parseComfyProgressPercent(runStatus), 5);
+          const responsePayload = {
+            percent,
+            label: failed ? "Failed" : complete ? "Complete" : "Sampling",
+            complete: failed ? true : complete && hasOutput,
+
+            websocketConnected: false,
+            outputUrl,
+            previewUrl: pickHostedOutputUrl(runStatus?.preview) || null,
+            error: failed
+              ? runStatus?.error ?? runStatus?.message ?? runStatus?.result?.error ?? "Hosted run failed"
+              : null,
+          };
+          const captureId = promptToCapture.get(promptId);
+          const hostedOutputPath = captureId
+            ? path.join(galleryOutputDir, `${captureId}.png`)
+            : null;
+          if (complete && !hasOutput && status) {
+            responsePayload.label = "Finalizing";
+          }
+          if (
+            responsePayload.complete &&
+            hostedOutputPath &&
+            !outputSaved.has(promptId)
+          ) {
+            try {
+              const candidateUrls = [
+                responsePayload.outputUrl,
+                ...buildHostedR2OutputUrlCandidates(requestComfyUrl, runStatus, promptId),
+                ...buildHostedR2OutputUrlCandidates(requestComfyUrl, queueResult, promptId),
+              ].filter(Boolean);
+              for (const candidateUrl of candidateUrls) {
+                const hostedResponse = await fetch(candidateUrl);
+                if (!hostedResponse.ok) {
+                  continue;
+                }
+                const hostedBuffer = Buffer.from(await hostedResponse.arrayBuffer());
+                fs.writeFileSync(hostedOutputPath, hostedBuffer);
+                outputSaved.add(promptId);
+                responsePayload.outputUrl = candidateUrl;
+                break;
+              }
+            } catch (error) {
+              // keep remote URL fallback when hosted file fetch fails
+            }
+          }
+          const localHostedOutputUrl =
+            hostedOutputPath && fs.existsSync(hostedOutputPath)
+              ? `/api/gallery/image?type=output&name=${encodeURIComponent(`${captureId}.png`)}`
+              : null;
+          if (localHostedOutputUrl) {
+            responsePayload.outputUrl = localHostedOutputUrl;
+            responsePayload.previewUrl = localHostedOutputUrl;
+          }
+          if (responsePayload.complete && responsePayload.outputUrl) {
+            outputByPrompt.set(promptId, {
+              filename: responsePayload.outputUrl,
+              type: "hosted",
+              subfolder: "",
+            });
+          }
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(responsePayload));
+        })
+        .catch((error) => {
+          res.writeHead(500);
+          res.end(`Progress failed: ${error.message}`);
+        });
+      return;
+    }
+    const comfyUrls = buildComfyApiUrls(requestComfyUrl);
     Promise.allSettled([
-      fetchComfyJson(`${comfyProgressUrl}?prompt_id=${encodeURIComponent(promptId)}`),
-      fetchComfyJson(`${comfyHistoryUrl}/${encodeURIComponent(promptId)}`),
+      fetchComfyJson(`${comfyUrls.progressUrl}?prompt_id=${encodeURIComponent(promptId)}`),
+      fetchComfyJson(`${comfyUrls.historyUrl}/${encodeURIComponent(promptId)}`),
     ])
       .then((results) => {
         const progressResult = results[0].status === "fulfilled" ? results[0].value : null;
@@ -762,7 +1421,9 @@ const server = http.createServer((req, res) => {
           outputUrl: outputImage
             ? `/api/output?filename=${encodeURIComponent(outputImage.filename)}&type=${
                 outputImage.type ?? "output"
-              }&subfolder=${encodeURIComponent(outputImage.subfolder ?? "")}`
+              }&subfolder=${encodeURIComponent(outputImage.subfolder ?? "")}&promptId=${encodeURIComponent(
+                promptId
+              )}`
             : fallbackOutputUrl,
           previewUrl: buildPreviewUrl(resolvePreviewPayload(progressResult)),
         };
@@ -794,7 +1455,10 @@ const server = http.createServer((req, res) => {
     }
     const type = url.searchParams.get("type") ?? "output";
     const subfolder = url.searchParams.get("subfolder") ?? "";
-    const target = `${comfyViewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
+    const promptId = url.searchParams.get("promptId");
+    const requestComfyUrl = (promptId && promptToServerUrl.get(promptId)) ?? comfyServerUrl;
+    const comfyUrls = buildComfyApiUrls(requestComfyUrl);
+    const target = `${comfyUrls.viewUrl}?filename=${encodeURIComponent(filename)}&type=${encodeURIComponent(
       type
     )}&subfolder=${encodeURIComponent(subfolder)}`;
     fetch(target, { headers: buildComfyHeaders() })
