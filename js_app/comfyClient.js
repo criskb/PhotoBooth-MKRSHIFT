@@ -36,6 +36,16 @@ function applyPromptOverrides(workflow, stylePrompt, inputImage) {
   return updated;
 }
 
+function extractWorkflowPrompt(workflowJson) {
+  if (!workflowJson || typeof workflowJson !== "object" || Array.isArray(workflowJson)) {
+    return {};
+  }
+  if (workflowJson.prompt && typeof workflowJson.prompt === "object" && !Array.isArray(workflowJson.prompt)) {
+    return workflowJson.prompt;
+  }
+  return workflowJson;
+}
+
 function normalizeComfyBaseUrl(value) {
   if (typeof value !== "string") {
     return "";
@@ -223,9 +233,12 @@ export async function sendWorkflow({
       inputImage = uploadName;
     }
   }
-  const payload = hostedWorkflowApi
-    ? null
-    : applyPromptOverrides(workflow, stylePrompt, inputImage);
+  const prompt = applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, inputImage);
+  if (hostedWorkflowApi && (!prompt || typeof prompt !== "object" || Object.keys(prompt).length === 0)) {
+    throw new Error(
+      `Hosted Comfy prompt is empty for style "${styleName}". Ensure workflows/${styleName}.json contains ComfyUI API JSON.`
+    );
+  }
   const resolvedClientId = clientId ?? crypto.randomUUID();
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
@@ -233,19 +246,11 @@ export async function sendWorkflow({
   const requestPayload = hostedWorkflowApi
     ? {
         workflow_id: hostedWorkflowId,
-        client_id: resolvedClientId,
-        prompt_id: resolvedPromptId,
-        run_id: resolvedPromptId,
-        id: resolvedPromptId,
-        prompt: payload,
-        inputs: {
-          image: inputImage,
-          input_image: inputImage,
-        },
+        prompt,
         ...(inputFiles ? { files: inputFiles } : {}),
       }
     : {
-        prompt: payload,
+        prompt,
         client_id: resolvedClientId,
         prompt_id: resolvedPromptId,
       };
@@ -259,6 +264,7 @@ export async function sendWorkflow({
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
+        accept: "application/json",
         "Content-Type": "application/json",
         ...buildComfyHeaders(apiKey),
       },
@@ -281,8 +287,8 @@ export async function sendWorkflow({
         buffer: inputImageBuffer,
         fileName: "photobooth-input.png",
       });
-      requestPayload.inputs.image = uploadedRef;
-      requestPayload.inputs.input_image = uploadedRef;
+      const promptWithUpload = applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, uploadedRef);
+      requestPayload.prompt = promptWithUpload;
       retriedAfterHostedUpload = true;
       index -= 1;
       continue;
