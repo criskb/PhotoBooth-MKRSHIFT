@@ -1146,7 +1146,7 @@ const server = http.createServer((req, res) => {
       Boolean(queueResult?.hostedWorkflowApi) || isHostedWorkflowApiUrl(requestComfyUrl);
     if (hostedWorkflowApi) {
       fetchHostedRunStatus(requestComfyUrl, promptId)
-        .then((runStatus) => {
+        .then(async (runStatus) => {
           const rawStatus =
             runStatus?.status ??
             runStatus?.state?.status ??
@@ -1176,8 +1176,37 @@ const server = http.createServer((req, res) => {
               ? runStatus?.error ?? runStatus?.message ?? runStatus?.result?.error ?? "Hosted run failed"
               : null,
           };
+          const captureId = promptToCapture.get(promptId);
+          const hostedOutputPath = captureId
+            ? path.join(galleryOutputDir, `${captureId}.png`)
+            : null;
           if (complete && !hasOutput && status) {
             responsePayload.label = "Finalizing";
+          }
+          if (
+            responsePayload.complete &&
+            responsePayload.outputUrl &&
+            hostedOutputPath &&
+            !outputSaved.has(promptId)
+          ) {
+            try {
+              const hostedResponse = await fetch(responsePayload.outputUrl);
+              if (hostedResponse.ok) {
+                const hostedBuffer = Buffer.from(await hostedResponse.arrayBuffer());
+                fs.writeFileSync(hostedOutputPath, hostedBuffer);
+                outputSaved.add(promptId);
+              }
+            } catch (error) {
+              // keep remote URL fallback when hosted file fetch fails
+            }
+          }
+          const localHostedOutputUrl =
+            hostedOutputPath && fs.existsSync(hostedOutputPath)
+              ? `/api/gallery/image?type=output&name=${encodeURIComponent(`${captureId}.png`)}`
+              : null;
+          if (localHostedOutputUrl) {
+            responsePayload.outputUrl = localHostedOutputUrl;
+            responsePayload.previewUrl = localHostedOutputUrl;
           }
           if (responsePayload.complete && responsePayload.outputUrl) {
             outputByPrompt.set(promptId, {
