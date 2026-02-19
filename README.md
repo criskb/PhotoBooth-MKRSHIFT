@@ -245,9 +245,12 @@ This avoids large base64 payload errors and prevents `https://comfy.icu/upload/i
 
 When using hosted Comfy.ICU with input image files, your PhotoBooth server must be reachable by Comfy.ICU (public URL or properly tunneled URL), because Comfy.ICU needs to download the image URL you provide in `files`.
 
-If your booth runs only on `localhost` with no public tunnel, hosted file download may fail. In that case:
+If your booth runs only on `localhost` or a private LAN IP, hosted file download may fail. The server now auto-falls back to FreeImage when `FREEIMAGE_HOST_KEY` is set, so Comfy.ICU receives a public image URL.
+
+If hosted file download still fails, then:
 
 - expose the booth with a tunnel/reverse-proxy URL, or
+- set `FREEIMAGE_HOST_KEY` and verify the key is valid, or
 - use a deployment where Comfy.ICU can reach your `/api/gallery/image?...` URL.
 
 ### 6) Quick troubleshooting
@@ -264,3 +267,4 @@ If your booth runs only on `localhost` with no public tunnel, hosted file downlo
 ## Legacy Python notes
 
 The previous Python implementation is deprecated and retained only for reference.
+

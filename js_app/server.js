@@ -700,6 +700,50 @@ async function saveTempImage(imageUrl, req) {
   return filePath;
 }
 
+
+
+function isPublicHostname(hostname) {
+  const lower = String(hostname || "").toLowerCase();
+  if (!lower || lower === "localhost" || lower === "127.0.0.1" || lower === "::1") {
+    return false;
+  }
+  if (/^10\./.test(lower) || /^192\.168\./.test(lower) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(lower)) {
+    return false;
+  }
+  return true;
+}
+
+async function uploadBufferToFreeimage(buffer, apiKey) {
+  if (!apiKey) {
+    return null;
+  }
+  const base64 = Buffer.from(buffer).toString("base64");
+  const formData = new FormData();
+  formData.append("key", apiKey);
+  formData.append("source", base64);
+  formData.append("format", "json");
+  const uploadResponse = await fetch("https://freeimage.host/api/1/upload", {
+    method: "POST",
+    body: formData,
+  });
+  let result = null;
+  try {
+    result = await uploadResponse.json();
+  } catch (error) {
+    result = null;
+  }
+  if (!uploadResponse.ok) {
+    return null;
+  }
+  return (
+    result?.image?.url ??
+    result?.image?.display_url ??
+    result?.data?.link ??
+    result?.url ??
+    null
+  );
+}
+
 function safeFileName(value) {
   return value.replace(/[^a-zA-Z0-9-_]/g, "_");
 }
@@ -869,9 +913,23 @@ const server = http.createServer((req, res) => {
             writeImageBuffer(buffer, comfyInputPath);
           }
           const remoteBaseUrl = resolveRemoteBaseUrl(req);
-          const inputImageUrl = `${remoteBaseUrl}/api/gallery/image?type=input&name=${encodeURIComponent(
-            captureName
-          )}`;
+          let inputImageUrl = null;
+          try {
+            const remoteUrl = new URL(remoteBaseUrl);
+            if (isPublicHostname(remoteUrl.hostname)) {
+              inputImageUrl = `${remoteBaseUrl}/api/gallery/image?type=input&name=${encodeURIComponent(
+                captureName
+              )}`;
+            }
+          } catch (error) {
+            inputImageUrl = null;
+          }
+          if (!inputImageUrl && freeimageHostKey) {
+            const uploaded = await uploadBufferToFreeimage(buffer, freeimageHostKey);
+            if (uploaded) {
+              inputImageUrl = uploaded;
+            }
+          }
           console.info(`Queueing ComfyUI prompt (clientId: ${comfyClientId}).`);
           const promptId = crypto.randomUUID();
           const workflow = loadWorkflowJson(workflowDir, style);
