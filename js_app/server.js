@@ -895,6 +895,8 @@ const server = http.createServer((req, res) => {
         const comfyOverride = normalizeComfyServerUrl(payload.comfyServerUrl);
         const comfyKeyOverride =
           typeof payload.comfyApiKey === "string" ? normalizeApiKey(payload.comfyApiKey) : null;
+        const freeimageKeyOverride =
+          typeof payload.freeimageApiKey === "string" ? payload.freeimageApiKey.trim() : "";
         if (comfyOverride) {
           setComfyServerUrl(comfyOverride);
         }
@@ -933,8 +935,9 @@ const server = http.createServer((req, res) => {
           } catch (error) {
             inputImageUrl = null;
           }
-          if (!inputImageUrl && freeimageHostKey) {
-            const uploaded = await uploadBufferToFreeimage(buffer, freeimageHostKey);
+          const effectiveFreeimageKey = freeimageKeyOverride || freeimageHostKey;
+          if (!inputImageUrl && effectiveFreeimageKey) {
+            const uploaded = await uploadBufferToFreeimage(buffer, effectiveFreeimageKey);
             if (uploaded) {
               inputImageUrl = uploaded;
             }
