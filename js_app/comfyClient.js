@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { loadWorkflowJson } from "./workflowLoader.js";
 
+const HOSTED_MIN_REQUIRED_CREDITS = 2500;
+
 function applyPromptOverrides(workflow, stylePrompt, inputImage) {
   if (!stylePrompt) {
     const updated = JSON.parse(JSON.stringify(workflow));
@@ -378,9 +380,9 @@ export async function sendWorkflow({
       serverUrl: normalizedServerUrl,
       apiKey,
     });
-    if (Number.isFinite(remainingCredits) && remainingCredits <= 0) {
+    if (Number.isFinite(remainingCredits) && remainingCredits < HOSTED_MIN_REQUIRED_CREDITS) {
       throw new Error(
-        `Hosted credits/tokens are depleted (${remainingCredits}). Refusing to queue run to avoid overdraft.`
+        `Hosted credits/tokens are below minimum (${remainingCredits} < ${HOSTED_MIN_REQUIRED_CREDITS}). Refusing to queue run to avoid overdraft.`
       );
     }
   }
