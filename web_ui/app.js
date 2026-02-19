@@ -1,5 +1,13 @@
 import { initIdleOverlay } from "./idle.js";
 import { renderApp } from "./components/index.js";
+import {
+  storageKeys,
+  readStoredValue,
+  writeStoredValue,
+  removeStoredValue,
+  readStoredJson,
+  writeStoredJson,
+} from "./settingsStore.js";
 
 const appRoot =
   document.querySelector(".app") ??
@@ -126,10 +134,6 @@ let remoteResultEnabled = true;
 let remoteCameraCaptureEnabled = false;
 let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
-const uiPreferencesKeys = {
-  selectedDelay: "selectedDelay",
-  selectedStyle: "selectedStyle",
-};
 
 function updateActionButtonState() {
   actionButton.disabled = !selectedStyle;
@@ -175,7 +179,7 @@ function updateTimerLabel() {
 function setSelectedDelay(delaySeconds, { persist = true } = {}) {
   selectedDelay = Number(delaySeconds) || 0;
   if (persist) {
-    localStorage.setItem(uiPreferencesKeys.selectedDelay, String(selectedDelay));
+    writeStoredValue(storageKeys.selectedDelay, String(selectedDelay));
   }
   updateTimerLabel();
 }
@@ -359,7 +363,7 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
     return;
   }
   selectedStyle = trimmed;
-  localStorage.setItem(uiPreferencesKeys.selectedStyle, trimmed);
+  writeStoredValue(storageKeys.selectedStyle, trimmed);
   updateActionButtonState();
   let matched = false;
   document.querySelectorAll(".style").forEach((button) => {
@@ -473,7 +477,7 @@ async function refreshCameraOptions() {
 
   if (!hasPreferred && cameraDeviceId && !devices.some((device) => device.deviceId === cameraDeviceId)) {
     cameraDeviceId = "";
-    localStorage.removeItem("cameraDeviceId");
+    removeStoredValue(storageKeys.cameraDeviceId);
   }
 }
 
@@ -505,7 +509,7 @@ async function startCamera() {
 
     if (canFallback) {
       cameraDeviceId = "";
-      localStorage.removeItem("cameraDeviceId");
+      removeStoredValue(storageKeys.cameraDeviceId);
       try {
         const fallbackStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user" },
@@ -626,6 +630,7 @@ async function queueSelfieWithImage(imageData, source = "tap") {
         image: imageData,
         comfyServerUrl,
         comfyApiKey: comfyApiKey || "",
+        freeimageApiKey: freeimageApiKey || "",
       }),
     });
     if (!response.ok) {
@@ -657,6 +662,7 @@ async function queueSelfieWithImage(imageData, source = "tap") {
       element.style.width = "0%";
     });
     setBusy(false);
+    progressCloseButton.disabled = false;
     updateRemoteProgress({
       status: "error",
       label: "Error",
@@ -1070,66 +1076,66 @@ function setBusy(isBusy) {
 
 function loadPrinterConfig() {
   try {
-    const raw = localStorage.getItem("printerConfig");
-    if (raw) {
-      printerConfig = JSON.parse(raw);
+    const storedPrinterConfig = readStoredJson(storageKeys.printerConfig, null);
+    if (storedPrinterConfig && typeof storedPrinterConfig === "object") {
+      printerConfig = storedPrinterConfig;
     }
     if (!Number.isFinite(Number(printerConfig.copies)) || Number(printerConfig.copies) <= 0) {
       printerConfig.copies = 1;
     }
-    const freeimageRaw = localStorage.getItem("freeimageApiKey");
+    const freeimageRaw = readStoredValue(storageKeys.freeimageApiKey);
     if (freeimageRaw) {
       freeimageApiKey = freeimageRaw;
     }
-    const comfyKeyRaw = localStorage.getItem("comfyApiKey");
+    const comfyKeyRaw = readStoredValue(storageKeys.comfyApiKey);
     if (comfyKeyRaw) {
       comfyApiKey = comfyKeyRaw;
     }
-    const comfyRaw = localStorage.getItem("comfyServerUrl");
+    const comfyRaw = readStoredValue(storageKeys.comfyServerUrl);
     if (comfyRaw) {
       comfyServerUrl = normalizeComfyInput(comfyRaw) || comfyRaw;
     }
-    const orientationRaw = localStorage.getItem("cameraOrientation");
+    const orientationRaw = readStoredValue(storageKeys.cameraOrientation);
     if (orientationRaw) {
       cameraOrientation = Number(orientationRaw) || 0;
     }
-    const mirrorRaw = localStorage.getItem("cameraMirrored");
+    const mirrorRaw = readStoredValue(storageKeys.cameraMirrored);
     if (mirrorRaw !== null) {
       cameraMirrored = mirrorRaw === "true";
     }
-    const cameraDeviceRaw = localStorage.getItem("cameraDeviceId");
+    const cameraDeviceRaw = readStoredValue(storageKeys.cameraDeviceId);
     if (cameraDeviceRaw) {
       cameraDeviceId = cameraDeviceRaw;
     }
-    const watermarkRaw = localStorage.getItem("watermarkEnabled");
+    const watermarkRaw = readStoredValue(storageKeys.watermarkEnabled);
     if (watermarkRaw !== null) {
       watermarkEnabled = watermarkRaw === "true";
     }
-    const watermarkCustomRaw = localStorage.getItem("watermarkCustomDataUrl");
+    const watermarkCustomRaw = readStoredValue(storageKeys.watermarkCustomDataUrl);
     if (watermarkCustomRaw) {
       watermarkCustomDataUrl = watermarkCustomRaw;
     }
-    const watermarkTextRaw = localStorage.getItem("watermarkText");
+    const watermarkTextRaw = readStoredValue(storageKeys.watermarkText);
     if (watermarkTextRaw) {
       watermarkText = watermarkTextRaw;
     }
-    const uploadRaw = localStorage.getItem("uploadEnabled");
+    const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
     }
-    const hidePrintRaw = localStorage.getItem("hidePrintEnabled");
+    const hidePrintRaw = readStoredValue(storageKeys.hidePrintEnabled);
     if (hidePrintRaw !== null) {
       hidePrintEnabled = hidePrintRaw === "true";
     }
-    const hideQrRaw = localStorage.getItem("hideQrEnabled");
+    const hideQrRaw = readStoredValue(storageKeys.hideQrEnabled);
     if (hideQrRaw !== null) {
       hideQrEnabled = hideQrRaw === "true";
     }
-    const remoteResultRaw = localStorage.getItem("remoteResultEnabled");
+    const remoteResultRaw = readStoredValue(storageKeys.remoteResultEnabled);
     if (remoteResultRaw !== null) {
       remoteResultEnabled = remoteResultRaw === "true";
     }
-    const remoteCameraRaw = localStorage.getItem("remoteCameraCaptureEnabled");
+    const remoteCameraRaw = readStoredValue(storageKeys.remoteCameraCaptureEnabled);
     if (remoteCameraRaw !== null) {
       remoteCameraCaptureEnabled = remoteCameraRaw === "true";
     }
@@ -1194,11 +1200,11 @@ function loadPrinterConfig() {
 
 function loadUiPreferences() {
   try {
-    const storedDelay = Number(localStorage.getItem(uiPreferencesKeys.selectedDelay));
+    const storedDelay = Number(readStoredValue(storageKeys.selectedDelay));
     if (Number.isFinite(storedDelay)) {
       setSelectedDelay(storedDelay, { persist: false });
     }
-    const storedStyle = localStorage.getItem(uiPreferencesKeys.selectedStyle);
+    const storedStyle = readStoredValue(storageKeys.selectedStyle);
     if (storedStyle) {
       selectedStyle = storedStyle;
     }
@@ -1215,52 +1221,52 @@ async function savePrinterConfig() {
     enabled: settingsEnabledInput.checked,
     copies: Math.max(1, Math.floor(copies)),
   };
-  localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  writeStoredJson(storageKeys.printerConfig, printerConfig);
   freeimageApiKey = settingsFreeimageInput.value.trim();
-  localStorage.setItem("freeimageApiKey", freeimageApiKey);
+  writeStoredValue(storageKeys.freeimageApiKey, freeimageApiKey);
   comfyApiKey = settingsComfyKeyInput.value.trim();
-  localStorage.setItem("comfyApiKey", comfyApiKey);
+  writeStoredValue(storageKeys.comfyApiKey, comfyApiKey);
   const normalizedComfy = normalizeComfyInput(settingsComfyInput.value);
   comfyServerUrl = normalizedComfy || defaultComfyServerUrl;
-  localStorage.setItem("comfyServerUrl", comfyServerUrl);
+  writeStoredValue(storageKeys.comfyServerUrl, comfyServerUrl);
   cameraOrientation = Number(settingsOrientationInput.value) || 0;
-  localStorage.setItem("cameraOrientation", String(cameraOrientation));
+  writeStoredValue(storageKeys.cameraOrientation, String(cameraOrientation));
   if (settingsMirrorInput) {
     cameraMirrored = settingsMirrorInput.checked;
-    localStorage.setItem("cameraMirrored", String(cameraMirrored));
+    writeStoredValue(storageKeys.cameraMirrored, String(cameraMirrored));
   }
   const selectedCameraDevice = settingsCameraInput?.value || "";
   const cameraChanged = selectedCameraDevice !== cameraDeviceId;
   cameraDeviceId = selectedCameraDevice;
   if (cameraDeviceId) {
-    localStorage.setItem("cameraDeviceId", cameraDeviceId);
+    writeStoredValue(storageKeys.cameraDeviceId, cameraDeviceId);
   } else {
-    localStorage.removeItem("cameraDeviceId");
+    removeStoredValue(storageKeys.cameraDeviceId);
   }
   watermarkEnabled = settingsWatermarkInput.checked;
-  localStorage.setItem("watermarkEnabled", String(watermarkEnabled));
+  writeStoredValue(storageKeys.watermarkEnabled, String(watermarkEnabled));
   if (settingsWatermarkTextInput) {
     watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
-    localStorage.setItem("watermarkText", watermarkText);
+    writeStoredValue(storageKeys.watermarkText, watermarkText);
   }
   renderWatermarkPreview();
   uploadEnabled = settingsUploadsInput.checked;
-  localStorage.setItem("uploadEnabled", String(uploadEnabled));
+  writeStoredValue(storageKeys.uploadEnabled, String(uploadEnabled));
   if (settingsHidePrintInput) {
     hidePrintEnabled = settingsHidePrintInput.checked;
-    localStorage.setItem("hidePrintEnabled", String(hidePrintEnabled));
+    writeStoredValue(storageKeys.hidePrintEnabled, String(hidePrintEnabled));
   }
   if (settingsHideQrInput) {
     hideQrEnabled = settingsHideQrInput.checked;
-    localStorage.setItem("hideQrEnabled", String(hideQrEnabled));
+    writeStoredValue(storageKeys.hideQrEnabled, String(hideQrEnabled));
   }
   if (settingsRemoteResultInput) {
     remoteResultEnabled = settingsRemoteResultInput.checked;
-    localStorage.setItem("remoteResultEnabled", String(remoteResultEnabled));
+    writeStoredValue(storageKeys.remoteResultEnabled, String(remoteResultEnabled));
   }
   if (settingsRemoteCameraInput) {
     remoteCameraCaptureEnabled = settingsRemoteCameraInput.checked;
-    localStorage.setItem("remoteCameraCaptureEnabled", String(remoteCameraCaptureEnabled));
+    writeStoredValue(storageKeys.remoteCameraCaptureEnabled, String(remoteCameraCaptureEnabled));
   }
   applyPrintVisibility();
   applyCameraOrientation();
@@ -1290,7 +1296,7 @@ function handlePrinterSelection() {
     ...printerConfig,
     name: selectedName,
   };
-  localStorage.setItem("printerConfig", JSON.stringify(printerConfig));
+  writeStoredJson(storageKeys.printerConfig, printerConfig);
   updatePrinterDetails(selectedName);
   applyPrintVisibility();
 }
@@ -1604,9 +1610,9 @@ function setWatermarkCustomDataUrl(value) {
   watermarkCustomDataUrl = value;
   watermarkImageCache = { src: "", image: null };
   if (watermarkCustomDataUrl) {
-    localStorage.setItem("watermarkCustomDataUrl", watermarkCustomDataUrl);
+    writeStoredValue(storageKeys.watermarkCustomDataUrl, watermarkCustomDataUrl);
   } else {
-    localStorage.removeItem("watermarkCustomDataUrl");
+    removeStoredValue(storageKeys.watermarkCustomDataUrl);
   }
   if (settingsWatermarkClear) {
     settingsWatermarkClear.disabled = !watermarkCustomDataUrl;
@@ -1865,7 +1871,7 @@ fullscreenToggle?.addEventListener("click", toggleFullscreen);
 settingsPrinterInput?.addEventListener("change", handlePrinterSelection);
 settingsMirrorInput?.addEventListener("change", () => {
   cameraMirrored = settingsMirrorInput.checked;
-  localStorage.setItem("cameraMirrored", String(cameraMirrored));
+  writeStoredValue(storageKeys.cameraMirrored, String(cameraMirrored));
   applyCameraOrientation();
 });
 settingsCameraInput?.addEventListener("change", async () => {
@@ -1875,16 +1881,16 @@ settingsCameraInput?.addEventListener("change", async () => {
   }
   cameraDeviceId = nextCameraId;
   if (cameraDeviceId) {
-    localStorage.setItem("cameraDeviceId", cameraDeviceId);
+    writeStoredValue(storageKeys.cameraDeviceId, cameraDeviceId);
   } else {
-    localStorage.removeItem("cameraDeviceId");
+    removeStoredValue(storageKeys.cameraDeviceId);
   }
   await startCamera();
 });
 settingsWatermarkInput?.addEventListener("change", renderWatermarkPreview);
 settingsWatermarkTextInput?.addEventListener("input", () => {
   watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
-  localStorage.setItem("watermarkText", watermarkText);
+  writeStoredValue(storageKeys.watermarkText, watermarkText);
   renderWatermarkPreview();
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
@@ -1946,7 +1952,7 @@ idleController.loadImages();
 idleController.schedule();
 
 function handleDoneAction() {
-  if (!outputReady) {
+  if (isQueueing) {
     return;
   }
   setBusy(false);
