@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { loadWorkflowJson } from "./workflowLoader.js";
 
 const HOSTED_MIN_REQUIRED_CREDITS = 2500;
+const HOSTED_ACCELERATOR = "L4";
 
 function applyPromptOverrides(workflow, stylePrompt, inputImage) {
   if (!stylePrompt) {
@@ -362,12 +363,12 @@ export async function sendWorkflow({
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
   const endpointCandidates = hostedWorkflowApi ? ["/runs"] : ["/prompt"];
-  const requestedAccelerator = "L4";
+  const accelerator = HOSTED_ACCELERATOR;
   const requestPayload = hostedWorkflowApi
     ? {
         workflow_id: hostedWorkflowId,
         prompt,
-        ...(requestedAccelerator ? { accelerator: requestedAccelerator } : {}),
+        ...(accelerator ? { accelerator } : {}),
         ...(inputFiles ? { files: inputFiles } : {}),
       }
     : {

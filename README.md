@@ -235,6 +235,7 @@ For hosted Comfy.ICU, PhotoBooth now uses the docs-style model:
 
 - Sends run creation to `/api/v1/workflows/<workflow_id>/runs`.
 - Sends your selected local style JSON as `prompt`.
+- Forces hosted accelerator to `L4` to avoid expensive A100 selections.
 - Uses latest captured booth image as the workflow input.
 - Provides the image to hosted runs via either:
   - `files` mapping (preferred): `"/input/photobooth-input.png" -> public URL`, or
