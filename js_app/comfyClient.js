@@ -80,7 +80,7 @@ function isHostedWorkflowApiUrl(serverUrl) {
 function extractHostedWorkflowId(serverUrl) {
   try {
     const url = new URL(serverUrl);
-    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)$/i);
+    const match = url.pathname.match(/\/api\/v1\/workflows\/([^/]+)\/?$/i);
     return match?.[1] ?? null;
   } catch (error) {
     return null;
@@ -191,6 +191,11 @@ export async function sendWorkflow({
   const hostedWorkflowApi = isHostedWorkflowApiUrl(normalizedServerUrl);
   const workflow = loadWorkflowJson(workflowDir, styleName);
   const hostedWorkflowId = hostedWorkflowApi ? extractHostedWorkflowId(normalizedServerUrl) : null;
+  if (hostedWorkflowApi && !hostedWorkflowId) {
+    throw new Error(
+      "Hosted Comfy workflow ID is missing. Use a workflow URL like https://comfy.icu/api/v1/workflows/<id> (or configure collection URL mode so style names map to hosted workflow names)."
+    );
+  }
   let inputImage = inputImagePath;
   let inputFiles = null;
   if (inputImageBuffer && isRemoteServerUrl(normalizedServerUrl)) {
@@ -224,9 +229,7 @@ export async function sendWorkflow({
   const resolvedClientId = clientId ?? crypto.randomUUID();
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
-  const endpointCandidates = hostedWorkflowApi
-    ? ["/runs", "/run", "/prompt", ""]
-    : ["/prompt"];
+  const endpointCandidates = hostedWorkflowApi ? ["/runs"] : ["/prompt"];
   const requestPayload = hostedWorkflowApi
     ? {
         workflow_id: hostedWorkflowId,
