@@ -626,6 +626,7 @@ async function queueSelfieWithImage(imageData, source = "tap") {
         image: imageData,
         comfyServerUrl,
         comfyApiKey: comfyApiKey || "",
+        freeimageApiKey: freeimageApiKey || "",
       }),
     });
     if (!response.ok) {
@@ -657,6 +658,7 @@ async function queueSelfieWithImage(imageData, source = "tap") {
       element.style.width = "0%";
     });
     setBusy(false);
+    progressCloseButton.disabled = false;
     updateRemoteProgress({
       status: "error",
       label: "Error",
@@ -1946,7 +1948,7 @@ idleController.loadImages();
 idleController.schedule();
 
 function handleDoneAction() {
-  if (!outputReady) {
+  if (isQueueing) {
     return;
   }
   setBusy(false);
