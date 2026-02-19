@@ -111,6 +111,60 @@ async function uploadInputImage({ serverUrl, apiKey, buffer, fileName }) {
   );
 }
 
+async function uploadHostedInputImage({ serverUrl, apiKey, buffer, fileName }) {
+  let origin = "";
+  try {
+    origin = new URL(serverUrl).origin;
+  } catch (error) {
+    origin = "";
+  }
+  const base = serverUrl.replace(/\/$/, "");
+  const targets = [
+    `${base}/upload/image`,
+    origin ? `${origin}/api/v1/files/upload` : null,
+    origin ? `${origin}/api/v1/upload/image` : null,
+    origin ? `${origin}/upload/image` : null,
+  ].filter(Boolean);
+
+  let lastError = null;
+  for (const target of targets) {
+    const formData = new FormData();
+    formData.append("image", new Blob([buffer], { type: "image/png" }), fileName);
+    formData.append("file", new Blob([buffer], { type: "image/png" }), fileName);
+    formData.append("type", "input");
+    formData.append("folder", "input");
+    const response = await fetch(target, {
+      method: "POST",
+      headers: buildComfyHeaders(apiKey),
+      body: formData,
+    });
+    if (response.ok) {
+      let result = null;
+      try {
+        result = await response.json();
+      } catch (error) {
+        result = null;
+      }
+      const ref =
+        result?.name ??
+        result?.filename ??
+        result?.file?.name ??
+        result?.file_name ??
+        result?.url ??
+        result?.data?.name ??
+        result?.data?.filename ??
+        result?.data?.url;
+      if (ref) {
+        return ref;
+      }
+      return fileName;
+    }
+    const message = await response.text().catch(() => "");
+    lastError = `POST ${target} -> ${response.status} ${message}`;
+  }
+  throw new Error(`Hosted upload failed. ${lastError ?? "No supported upload endpoint found."}`);
+}
+
 export async function sendWorkflow({
   workflowDir,
   styleName,
@@ -124,7 +178,7 @@ export async function sendWorkflow({
 }) {
   const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
   const hostedWorkflowApi = isHostedWorkflowApiUrl(normalizedServerUrl);
-  const workflow = loadWorkflowJson(workflowDir, styleName);
+  const workflow = hostedWorkflowApi ? null : loadWorkflowJson(workflowDir, styleName);
   let inputImage = inputImagePath;
   if (inputImageBuffer && isRemoteServerUrl(normalizedServerUrl)) {
     if (hostedWorkflowApi) {
@@ -139,39 +193,71 @@ export async function sendWorkflow({
       inputImage = uploadName;
     }
   }
-  const payload = applyPromptOverrides(workflow, stylePrompt, inputImage);
+  const payload = hostedWorkflowApi
+    ? null
+    : applyPromptOverrides(workflow, stylePrompt, inputImage);
   const resolvedClientId = clientId ?? crypto.randomUUID();
   const resolvedPromptId = promptId ?? crypto.randomUUID();
 
   const endpointCandidates = hostedWorkflowApi
     ? ["/runs", "/run", "/prompt", ""]
     : ["/prompt"];
-  const requestPayload = {
-    prompt: payload,
-    workflow: payload,
-    client_id: resolvedClientId,
-    prompt_id: resolvedPromptId,
-    inputs: {
-      image: inputImage,
-    },
-  };
+  const requestPayload = hostedWorkflowApi
+    ? {
+        client_id: resolvedClientId,
+        prompt_id: resolvedPromptId,
+        run_id: resolvedPromptId,
+        id: resolvedPromptId,
+        inputs: {
+          image: inputImage,
+          input_image: inputImage,
+        },
+      }
+    : {
+        prompt: payload,
+        client_id: resolvedClientId,
+        prompt_id: resolvedPromptId,
+      };
   let result = null;
   let lastError = null;
-  for (const suffix of endpointCandidates) {
+  let retriedAfterHostedUpload = false;
+  for (let index = 0; index < endpointCandidates.length; index += 1) {
+    const suffix = endpointCandidates[index];
     const endpoint = suffix ? `${normalizedServerUrl}${suffix}` : normalizedServerUrl;
+    const requestBody = JSON.stringify(requestPayload);
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...buildComfyHeaders(apiKey),
       },
-      body: JSON.stringify(requestPayload),
+      body: requestBody,
     });
     if (response.ok) {
       result = await response.json();
       break;
     }
     const message = await response.text();
+    if (
+      hostedWorkflowApi &&
+      response.status === 413 &&
+      typeof requestPayload?.inputs?.image === "string" &&
+      requestPayload.inputs.image.startsWith("data:image/") &&
+      !retriedAfterHostedUpload &&
+      inputImageBuffer
+    ) {
+      const uploadedRef = await uploadHostedInputImage({
+        serverUrl: normalizedServerUrl,
+        apiKey,
+        buffer: inputImageBuffer,
+        fileName: "photobooth-input.png",
+      });
+      requestPayload.inputs.image = uploadedRef;
+      requestPayload.inputs.input_image = uploadedRef;
+      retriedAfterHostedUpload = true;
+      index -= 1;
+      continue;
+    }
     lastError = `POST ${endpoint} -> ${response.status} ${message}`;
     if (response.status !== 404 && response.status !== 405) {
       break;
