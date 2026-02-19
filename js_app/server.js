@@ -383,6 +383,7 @@ fs.mkdirSync(galleryOutputDir, { recursive: true });
 
 const promptToCapture = new Map();
 const promptToServerUrl = new Map();
+const promptToQueueResult = new Map();
 const outputSaved = new Set();
 
 function readJsonBody(req) {
@@ -428,6 +429,47 @@ async function fetchComfyJson(url) {
     throw new Error(`ComfyUI error: ${response.status}`);
   }
   return response.json();
+}
+
+function isHostedWorkflowApiUrl(serverUrl) {
+  try {
+    const url = new URL(serverUrl);
+    return /\/api\/v1\/workflows(\/|$)/i.test(url.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
+function pickHostedOutputUrl(payload) {
+  return (
+    payload?.output_url ??
+    payload?.image_url ??
+    payload?.result?.output_url ??
+    payload?.result?.image_url ??
+    payload?.data?.output_url ??
+    payload?.data?.image_url ??
+    payload?.outputs?.[0]?.url ??
+    payload?.images?.[0]?.url ??
+    null
+  );
+}
+
+async function fetchHostedRunStatus(serverUrl, promptId) {
+  const base = serverUrl.replace(/\/$/, "");
+  const candidates = [`${base}/runs/${encodeURIComponent(promptId)}`, `${base}/run/${encodeURIComponent(promptId)}`];
+  let lastError = null;
+  for (const target of candidates) {
+    const response = await fetch(target, { headers: buildComfyHeaders() });
+    if (response.ok) {
+      return response.json();
+    }
+    const message = await response.text().catch(() => "");
+    lastError = `GET ${target} -> ${response.status} ${message}`;
+    if (response.status !== 404 && response.status !== 405) {
+      break;
+    }
+  }
+  throw new Error(lastError ?? "Unable to fetch hosted run status");
 }
 
 async function resolveComfyServerUrlForStyle(baseServerUrl, styleName) {
@@ -769,6 +811,7 @@ const server = http.createServer((req, res) => {
           const resolvedPromptId = result?.prompt_id ?? promptId;
           promptToCapture.set(resolvedPromptId, safeId);
           promptToServerUrl.set(resolvedPromptId, effectiveComfyServerUrl);
+          promptToQueueResult.set(resolvedPromptId, result ?? null);
           lastPromptId = resolvedPromptId;
           progressMetaByPrompt.set(resolvedPromptId, buildWorkflowStepMeta(workflow));
           res.writeHead(202, { "Content-Type": "application/json" });
@@ -807,6 +850,39 @@ const server = http.createServer((req, res) => {
       return;
     }
     const requestComfyUrl = promptToServerUrl.get(promptId) ?? comfyServerUrl;
+    const queueResult = promptToQueueResult.get(promptId);
+    const hostedWorkflowApi =
+      Boolean(queueResult?.hostedWorkflowApi) || isHostedWorkflowApiUrl(requestComfyUrl);
+    if (hostedWorkflowApi) {
+      fetchHostedRunStatus(requestComfyUrl, promptId)
+        .then((runStatus) => {
+          const status = String(
+            runStatus?.status ?? runStatus?.state ?? runStatus?.result?.status ?? ""
+          ).toLowerCase();
+          const complete = ["succeeded", "success", "completed", "done", "finished"].includes(status);
+          const failed = ["failed", "error", "cancelled", "canceled"].includes(status);
+          const outputUrl = pickHostedOutputUrl(runStatus) || pickHostedOutputUrl(queueResult);
+          const percent = failed ? 100 : complete ? 100 : Math.max(parseComfyProgressPercent(runStatus), 5);
+          const responsePayload = {
+            percent,
+            label: failed ? "Failed" : complete ? "Complete" : "Sampling",
+            complete,
+            websocketConnected: false,
+            outputUrl,
+            previewUrl: pickHostedOutputUrl(runStatus?.preview) || null,
+            error: failed
+              ? runStatus?.error ?? runStatus?.message ?? runStatus?.result?.error ?? "Hosted run failed"
+              : null,
+          };
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(responsePayload));
+        })
+        .catch((error) => {
+          res.writeHead(500);
+          res.end(`Progress failed: ${error.message}`);
+        });
+      return;
+    }
     const comfyUrls = buildComfyApiUrls(requestComfyUrl);
     Promise.allSettled([
       fetchComfyJson(`${comfyUrls.progressUrl}?prompt_id=${encodeURIComponent(promptId)}`),
