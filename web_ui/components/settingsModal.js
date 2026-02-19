@@ -20,6 +20,7 @@ export function renderSettingsModal() {
             autocomplete="off"
           />
         </label>
+        <div class="settings-comfy-credits" aria-live="polite">Remaining credits: --</div>
         <label class="settings-field">
           Camera Orientation
           <select class="settings-input form-input settings-input--orientation">
