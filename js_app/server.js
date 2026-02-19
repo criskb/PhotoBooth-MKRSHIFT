@@ -794,6 +794,10 @@ const server = http.createServer((req, res) => {
             inputImagePath = comfyInputPath;
             writeImageBuffer(buffer, comfyInputPath);
           }
+          const remoteBaseUrl = resolveRemoteBaseUrl(req);
+          const inputImageUrl = `${remoteBaseUrl}/api/gallery/image?type=input&name=${encodeURIComponent(
+            captureName
+          )}`;
           console.info(`Queueing ComfyUI prompt (clientId: ${comfyClientId}).`);
           const promptId = crypto.randomUUID();
           const workflow = loadWorkflowJson(workflowDir, style);
@@ -803,6 +807,7 @@ const server = http.createServer((req, res) => {
             stylePrompt: null,
             inputImagePath,
             inputImageBuffer,
+            inputImageUrl,
             serverUrl: effectiveComfyServerUrl,
             clientId: comfyClientId,
             promptId,

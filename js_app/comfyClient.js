@@ -181,6 +181,7 @@ export async function sendWorkflow({
   stylePrompt,
   inputImagePath,
   inputImageBuffer,
+  inputImageUrl,
   serverUrl,
   clientId,
   promptId,
@@ -191,14 +192,22 @@ export async function sendWorkflow({
   const workflow = loadWorkflowJson(workflowDir, styleName);
   const hostedWorkflowId = hostedWorkflowApi ? extractHostedWorkflowId(normalizedServerUrl) : null;
   let inputImage = inputImagePath;
+  let inputFiles = null;
   if (inputImageBuffer && isRemoteServerUrl(normalizedServerUrl)) {
     if (hostedWorkflowApi) {
-      inputImage = await uploadHostedInputImage({
-        serverUrl: normalizedServerUrl,
-        apiKey,
-        buffer: inputImageBuffer,
-        fileName: "photobooth-input.png",
-      });
+      if (inputImageUrl) {
+        inputImage = "photobooth-input.png";
+        inputFiles = {
+          "/input/photobooth-input.png": inputImageUrl,
+        };
+      } else {
+        inputImage = await uploadHostedInputImage({
+          serverUrl: normalizedServerUrl,
+          apiKey,
+          buffer: inputImageBuffer,
+          fileName: "photobooth-input.png",
+        });
+      }
     } else {
       const uploadName = await uploadInputImage({
         serverUrl: normalizedServerUrl,
@@ -230,6 +239,7 @@ export async function sendWorkflow({
           image: inputImage,
           input_image: inputImage,
         },
+        ...(inputFiles ? { files: inputFiles } : {}),
       }
     : {
         prompt: payload,
