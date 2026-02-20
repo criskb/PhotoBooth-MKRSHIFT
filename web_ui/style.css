@@ -986,6 +986,23 @@ button:focus-visible {
   gap: 0.35rem;
 }
 
+.settings-help {
+  margin: -0.35rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: rgba(247, 247, 251, 0.72);
+}
+
+.settings-help code {
+  font-size: 0.72rem;
+  color: rgba(95, 211, 255, 0.95);
+}
+
+.settings-help--subtle {
+  margin-top: -0.45rem;
+  color: rgba(247, 247, 251, 0.62);
+}
+
 .form-input {
   padding: 0.6rem 0.75rem;
   border-radius: 0.75rem;
