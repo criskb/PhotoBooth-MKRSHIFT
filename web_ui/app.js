@@ -173,6 +173,36 @@ function normalizeComfyInput(value) {
   return `https://${trimmed}`;
 }
 
+function isHostedComfyUrl(value) {
+  const normalized = normalizeComfyInput(value);
+  if (!normalized) {
+    return false;
+  }
+  try {
+    const url = new URL(normalized);
+    return (
+      url.hostname.toLowerCase() === "comfy.icu" ||
+      /\/api\/v1\/workflows(\/|$)/i.test(url.pathname)
+    );
+  } catch (error) {
+    return /comfy\.icu|\/api\/v1\/workflows/i.test(String(value || ""));
+  }
+}
+
+function hasUsableOutputUrl(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") {
+    return false;
+  }
+  return true;
+}
+
 function updateTimerLabel() {
   timerToggle.textContent = `⏱️ ${selectedDelay}s`;
   timerToggle.setAttribute("aria-expanded", String(timerMenu.classList.contains("timer-menu--open")));
@@ -729,9 +759,9 @@ function handleShake(event) {
 }
 
 function updateProgress(progress) {
-  const hasOutputUrl = typeof progress.outputUrl === "string" && progress.outputUrl.trim() !== "";
-  const waitingForHostedImage = Boolean(progress.complete) && !hasOutputUrl;
-  const waitingLabel = "Waiting for image, image being processed in comfy.icu";
+  const hasOutputUrl = hasUsableOutputUrl(progress.outputUrl);
+  const waitingLabel = "Waiting for image to be processed by comfy.icu";
+  const waitingForHostedImage = isHostedComfyUrl(comfyServerUrl) && !hasOutputUrl;
 
   const percent = waitingForHostedImage
     ? 90
@@ -750,7 +780,7 @@ function updateProgress(progress) {
   if (hasOutputUrl) {
     lastOutputUrl = progress.outputUrl;
     progressPreviews.forEach((element) => {
-      element.src = progress.outputUrl;
+      element.src = progress.outputUrl.trim();
       element.style.display = "block";
     });
   } else {
@@ -765,6 +795,7 @@ function updateProgress(progress) {
     label,
     percent,
     complete: Boolean(progress.complete && hasOutputUrl),
+    outputUrl: hasOutputUrl ? progress.outputUrl.trim() : null,
   });
   if (typeof progress.websocketConnected === "boolean") {
     updateComfyConnectionStatus(progress.websocketConnected);
@@ -1024,7 +1055,7 @@ function startProgressPolling() {
       }
       const data = await response.json();
       updateProgress(data);
-      if (data.complete && data.outputUrl) {
+      if (data.complete && hasUsableOutputUrl(data.outputUrl)) {
         clearInterval(progressPoller);
         progressPoller = null;
         progressLabels.forEach((element) => {
@@ -1044,7 +1075,7 @@ function startProgressPolling() {
       }
     } catch (error) {
       progressLabels.forEach((element) => {
-        element.textContent = "Waiting for image, image being processed in comfy.icu";
+        element.textContent = "Waiting for image to be processed by comfy.icu";
       });
       progressPreviews.forEach((element) => {
         element.src = "";
@@ -1058,7 +1089,7 @@ function startProgressPolling() {
       });
       updateRemoteProgress({
         status: "waiting",
-        label: "Waiting for image, image being processed in comfy.icu",
+        label: "Waiting for image to be processed by comfy.icu",
         percent: 90,
         complete: false,
       });
