@@ -8,6 +8,7 @@ import { renderSettingsModal } from "./settingsModal.js";
 import { renderGalleryModal } from "./galleryModal.js";
 import { renderOverlays } from "./overlays.js";
 import { renderDiagnosticsModal } from "./diagnosticsModal.js";
+import { renderTosModal } from "./tosModal.js";
 
 export function renderApp(container) {
   if (!container) {
@@ -40,6 +41,7 @@ export function renderApp(container) {
     ${renderIdleOverlay()}
     ${renderSettingsModal()}
     ${renderDiagnosticsModal()}
+    ${renderTosModal()}
     ${renderGalleryModal()}
     ${renderOverlays()}
   `;

@@ -9,3 +9,4 @@ export { renderSettingsModal } from "./settingsModal.js";
 export { renderDiagnosticsModal } from "./diagnosticsModal.js";
 export { renderGalleryModal } from "./galleryModal.js";
 export { renderOverlays } from "./overlays.js";
+export { renderTosModal } from "./tosModal.js";
