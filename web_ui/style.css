@@ -70,6 +70,7 @@ button:focus-visible {
   z-index: 2;
 }
 
+.tos-toggle,
 .settings-toggle,
 .fullscreen-toggle,
 .diagnostics-toggle {
@@ -85,6 +86,7 @@ button:focus-visible {
   box-shadow: 0 10px 25px rgba(3, 6, 14, 0.45);
 }
 
+.tos-toggle:hover,
 .settings-toggle:hover,
 .fullscreen-toggle:hover,
 .diagnostics-toggle:hover {
@@ -784,7 +786,21 @@ button:focus-visible {
   z-index: 4;
 }
 
+.tos-modal {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 5, 9, 0.7);
+  z-index: 4;
+}
+
 .diagnostics-modal--open {
+  display: flex;
+}
+
+.tos-modal--open {
   display: flex;
 }
 
@@ -883,6 +899,48 @@ button:focus-visible {
   transform: translateY(-1px);
 }
 
+
+.tos-card {
+  width: min(520px, 92vw);
+  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 1.4rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 26px 65px rgba(0, 0, 0, 0.55);
+}
+
+.tos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tos-header h2 {
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.tos-close {
+  padding: 0.5rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(18, 22, 33, 0.8);
+  color: #f7f7fb;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.tos-body p {
+  margin: 0;
+  color: rgba(247, 247, 251, 0.92);
+  line-height: 1.5;
+}
+
 .settings-modal--open {
   display: flex;
 }
@@ -953,6 +1011,16 @@ button:focus-visible {
   line-height: 1.45;
   color: rgba(247, 247, 251, 0.86);
   white-space: pre-line;
+}
+
+.settings-comfy-credits {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.8rem;
+  background: rgba(12, 16, 26, 0.55);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(247, 247, 251, 0.9);
 }
 
 .settings-actions {
