@@ -104,6 +104,16 @@ function applyRandomSeeds(workflowPrompt) {
       offset += 1;
       inputs[key] = seeded;
     });
+
+    const classType = String(node?.class_type ?? "").toLowerCase();
+    if (classType === "randomnoise" && !Object.prototype.hasOwnProperty.call(inputs, "noise_seed")) {
+      inputs.noise_seed = randomSeedValue() + offset;
+      offset += 1;
+    }
+    if (/ksampler/.test(classType) && !Object.prototype.hasOwnProperty.call(inputs, "seed")) {
+      inputs.seed = randomSeedValue() + offset;
+      offset += 1;
+    }
   });
   return workflowPrompt;
 }
