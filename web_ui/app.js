@@ -40,6 +40,7 @@ const doneButton = document.querySelector(".progress-action--done");
 const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const progressCloseButton = document.querySelector(".progress-close");
+const tosToggle = document.querySelector(".tos-toggle");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
 const settingsModal = document.querySelector(".settings-modal");
@@ -73,6 +74,8 @@ const settingsClose = document.querySelector(".settings-action--close");
 const diagnosticsToggle = document.querySelector(".diagnostics-toggle");
 const diagnosticsModal = document.querySelector(".diagnostics-modal");
 const diagnosticsClose = document.querySelector(".diagnostics-close");
+const tosModal = document.querySelector(".tos-modal");
+const tosClose = document.querySelector(".tos-close");
 const diagnosticsRefresh = document.querySelector(".diagnostics-refresh");
 const diagnosticsServer = document.querySelector(".diagnostics-value--server");
 const diagnosticsSocket = document.querySelector(".diagnostics-value--socket");
@@ -732,8 +735,15 @@ function handleShake(event) {
 }
 
 function updateProgress(progress) {
-  const percent = Math.max(0, Math.min(100, Math.round(progress.percent ?? 0)));
-  const label = progress.label ?? "Sampling";
+  const hasOutputUrl = typeof progress.outputUrl === "string" && progress.outputUrl.trim() !== "";
+  const waitingForHostedImage = Boolean(progress.complete) && !hasOutputUrl;
+  const waitingLabel = "Waiting for image, image being processed in comfy.icu";
+
+  const percent = waitingForHostedImage
+    ? 90
+    : Math.max(0, Math.min(100, Math.round(progress.percent ?? 0)));
+  const label = waitingForHostedImage ? waitingLabel : progress.label ?? "Sampling";
+
   progressLabels.forEach((element) => {
     element.textContent = label;
   });
@@ -743,21 +753,24 @@ function updateProgress(progress) {
   progressFills.forEach((element) => {
     element.style.width = `${percent}%`;
   });
-  if (progress.outputUrl) {
+  if (hasOutputUrl) {
     lastOutputUrl = progress.outputUrl;
-  }
-  const previewUrl = progress.outputUrl ?? progress.previewUrl;
-  if (previewUrl) {
     progressPreviews.forEach((element) => {
-      element.src = previewUrl;
+      element.src = progress.outputUrl;
       element.style.display = "block";
     });
+  } else {
+    progressPreviews.forEach((element) => {
+      element.src = "";
+      element.style.display = "none";
+    });
   }
+
   updateRemoteProgress({
-    status: progress.complete ? "complete" : "generating",
+    status: waitingForHostedImage ? "waiting" : progress.complete ? "complete" : "generating",
     label,
     percent,
-    complete: Boolean(progress.complete),
+    complete: Boolean(progress.complete && hasOutputUrl),
   });
   if (typeof progress.websocketConnected === "boolean") {
     updateComfyConnectionStatus(progress.websocketConnected);
@@ -830,6 +843,17 @@ function openDiagnostics() {
 
 function closeDiagnostics() {
   diagnosticsModal?.classList.remove("diagnostics-modal--open");
+}
+
+function openTos() {
+  if (!tosModal) {
+    return;
+  }
+  tosModal.classList.add("tos-modal--open");
+}
+
+function closeTos() {
+  tosModal?.classList.remove("tos-modal--open");
 }
 
 function toPrinterEntry(entry) {
@@ -1006,7 +1030,7 @@ function startProgressPolling() {
       }
       const data = await response.json();
       updateProgress(data);
-      if (data.complete) {
+      if (data.complete && data.outputUrl) {
         clearInterval(progressPoller);
         progressPoller = null;
         progressLabels.forEach((element) => {
@@ -1026,12 +1050,22 @@ function startProgressPolling() {
       }
     } catch (error) {
       progressLabels.forEach((element) => {
-        element.textContent = "Waiting";
+        element.textContent = "Waiting for image, image being processed in comfy.icu";
+      });
+      progressPreviews.forEach((element) => {
+        element.src = "";
+        element.style.display = "none";
+      });
+      progressValues.forEach((element) => {
+        element.textContent = "90%";
+      });
+      progressFills.forEach((element) => {
+        element.style.width = "90%";
       });
       updateRemoteProgress({
         status: "waiting",
-        label: "Waiting",
-        percent: 0,
+        label: "Waiting for image, image being processed in comfy.icu",
+        percent: 90,
         complete: false,
       });
     }
@@ -1932,6 +1966,9 @@ document.addEventListener("keydown", (event) => {
   if (diagnosticsModal?.classList.contains("diagnostics-modal--open")) {
     closeDiagnostics();
   }
+  if (tosModal?.classList.contains("tos-modal--open")) {
+    closeTos();
+  }
 });
 settingsModal?.addEventListener("click", (event) => {
   if (event.target === settingsModal) {
@@ -1948,6 +1985,12 @@ diagnosticsModal?.addEventListener("click", (event) => {
     closeDiagnostics();
   }
 });
+tosModal?.addEventListener("click", (event) => {
+  if (event.target === tosModal) {
+    closeTos();
+  }
+});
+tosToggle?.addEventListener("click", () => openTos());
 settingsToggle?.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
 fullscreenToggle?.addEventListener("click", toggleFullscreen);
@@ -1984,6 +2027,7 @@ settingsSave?.addEventListener("click", async () => {
 });
 settingsClose?.addEventListener("click", closeSettings);
 diagnosticsClose?.addEventListener("click", closeDiagnostics);
+tosClose?.addEventListener("click", closeTos);
 diagnosticsRefresh?.addEventListener("click", fetchDiagnostics);
 galleryToggle?.addEventListener("click", openGallery);
 galleryClose?.addEventListener("click", closeGallery);

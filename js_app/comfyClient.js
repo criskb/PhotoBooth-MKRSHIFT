@@ -118,6 +118,24 @@ function applyRandomSeeds(workflowPrompt) {
   return workflowPrompt;
 }
 
+function applyRunNonceToSaveNodes(workflowPrompt, nonce) {
+  if (!workflowPrompt || typeof workflowPrompt !== "object" || !nonce) {
+    return workflowPrompt;
+  }
+  Object.values(workflowPrompt).forEach((node) => {
+    if (String(node?.class_type ?? "") !== "SaveImage") {
+      return;
+    }
+    const inputs = node.inputs && typeof node.inputs === "object" ? node.inputs : {};
+    const base = typeof inputs.filename_prefix === "string" && inputs.filename_prefix.trim()
+      ? inputs.filename_prefix.trim()
+      : "ComfyUI";
+    inputs.filename_prefix = `${base}_${nonce}`;
+    node.inputs = inputs;
+  });
+  return workflowPrompt;
+}
+
 function normalizeComfyBaseUrl(value) {
   if (typeof value !== "string") {
     return "";
@@ -373,6 +391,10 @@ export async function sendWorkflow({
   const prompt = applyRandomSeeds(
     applyPromptOverrides(extractWorkflowPrompt(workflow), stylePrompt, inputImage)
   );
+  if (hostedWorkflowApi) {
+    const nonce = Date.now().toString(36);
+    applyRunNonceToSaveNodes(prompt, nonce);
+  }
   if (hostedWorkflowApi && (!prompt || typeof prompt !== "object" || Object.keys(prompt).length === 0)) {
     throw new Error(
       `Hosted Comfy prompt is empty for style "${styleName}". Ensure workflows/${styleName}.json contains ComfyUI API JSON.`
