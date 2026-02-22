@@ -1,6 +1,22 @@
 import { initIdleOverlay } from "./idle.js";
 import { renderApp } from "./components/index.js";
 import {
+  HOSTED_COMFY_WAITING_LABEL,
+  createProgressPreviewManager,
+  getHostedProgressState,
+} from "./ui/progressState.js";
+import { createStyleController } from "./ui/styleControls.js";
+import { createPrinterController } from "./ui/printerControls.js";
+import {
+  formatUptime,
+  getOrientationDegrees,
+  hasUsableOutputUrl,
+  isHostedComfyUrl,
+  normalizeComfyInput,
+  toPrinterEntry,
+  toTitleCase,
+} from "./ui/appUtils.js";
+import {
   storageKeys,
   readStoredValue,
   writeStoredValue,
@@ -34,6 +50,7 @@ const progressLabels = Array.from(document.querySelectorAll(".progress__label"))
 const progressValues = Array.from(document.querySelectorAll(".progress__value"));
 const progressFills = Array.from(document.querySelectorAll(".progress__fill"));
 const progressPreviews = Array.from(document.querySelectorAll(".progress__preview"));
+const progressPreviewManager = createProgressPreviewManager(progressPreviews);
 const uploadButton = document.querySelector(".progress-action--upload");
 const printButton = document.querySelector(".progress-action--print");
 const doneButton = document.querySelector(".progress-action--done");
@@ -124,7 +141,6 @@ let countdownActive = false;
 let remoteSocket = null;
 let remoteSocketReconnect = null;
 let lastRemoteProgress = { status: "ready", label: "Ready", percent: 0, complete: false };
-let stylePreviewToken = 0;
 let selectedGalleryId = "";
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
@@ -140,72 +156,25 @@ let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let remoteResultEnabled = true;
 let remoteCameraCaptureEnabled = false;
-let knownPrinters = [];
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
+const printerController = createPrinterController({
+  settingsPrinterInput,
+  settingsPrinterDetails,
+  toPrinterEntry,
+});
+const styleController = createStyleController({
+  stylesContainer,
+  stylePreview,
+  stylePreviewImage,
+  updateActionButtonState: () => updateActionButtonState(),
+  setStatusMeta: (message) => {
+    statusMeta.textContent = message;
+  },
+  sendRemoteMessage: (payload) => sendRemoteMessage(payload),
+});
 
 function updateActionButtonState() {
   actionButton.disabled = !selectedStyle;
-}
-
-function toTitleCase(value) {
-  return value
-    .split(" ")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function getOrientationDegrees(value) {
-  const orientation = Number(value) || 0;
-  if (orientation === 270) {
-    return -90;
-  }
-  return orientation;
-}
-
-function normalizeComfyInput(value) {
-  const trimmed = typeof value === "string" ? value.trim() : "";
-  if (!trimmed) {
-    return "";
-  }
-  const withProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)
-    ? trimmed
-    : `https://${trimmed}`;
-  try {
-    const url = new URL(withProtocol);
-    return url.toString().replace(/\/$/, "");
-  } catch (error) {
-    return withProtocol;
-  }
-}
-
-function isHostedComfyUrl(value) {
-  const normalized = normalizeComfyInput(value);
-  if (!normalized) {
-    return false;
-  }
-  try {
-    const url = new URL(normalized);
-    return (
-      url.hostname.toLowerCase() === "comfy.icu" ||
-      /\/api\/v1\/workflows(\/|$)/i.test(url.pathname)
-    );
-  } catch (error) {
-    return /comfy\.icu|\/api\/v1\/workflows/i.test(String(value || ""));
-  }
-}
-
-function hasUsableOutputUrl(value) {
-  if (typeof value !== "string") {
-    return false;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return false;
-  }
-  if (trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") {
-    return false;
-  }
-  return true;
 }
 
 function updateTimerLabel() {
@@ -365,70 +334,33 @@ function broadcastRemoteConfig() {
   });
 }
 
-function clearStylePreview() {
-  if (!stylePreview || !stylePreviewImage) {
-    return;
-  }
-  stylePreview.classList.remove("style-preview--visible");
-  stylePreviewImage.removeAttribute("src");
-}
-
-function updateStylePreview(style) {
-  if (!stylePreview || !stylePreviewImage) {
-    return;
-  }
-  const trimmed = typeof style === "string" ? style.trim() : "";
-  if (!trimmed) {
-    clearStylePreview();
-    return;
-  }
-  stylePreviewToken += 1;
-  const token = stylePreviewToken;
-  const previewUrl = `/api/style-preview?style=${encodeURIComponent(trimmed)}`;
-  stylePreviewImage.onload = () => {
-    if (token !== stylePreviewToken) {
-      return;
-    }
-    stylePreview.classList.add("style-preview--visible");
-  };
-  stylePreviewImage.onerror = () => {
-    if (token !== stylePreviewToken) {
-      return;
-    }
-    clearStylePreview();
-  };
-  stylePreviewImage.src = previewUrl;
-}
-
 function applyStyleSelection(style, { source = "booth", announce = true } = {}) {
-  const trimmed = typeof style === "string" ? style.trim() : "";
-  if (!trimmed) {
-    return;
+  const matched = styleController.applySelection(style, { source, announce: false });
+  selectedStyle = styleController.getSelectedStyle();
+  if (selectedStyle) {
+    writeStoredValue(storageKeys.selectedStyle, selectedStyle);
   }
-  selectedStyle = trimmed;
-  writeStoredValue(storageKeys.selectedStyle, trimmed);
-  updateActionButtonState();
-  let matched = false;
-  document.querySelectorAll(".style").forEach((button) => {
-    const isMatch = button.dataset.style === trimmed;
-    button.classList.toggle("style--active", isMatch);
-    if (isMatch) {
-      matched = true;
-    }
-  });
-  if (matched) {
-    updateStylePreview(trimmed);
-  } else {
-    clearStylePreview();
-  }
-  if (announce) {
+  if (announce && selectedStyle) {
     statusLabel.textContent = "Style Selected";
     statusMeta.textContent =
       source === "remote"
-        ? `${toTitleCase(trimmed)} selected on remote`
-        : `${toTitleCase(trimmed)} ready to shoot`;
+        ? `${toTitleCase(selectedStyle)} selected on remote`
+        : `${toTitleCase(selectedStyle)} ready to shoot`;
   }
-  return matched;
+  return Boolean(matched);
+}
+
+async function loadStyles() {
+  const styles = await styleController.loadStyles({
+    endpoint: "/api/styles",
+    onOffline: () => {
+      statusLabel.textContent = "Offline";
+      statusMeta.textContent = "Unable to load styles";
+    },
+  });
+  if (styles.length > 0 && selectedStyle) {
+    applyStyleSelection(selectedStyle, { announce: false });
+  }
 }
 
 function updateRemoteProgress(payload) {
@@ -765,14 +697,15 @@ function handleShake(event) {
 }
 
 function updateProgress(progress) {
-  const hasOutputUrl = hasUsableOutputUrl(progress.outputUrl);
-  const waitingLabel = "Waiting for image to be processed by comfy.icu";
-  const waitingForHostedImage = isHostedComfyUrl(comfyServerUrl) && !hasOutputUrl;
-
-  const percent = waitingForHostedImage
-    ? 90
-    : Math.max(0, Math.min(100, Math.round(progress.percent ?? 0)));
-  const label = waitingForHostedImage ? waitingLabel : progress.label ?? "Sampling";
+  const outputUrl = hasUsableOutputUrl(progress.outputUrl) ? progress.outputUrl.trim() : "";
+  const hasOutputUrl = Boolean(outputUrl);
+  const outputReadyForDisplay = progressPreviewManager.isReady(outputUrl);
+  const { waitingForHostedImage, percent, label } = getHostedProgressState({
+    progress,
+    outputUrl,
+    outputReadyForDisplay,
+    isHostedComfy: isHostedComfyUrl(comfyServerUrl),
+  });
 
   progressLabels.forEach((element) => {
     element.textContent = label;
@@ -784,24 +717,23 @@ function updateProgress(progress) {
     element.style.width = `${percent}%`;
   });
   if (hasOutputUrl) {
-    lastOutputUrl = progress.outputUrl;
-    progressPreviews.forEach((element) => {
-      element.src = progress.outputUrl.trim();
-      element.style.display = "block";
-    });
+    lastOutputUrl = outputUrl;
+    progressPreviewManager.queue(outputUrl);
+    if (outputReadyForDisplay) {
+      progressPreviewManager.show(outputUrl);
+    } else {
+      progressPreviewManager.clear();
+    }
   } else {
-    progressPreviews.forEach((element) => {
-      element.src = "";
-      element.style.display = "none";
-    });
+    progressPreviewManager.clear();
   }
 
   updateRemoteProgress({
     status: waitingForHostedImage ? "waiting" : progress.complete ? "complete" : "generating",
     label,
     percent,
-    complete: Boolean(progress.complete && hasOutputUrl),
-    outputUrl: hasOutputUrl ? progress.outputUrl.trim() : null,
+    complete: Boolean(progress.complete && outputReadyForDisplay),
+    outputUrl: outputReadyForDisplay ? outputUrl : null,
   });
   if (typeof progress.websocketConnected === "boolean") {
     updateComfyConnectionStatus(progress.websocketConnected);
@@ -828,42 +760,6 @@ function toggleSystemMenus() {
   document.body.classList.toggle("system-controls-hidden");
 }
 
-function formatUptime(seconds) {
-  const totalSeconds = Number(seconds) || 0;
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = Math.floor(totalSeconds % 60);
-  return `${hours}h ${minutes}m ${secs}s`;
-}
-
-async function fetchDiagnostics() {
-  if (!diagnosticsServer || !diagnosticsSocket || !diagnosticsApi || !diagnosticsUptime) {
-    return;
-  }
-  diagnosticsServer.textContent = "Loading...";
-  diagnosticsSocket.textContent = "Loading...";
-  diagnosticsApi.textContent = "Loading...";
-  diagnosticsUptime.textContent = "Loading...";
-  try {
-    const response = await fetch("/api/health");
-    if (!response.ok) {
-      throw new Error("Diagnostics unavailable");
-    }
-    const data = await response.json();
-    diagnosticsServer.textContent = data.comfyServerUrl || "Unknown";
-    diagnosticsSocket.textContent = data.websocketConnected ? "Connected" : "Offline";
-    diagnosticsApi.textContent = data.apiKeyConfigured ? "Configured" : "Not set";
-    diagnosticsUptime.textContent = formatUptime(data.uptimeSeconds);
-    updateComfyConnectionStatus(Boolean(data.websocketConnected));
-  } catch (error) {
-    diagnosticsServer.textContent = "Unavailable";
-    diagnosticsSocket.textContent = "Unavailable";
-    diagnosticsApi.textContent = "Unavailable";
-    diagnosticsUptime.textContent = "Unavailable";
-    updateComfyConnectionStatus(false);
-  }
-}
-
 function openDiagnostics() {
   if (!diagnosticsModal) {
     return;
@@ -885,125 +781,6 @@ function openTos() {
 
 function closeTos() {
   tosModal?.classList.remove("tos-modal--open");
-}
-
-function toPrinterEntry(entry) {
-  if (typeof entry === "string") {
-    return {
-      name: entry,
-      connection: "unknown",
-      isDefault: false,
-      uri: "",
-      location: "",
-      interface: "",
-      options: {},
-    };
-  }
-  if (!entry || typeof entry !== "object") {
-    return null;
-  }
-  const name = typeof entry.name === "string" ? entry.name.trim() : "";
-  if (!name) {
-    return null;
-  }
-  return {
-    name,
-    connection: entry.connection || "unknown",
-    isDefault: Boolean(entry.isDefault),
-    uri: entry.uri || "",
-    location: entry.location || "",
-    interface: entry.interface || "",
-    options: entry.options || {},
-  };
-}
-
-function findPrinterByName(name) {
-  return knownPrinters.find((printer) => printer.name === name) || null;
-}
-
-function formatPrinterDetails(printer) {
-  if (!printer) {
-    return "No printer selected.";
-  }
-  const lines = [
-    `Connection: ${printer.connection || "unknown"}`,
-    `URI/Port: ${printer.uri || "n/a"}`,
-    `Location: ${printer.location || "n/a"}`,
-    `Driver/Interface: ${printer.interface || "n/a"}`,
-  ];
-  const optionEntries = Object.entries(printer.options || {});
-  if (optionEntries.length) {
-    lines.push("Options:");
-    optionEntries.slice(0, 8).forEach(([key, values]) => {
-      const rendered = Array.isArray(values) ? values.join(", ") : String(values || "");
-      lines.push(`• ${key}: ${rendered}`);
-    });
-  } else {
-    lines.push("Options: none reported");
-  }
-  return lines.join("\n");
-}
-
-function updatePrinterDetails(selectedName) {
-  if (!settingsPrinterDetails) {
-    return;
-  }
-  const selectedPrinter = findPrinterByName(selectedName);
-  settingsPrinterDetails.textContent = formatPrinterDetails(selectedPrinter);
-}
-
-function renderPrinterOptions(printers, selectedName) {
-  const options = [];
-  const seen = new Set();
-  const sorted = [...printers].sort((a, b) => a.name.localeCompare(b.name));
-  sorted.forEach((printer) => {
-    if (!printer?.name || seen.has(printer.name)) {
-      return;
-    }
-    seen.add(printer.name);
-    const tags = [];
-    if (printer.isDefault) {
-      tags.push("default");
-    }
-    if (printer.connection && printer.connection !== "unknown") {
-      tags.push(printer.connection);
-    }
-    const suffix = tags.length ? ` (${tags.join(", ")})` : "";
-    options.push({ name: printer.name, label: `${printer.name}${suffix}` });
-  });
-  if (selectedName && !seen.has(selectedName)) {
-    options.unshift({ name: selectedName, label: `${selectedName} (saved)` });
-  }
-  settingsPrinterInput.innerHTML = "";
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = options.length ? "Select a printer" : "No printers detected";
-  settingsPrinterInput.appendChild(placeholder);
-  options.forEach((entry) => {
-    const option = document.createElement("option");
-    option.value = entry.name;
-    option.textContent = entry.label;
-    settingsPrinterInput.appendChild(option);
-  });
-  settingsPrinterInput.value = selectedName || "";
-  updatePrinterDetails(settingsPrinterInput.value || selectedName || "");
-}
-
-async function loadPrinters(selectedName = printerConfig.name) {
-  try {
-    const response = await fetch("/api/printers");
-    if (!response.ok) {
-      throw new Error("Printer list unavailable");
-    }
-    const data = await response.json();
-    const detailed = Array.isArray(data.printerDetails) ? data.printerDetails : data.printers;
-    knownPrinters = (Array.isArray(detailed) ? detailed : [])
-      .map((entry) => toPrinterEntry(entry))
-      .filter(Boolean);
-  } catch (error) {
-    knownPrinters = [];
-  }
-  renderPrinterOptions(knownPrinters, selectedName);
 }
 
 function applyUploadVisibility() {
@@ -1061,7 +838,7 @@ function startProgressPolling() {
       }
       const data = await response.json();
       updateProgress(data);
-      if (data.complete && hasUsableOutputUrl(data.outputUrl)) {
+      if (data.complete && progressPreviewManager.isReady(data.outputUrl)) {
         clearInterval(progressPoller);
         progressPoller = null;
         progressLabels.forEach((element) => {
@@ -1081,12 +858,9 @@ function startProgressPolling() {
       }
     } catch (error) {
       progressLabels.forEach((element) => {
-        element.textContent = "Waiting for image to be processed by comfy.icu";
+        element.textContent = HOSTED_COMFY_WAITING_LABEL;
       });
-      progressPreviews.forEach((element) => {
-        element.src = "";
-        element.style.display = "none";
-      });
+      progressPreviewManager.clear();
       progressValues.forEach((element) => {
         element.textContent = "90%";
       });
@@ -1095,7 +869,7 @@ function startProgressPolling() {
       });
       updateRemoteProgress({
         status: "waiting",
-        label: "Waiting for image to be processed by comfy.icu",
+        label: HOSTED_COMFY_WAITING_LABEL,
         percent: 90,
         complete: false,
       });
@@ -1126,10 +900,6 @@ function setBusy(isBusy) {
   progressFills.forEach((element) => {
     element.style.width = "0%";
   });
-  progressPreviews.forEach((element) => {
-    element.src = "";
-    element.style.display = "none";
-  });
   qrContainer.style.display = "none";
   qrImage.src = "";
   uploadButton.disabled = true;
@@ -1143,6 +913,7 @@ function setBusy(isBusy) {
   currentPromptId = null;
   outputReady = false;
   lastOutputUrl = null;
+  progressPreviewManager.reset();
   lastRemoteProgress = {
     status: "ready",
     label: "Ready",
@@ -1290,7 +1061,7 @@ function loadPrinterConfig() {
   applyCameraOrientation();
   updateRemoteInfo();
   applyUploadVisibility();
-  loadPrinters(printerConfig.name);
+  printerController.loadPrinters(printerConfig.name);
 }
 
 function loadUiPreferences() {
@@ -1433,7 +1204,7 @@ async function openSettings() {
   if (settingsClose) {
     settingsClose.disabled = false;
   }
-  loadPrinters(printerConfig.name);
+  printerController.loadPrinters(printerConfig.name);
   await refreshCameraOptions();
   await refreshHostedCredits();
 }
@@ -1445,7 +1216,7 @@ function handlePrinterSelection() {
     name: selectedName,
   };
   writeStoredJson(storageKeys.printerConfig, printerConfig);
-  updatePrinterDetails(selectedName);
+  printerController.updatePrinterDetails(selectedName);
   applyPrintVisibility();
 }
 
@@ -1928,35 +1699,6 @@ async function sendToPrinter() {
   }
 }
 
-async function loadStyles() {
-  try {
-    const response = await fetch("/api/styles");
-    if (!response.ok) {
-      throw new Error("Failed to load styles");
-    }
-    const data = await response.json();
-    const styles = data.styles ?? [];
-    stylesContainer.innerHTML = "";
-    styles.forEach((style) => {
-      const button = document.createElement("button");
-      button.className = "style";
-      button.textContent = toTitleCase(style);
-      button.dataset.style = style;
-      button.addEventListener("click", () => {
-        applyStyleSelection(style, { source: "booth" });
-        sendRemoteMessage({ type: "style", style, source: "booth" });
-      });
-      stylesContainer.appendChild(button);
-    });
-    if (selectedStyle) {
-      applyStyleSelection(selectedStyle, { announce: false });
-    }
-  } catch (error) {
-    statusLabel.textContent = "Offline";
-    statusMeta.textContent = "Unable to load styles";
-  }
-}
-
 actionButton.addEventListener("click", async () => {
   await ensureMotionPermission();
   startCountdown(selectedDelay, "tap");
@@ -1985,20 +1727,30 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
     return;
   }
+
+  let closedOverlay = false;
   if (timerMenu.classList.contains("timer-menu--open")) {
     closeTimerMenu();
+    closedOverlay = true;
   }
   if (settingsModal.classList.contains("settings-modal--open")) {
     closeSettings();
+    closedOverlay = true;
   }
   if (galleryModal.classList.contains("gallery-modal--open")) {
     closeGallery();
+    closedOverlay = true;
   }
   if (diagnosticsModal?.classList.contains("diagnostics-modal--open")) {
     closeDiagnostics();
+    closedOverlay = true;
   }
   if (tosModal?.classList.contains("tos-modal--open")) {
     closeTos();
+    closedOverlay = true;
+  }
+  if (!closedOverlay) {
+    idleController.show();
   }
 });
 settingsModal?.addEventListener("click", (event) => {
@@ -2082,8 +1834,14 @@ progressCloseButton.addEventListener("click", () => {
 });
 window.addEventListener("devicemotion", handleShake);
 window.addEventListener("resize", applyCameraOrientation);
-["pointerdown", "mousemove", "keydown", "touchstart", "wheel"].forEach((eventName) => {
+["pointerdown", "mousemove", "touchstart", "wheel"].forEach((eventName) => {
   window.addEventListener(eventName, idleController.handleUserActivity, { passive: true });
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    return;
+  }
+  idleController.handleUserActivity();
 });
 idleOverlay?.addEventListener("click", (event) => {
   if (idleOverlay.classList.contains("idle-overlay--hidden")) {
