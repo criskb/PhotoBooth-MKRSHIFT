@@ -8,9 +8,16 @@ export function renderTosModal() {
         </div>
         <div class="tos-body">
           <p>
-            By using this photo booth, you agree that your captured image data may be transmitted to
-            third-party services for processing and hosting, including <strong>comfy.icu</strong>
-            and <strong>freeimage.host</strong>.
+            By using this photo booth, you consent to capture and AI processing of your photo.
+          </p>
+          <ul class="tos-list">
+            <li>Your selected photo is sent to configured AI services (including <strong>comfy.icu</strong>) to generate the final image.</li>
+            <li>If upload is enabled, generated images may be shared via <strong>freeimage.host</strong> links/QR codes.</li>
+            <li>Avoid submitting sensitive personal information in photos or prompts.</li>
+            <li>Operators may retain outputs/logs for booth operation and troubleshooting.</li>
+          </ul>
+          <p class="tos-note">
+            If you do not agree, please close this booth session now.
           </p>
         </div>
       </div>
