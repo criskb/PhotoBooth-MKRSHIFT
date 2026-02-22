@@ -20,8 +20,13 @@ export function renderGalleryModal() {
                   <option value="oldest">Oldest first</option>
                 </select>
               </label>
+              <div class="gallery-filter-actions">
+                <button class="gallery-clear btn btn--secondary" type="button">Clear filters</button>
+                <button class="gallery-refresh btn btn--secondary" type="button">Refresh</button>
+              </div>
             </div>
-            <div class="gallery-list"></div>
+            <p class="gallery-summary" aria-live="polite">0 results</p>
+            <div class="gallery-list" role="listbox" aria-label="Captured photos"></div>
           </div>
           <div class="gallery-detail">
             <div class="gallery-meta">
@@ -29,6 +34,8 @@ export function renderGalleryModal() {
               <span class="gallery-meta__value gallery-meta__value--id">—</span>
               <span class="gallery-meta__label">Captured at</span>
               <span class="gallery-meta__value gallery-meta__value--date">—</span>
+              <span class="gallery-meta__label">File</span>
+              <span class="gallery-meta__value gallery-meta__value--file">—</span>
             </div>
             <div class="gallery-pair">
               <div class="gallery-panel">
@@ -41,10 +48,11 @@ export function renderGalleryModal() {
               </div>
             </div>
             <div class="gallery-actions">
+              <button class="gallery-action gallery-action--delete btn btn--secondary">Delete Selected</button>
               <button class="gallery-action gallery-action--upload btn btn--primary">Upload Selected</button>
               <button class="gallery-action gallery-action--print btn btn--primary">Print Selected</button>
-              <span class="gallery-upload-status" aria-live="polite"></span>
             </div>
+            <span class="gallery-upload-status" aria-live="polite"></span>
             <div class="gallery-qr">
               <span class="gallery-qr-label">Upload QR</span>
               <img class="gallery-qr-image" alt="QR code for uploaded image" />
