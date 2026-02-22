@@ -3,6 +3,10 @@ export function renderControls() {
     <div class="controls">
       <div class="styles-panel">
         <div class="styles-card">
+          <div class="styles-header">
+            <p class="styles-title">Choose a style</p>
+            <p class="styles-selected">Selected: <span class="styles-selected__value">None</span></p>
+          </div>
           <div class="styles">
             <button class="style">Clay</button>
             <button class="style">Comic</button>

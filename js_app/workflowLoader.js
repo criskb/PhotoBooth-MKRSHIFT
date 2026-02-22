@@ -21,7 +21,8 @@ export function loadWorkflowStyles(workflowDir) {
 }
 
 export function loadWorkflowJson(workflowDir, styleName) {
-  const target = path.join(workflowDir, `${styleName}.json`);
+  const normalizedStyleName = path.basename(String(styleName ?? ""));
+  const target = path.join(workflowDir, `${normalizedStyleName}.json`);
   const fallback = path.join(workflowDir, "default.json");
   const candidate = fs.existsSync(target) ? target : fallback;
   if (!fs.existsSync(candidate)) {
