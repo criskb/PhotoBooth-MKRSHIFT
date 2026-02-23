@@ -1,12 +1,25 @@
 import { toTitleCase } from "./appUtils.js";
 
+function normalizeStyleValue(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function sanitizeStyleList(rawStyles) {
   if (!Array.isArray(rawStyles)) {
     return [];
   }
+  const seen = new Set();
   return rawStyles
     .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((name) => {
+      const normalized = normalizeStyleValue(name);
+      if (!normalized || seen.has(normalized)) {
+        return false;
+      }
+      seen.add(normalized);
+      return true;
+    });
 }
 
 export function createStyleController({
@@ -260,8 +273,12 @@ export function createStyleController({
       stylesContainer.tabIndex = 0;
       renderStyles(styles);
       if (selectedStyle) {
-        const styleStillAvailable = styles.includes(selectedStyle);
-        applySelection(styleStillAvailable ? selectedStyle : null, { announce: false });
+        const selectedNormalized = normalizeStyleValue(selectedStyle);
+        const exactMatch = styles.find((style) => style === selectedStyle) ?? null;
+        const normalizedMatch = styles.find(
+          (style) => normalizeStyleValue(style) === selectedNormalized
+        ) ?? null;
+        applySelection(exactMatch ?? normalizedMatch ?? null, { announce: false });
       } else if (!styles.length) {
         applySelection(null, { announce: false });
       }
