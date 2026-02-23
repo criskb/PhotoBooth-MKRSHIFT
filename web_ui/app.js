@@ -172,7 +172,10 @@ const styleController = createStyleController({
   stylesContainer,
   stylePreview,
   stylePreviewImage,
-  updateActionButtonState: () => updateActionButtonState(),
+  updateActionButtonState: () => {
+    selectedStyle = styleController.getSelectedStyle();
+    updateActionButtonState();
+  },
   setStatusMeta: (message) => {
     statusMeta.textContent = message;
   },
@@ -354,8 +357,10 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
   selectedStyle = styleController.getSelectedStyle();
   if (selectedStyle) {
     writeStoredValue(storageKeys.selectedStyle, selectedStyle);
+  } else {
+    removeStoredValue(storageKeys.selectedStyle);
   }
-  refreshCaptureSelectionUi();
+  updateActionButtonState();
   if (announce && selectedStyle) {
     statusLabel.textContent = "Style Selected";
     statusMeta.textContent =

@@ -2041,6 +2041,11 @@ button:focus-visible {
   border-color: rgba(var(--accent-rgb), 0.65);
 }
 
+.styles-scroll:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.85);
+  outline-offset: 2px;
+}
+
 .styles-scroll:disabled,
 .styles-scroll--disabled {
   opacity: 0.38;
@@ -2055,6 +2060,25 @@ button:focus-visible {
   text-transform: uppercase;
   letter-spacing: 0.09em;
   padding: 0.35rem 0.2rem;
+}
+
+.styles-empty--loading::after {
+  content: "…";
+  display: inline-block;
+  margin-left: 0.25rem;
+  animation: styles-loading-pulse 1s ease-in-out infinite;
+}
+
+@keyframes styles-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
 }
 
 .styles {
@@ -2138,6 +2162,7 @@ button:focus-visible {
 
 .style--active {
   border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.18);
   box-shadow: 0 8px 20px rgba(var(--accent-glow-rgb), 0.35);
 }
 
@@ -2145,6 +2170,24 @@ button:focus-visible {
 .action:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+}
+
+.style:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.85);
+  outline-offset: 2px;
+}
+
+.style:active {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .style,
+  .styles-scroll,
+  .styles-empty--loading::after {
+    transition: none;
+    animation: none;
+  }
 }
 
 .remote-body {
