@@ -168,11 +168,16 @@ const printerController = createPrinterController({
   settingsPrinterDetails,
   toPrinterEntry,
 });
-const styleController = createStyleController({
+let styleController;
+
+styleController = createStyleController({
   stylesContainer,
   stylePreview,
   stylePreviewImage,
-  updateActionButtonState: () => updateActionButtonState(),
+  updateActionButtonState: () => {
+    selectedStyle = styleController?.getSelectedStyle?.() ?? null;
+    updateActionButtonState();
+  },
   setStatusMeta: (message) => {
     statusMeta.textContent = message;
   },
@@ -354,8 +359,10 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
   selectedStyle = styleController.getSelectedStyle();
   if (selectedStyle) {
     writeStoredValue(storageKeys.selectedStyle, selectedStyle);
+  } else {
+    removeStoredValue(storageKeys.selectedStyle);
   }
-  refreshCaptureSelectionUi();
+  updateActionButtonState();
   if (announce && selectedStyle) {
     statusLabel.textContent = "Style Selected";
     statusMeta.textContent =
@@ -376,6 +383,10 @@ async function loadStyles() {
   });
   if (styles.length > 0 && selectedStyle) {
     applyStyleSelection(selectedStyle, { announce: false });
+  } else if (styles.length === 0) {
+    statusLabel.textContent = "No Styles";
+    statusMeta.textContent = "Add workflow JSON files to /workflows and reload.";
+    updateActionButtonState();
   }
 }
 
@@ -786,6 +797,54 @@ function openDiagnostics() {
 
 function closeDiagnostics() {
   diagnosticsModal?.classList.remove("diagnostics-modal--open");
+}
+
+async function fetchDiagnostics() {
+  if (diagnosticsServer) {
+    diagnosticsServer.textContent = "Checking...";
+  }
+  if (diagnosticsSocket) {
+    diagnosticsSocket.textContent = "Checking...";
+  }
+  if (diagnosticsApi) {
+    diagnosticsApi.textContent = "Checking...";
+  }
+  if (diagnosticsUptime) {
+    diagnosticsUptime.textContent = "—";
+  }
+  try {
+    const response = await fetch("/api/health");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const health = await response.json();
+    if (diagnosticsServer) {
+      diagnosticsServer.textContent = health.comfyServerUrl || "Not configured";
+    }
+    if (diagnosticsSocket) {
+      diagnosticsSocket.textContent = health.websocketConnected ? "Connected" : "Offline";
+    }
+    if (diagnosticsApi) {
+      diagnosticsApi.textContent = health.apiKeyConfigured ? "Configured" : "Not configured";
+    }
+    if (diagnosticsUptime) {
+      diagnosticsUptime.textContent = formatUptime(health.uptimeSeconds || 0);
+    }
+  } catch (error) {
+    const message = error?.message || "Unavailable";
+    if (diagnosticsServer) {
+      diagnosticsServer.textContent = message;
+    }
+    if (diagnosticsSocket) {
+      diagnosticsSocket.textContent = "Unavailable";
+    }
+    if (diagnosticsApi) {
+      diagnosticsApi.textContent = "Unavailable";
+    }
+    if (diagnosticsUptime) {
+      diagnosticsUptime.textContent = "Unavailable";
+    }
+  }
 }
 
 function openTos() {
@@ -1995,13 +2054,14 @@ idleOverlay?.addEventListener("click", (event) => {
   });
 });
 
-startCamera();
 loadUiPreferences();
+applyCameraOrientation();
+refreshCaptureSelectionUi();
+startCamera();
 loadStyles();
 loadPrinterConfig();
 updateTimerLabel();
 updateActionButtonState();
-refreshCaptureSelectionUi();
 progressCloseButton.disabled = true;
 connectRemoteSocket();
 idleController.loadImages();
