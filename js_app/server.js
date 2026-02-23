@@ -36,6 +36,33 @@ let comfySocketRetryCount = 0;
 let lastPromptId = null;
 const remoteClients = new Set();
 
+const LOG_COLORS = {
+  reset: "\x1b[0m",
+  dim: "\x1b[2m",
+  cyan: "\x1b[36m",
+  yellow: "\x1b[33m",
+  green: "\x1b[32m",
+};
+
+function supportsColor() {
+  return process.stdout.isTTY && !process.env.NO_COLOR;
+}
+
+function colorize(text, color) {
+  if (!supportsColor() || !color) {
+    return text;
+  }
+  return `${color}${text}${LOG_COLORS.reset}`;
+}
+
+function logInfo(message) {
+  console.info(`${colorize("ℹ", LOG_COLORS.cyan)} ${message}`);
+}
+
+function logWarn(message) {
+  console.warn(`${colorize("⚠", LOG_COLORS.yellow)} ${message}`);
+}
+
 function setComfyServerUrl(nextUrl) {
   if (!nextUrl || nextUrl === comfyServerUrl) {
     return;
@@ -542,13 +569,13 @@ function connectComfyWebsocket() {
   const wsUrl = `${comfyServerUrl.replace(/^http/, "ws")}/ws?clientId=${encodeURIComponent(
     comfyClientId
   )}`;
-  console.info(`ComfyUI WebSocket connecting (clientId: ${comfyClientId}): ${wsUrl}`);
+  logInfo(`ComfyUI WebSocket connecting (clientId: ${comfyClientId}): ${wsUrl}`);
   comfySocket = new WebSocket(wsUrl, { headers: buildComfyHeaders() });
   comfySocketReady = false;
   comfySocket.on("open", () => {
     comfySocketReady = true;
     comfySocketRetryCount = 0;
-    console.info("ComfyUI WebSocket connected.");
+    logInfo("ComfyUI WebSocket connected.");
   });
   comfySocket.on("message", (data, isBinary) => {
     if (isBinary) {
@@ -571,17 +598,17 @@ function connectComfyWebsocket() {
     const remoteServer = isRemoteComfyServerUrl(comfyServerUrl);
     const retryDelayMs = Math.min(1500 * Math.max(comfySocketRetryCount, 1), 10000);
     if (remoteServer && comfySocketRetryCount >= 5) {
-      console.warn("ComfyUI WebSocket unavailable for remote host; using HTTP polling only.");
+      logWarn("ComfyUI WebSocket unavailable for remote host; using HTTP polling only.");
       return;
     }
-    console.warn(`ComfyUI WebSocket closed; reconnecting in ${retryDelayMs}ms.`);
+    logWarn(`ComfyUI WebSocket closed; reconnecting in ${retryDelayMs}ms.`);
     setTimeout(() => {
       connectComfyWebsocket();
     }, retryDelayMs);
   });
   comfySocket.on("error", () => {
     comfySocketReady = false;
-    console.warn("ComfyUI WebSocket error; falling back to polling.");
+    logWarn("ComfyUI WebSocket error; falling back to polling.");
   });
 }
 
@@ -1605,6 +1632,40 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url.startsWith("/api/gallery") && req.method === "DELETE") {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const id = url.searchParams.get("id");
+    if (!id) {
+      res.writeHead(400);
+      res.end("Missing id");
+      return;
+    }
+    const safeId = path.basename(String(id));
+    if (!safeId || safeId !== id) {
+      res.writeHead(400);
+      res.end("Invalid id");
+      return;
+    }
+    const filename = `${safeId}.png`;
+    const inputPath = path.join(galleryInputDir, filename);
+    const outputPath = path.join(galleryOutputDir, filename);
+    const removed = [];
+    for (const target of [inputPath, outputPath]) {
+      if (fs.existsSync(target)) {
+        fs.unlinkSync(target);
+        removed.push(target);
+      }
+    }
+    if (!removed.length) {
+      res.writeHead(404);
+      res.end("Capture not found");
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, id: safeId }));
+    return;
+  }
+
   if (req.url.startsWith("/api/gallery")) {
     const outputFiles = fs.readdirSync(galleryOutputDir).filter((file) => file.endsWith(".png"));
     const entries = outputFiles
@@ -1866,7 +1927,24 @@ remoteWss.on("connection", (socket) => {
 export function startServer() {
   const port = process.env.PORT ?? 8080;
   server.listen(port, () => {
-    console.log(`Photo Booth UI server running on http://localhost:${port}`);
+    const localUrl = `http://localhost:${port}`;
+    const lanAddress = getLanAddress();
+    const lanUrl = lanAddress ? `http://${lanAddress}:${port}` : null;
+    const comfyMode = isComfyIcuWorkflowCollectionUrl(comfyServerUrl)
+      ? "Hosted workflow collection"
+      : shouldUseComfyWebsocket(comfyServerUrl)
+        ? "Direct ComfyUI (WebSocket + HTTP)"
+        : "Hosted single workflow (HTTP)";
+
+    console.log(`\n${colorize("🎉", LOG_COLORS.green)} ${colorize("Photo Booth server is running", LOG_COLORS.green)}`);
+    console.log(`   ${colorize("Local:", LOG_COLORS.cyan)}   ${localUrl}`);
+    if (lanUrl) {
+      console.log(`   ${colorize("LAN:", LOG_COLORS.cyan)}     ${lanUrl}`);
+    }
+    console.log(`   ${colorize("Comfy:", LOG_COLORS.cyan)}   ${comfyServerUrl}`);
+    console.log(`   ${colorize("Mode:", LOG_COLORS.cyan)}    ${comfyMode}`);
+    console.log(`   ${colorize("Gallery:", LOG_COLORS.cyan)} ${galleryDir}`);
+    console.log(`   ${colorize("Hint:", LOG_COLORS.dim)} Press Ctrl+C to stop.\n`);
   });
   return server;
 }
