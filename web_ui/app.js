@@ -168,12 +168,14 @@ const printerController = createPrinterController({
   settingsPrinterDetails,
   toPrinterEntry,
 });
-const styleController = createStyleController({
+let styleController;
+
+styleController = createStyleController({
   stylesContainer,
   stylePreview,
   stylePreviewImage,
   updateActionButtonState: () => {
-    selectedStyle = styleController.getSelectedStyle();
+    selectedStyle = styleController?.getSelectedStyle?.() ?? null;
     updateActionButtonState();
   },
   setStatusMeta: (message) => {
@@ -381,6 +383,10 @@ async function loadStyles() {
   });
   if (styles.length > 0 && selectedStyle) {
     applyStyleSelection(selectedStyle, { announce: false });
+  } else if (styles.length === 0) {
+    statusLabel.textContent = "No Styles";
+    statusMeta.textContent = "Add workflow JSON files to /workflows and reload.";
+    updateActionButtonState();
   }
 }
 
@@ -2000,13 +2006,14 @@ idleOverlay?.addEventListener("click", (event) => {
   });
 });
 
-startCamera();
 loadUiPreferences();
+applyCameraOrientation();
+refreshCaptureSelectionUi();
+startCamera();
 loadStyles();
 loadPrinterConfig();
 updateTimerLabel();
 updateActionButtonState();
-refreshCaptureSelectionUi();
 progressCloseButton.disabled = true;
 connectRemoteSocket();
 idleController.loadImages();
