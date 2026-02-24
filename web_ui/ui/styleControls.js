@@ -188,7 +188,7 @@ export function createStyleController({
     if (announce) {
       setStatusMeta(`Style ready: ${toTitleCase(trimmed)}`);
     }
-    if (source !== "remote") {
+    if (source === "booth") {
       sendRemoteMessage({ type: "style", style: trimmed, source: "booth" });
     }
     return selectedStyle;

@@ -522,7 +522,10 @@ function connectRemoteSocket() {
         queueSelfieWithImage(payload.image, payload.source ?? "remote-camera");
       }
       if (payload?.type === "style" && typeof payload.style === "string") {
-        applyStyleSelection(payload.style, { source: payload.source ?? "remote" });
+        if (payload.source === "booth") {
+          return;
+        }
+        applyStyleSelection(payload.style, { source: "remote" });
       }
       if (payload?.type === "exit") {
         handleDoneAction();
