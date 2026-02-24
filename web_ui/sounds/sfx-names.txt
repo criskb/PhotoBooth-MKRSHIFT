@@ -1,0 +1,5 @@
+# Sound effect file names (one per line)
+style-select.mp3
+countdown-tick.mp3
+countdown-go.mp3
+gallery-open.mp3

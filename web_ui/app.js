@@ -80,6 +80,8 @@ const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsHideQrInput = document.querySelector(".settings-input--hide-qr");
 const settingsRemoteResultInput = document.querySelector(".settings-input--remote-result");
 const settingsRemoteCameraInput = document.querySelector(".settings-input--remote-camera");
+const settingsSoundEffectsInput = document.querySelector(".settings-input--sound-effects");
+const settingsBackgroundMusicInput = document.querySelector(".settings-input--background-music");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsWatermarkPreview = document.querySelector(".settings-watermark__image");
 const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
@@ -144,6 +146,67 @@ let gallerySortOrder = "recent";
 let selectedDelay = 0;
 let countdownTimer = null;
 let countdownActive = false;
+const countdownGlyphAvailability = new Map();
+let countdownGlyphToken = 0;
+
+function getCountdownGlyphUrl(value) {
+  return `/countdown-glyphs/${encodeURIComponent(String(value))}.svg`;
+}
+
+async function hasCountdownGlyph(value) {
+  if (countdownGlyphAvailability.has(value)) {
+    return countdownGlyphAvailability.get(value);
+  }
+  const glyphUrl = getCountdownGlyphUrl(value);
+  try {
+    const response = await fetch(glyphUrl, { method: "HEAD", cache: "no-store" });
+    if (response.ok) {
+      countdownGlyphAvailability.set(value, true);
+      return true;
+    }
+    if (response.status !== 405) {
+      countdownGlyphAvailability.set(value, false);
+      return false;
+    }
+  } catch (error) {
+    // fallback to lightweight GET probe below
+  }
+  try {
+    const fallbackResponse = await fetch(glyphUrl, { cache: "no-store" });
+    const available = fallbackResponse.ok;
+    countdownGlyphAvailability.set(value, available);
+    return available;
+  } catch (error) {
+    countdownGlyphAvailability.set(value, false);
+    return false;
+  }
+}
+
+async function renderCountdownValue(value) {
+  if (!countdownValue) {
+    return;
+  }
+  const numeric = Number(value);
+  const safeNumber = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
+  const nextLabel = String(safeNumber);
+  const token = ++countdownGlyphToken;
+
+  countdownValue.textContent = nextLabel;
+  countdownValue.classList.remove("countdown-value--glyph");
+  countdownValue.style.removeProperty("--countdown-glyph-url");
+
+  if (safeNumber < 1) {
+    return;
+  }
+
+  const available = await hasCountdownGlyph(safeNumber);
+  if (!available || token !== countdownGlyphToken) {
+    return;
+  }
+
+  countdownValue.classList.add("countdown-value--glyph");
+  countdownValue.style.setProperty("--countdown-glyph-url", `url("${getCountdownGlyphUrl(safeNumber)}")`);
+}
 let remoteSocket = null;
 let remoteSocketReconnect = null;
 let lastRemoteProgress = { status: "ready", label: "Ready", percent: 0, complete: false };
@@ -162,22 +225,170 @@ let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let remoteResultEnabled = true;
 let remoteCameraCaptureEnabled = false;
+let soundEffectsEnabled = true;
+let backgroundMusicEnabled = false;
+const SOUND_EFFECT_EVENTS = {
+  styleSelect: "style-select.mp3",
+  countdownTick: "countdown-tick.mp3",
+  countdownGo: "countdown-go.mp3",
+  galleryOpen: "gallery-open.mp3",
+};
+let soundEffectsList = [];
+let backgroundMusicList = [];
+let audioListsLoaded = false;
+let audioListsPromise = null;
+let backgroundMusicAudio = null;
+const unavailableAudioAssets = new Set();
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
 const printerController = createPrinterController({
   settingsPrinterInput,
   settingsPrinterDetails,
   toPrinterEntry,
 });
-const styleController = createStyleController({
+let styleController;
+
+styleController = createStyleController({
   stylesContainer,
   stylePreview,
   stylePreviewImage,
-  updateActionButtonState: () => updateActionButtonState(),
+  updateActionButtonState: () => {
+    selectedStyle = styleController?.getSelectedStyle?.() ?? null;
+    updateActionButtonState();
+  },
   setStatusMeta: (message) => {
     statusMeta.textContent = message;
   },
   sendRemoteMessage: (payload) => sendRemoteMessage(payload),
 });
+
+function parseAudioList(rawText) {
+  return String(rawText || "")
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+}
+
+function resolveAudioAssetPath(name) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  return `/sounds/${encodeURIComponent(trimmed)}`;
+}
+
+async function loadAudioListFile(pathname) {
+  try {
+    const response = await fetch(pathname, { cache: "no-store" });
+    if (!response.ok) {
+      return [];
+    }
+    return parseAudioList(await response.text());
+  } catch (error) {
+    return [];
+  }
+}
+
+async function ensureAudioListsLoaded() {
+  if (audioListsLoaded) {
+    return;
+  }
+  if (!audioListsPromise) {
+    audioListsPromise = Promise.all([
+      loadAudioListFile("/sounds/sfx-names.txt"),
+      loadAudioListFile("/sounds/music-names.txt"),
+    ]).then(([sfxNames, musicNames]) => {
+      soundEffectsList = sfxNames;
+      backgroundMusicList = musicNames;
+      audioListsLoaded = true;
+    });
+  }
+  await audioListsPromise;
+}
+
+function playSoundEffectByName(fileName, volume = 0.85) {
+  if (!soundEffectsEnabled || !fileName) {
+    return;
+  }
+  const assetPath = resolveAudioAssetPath(fileName);
+  if (!assetPath || unavailableAudioAssets.has(assetPath)) {
+    return;
+  }
+  try {
+    const audio = new Audio(assetPath);
+    audio.volume = Math.max(0, Math.min(1, Number(volume) || 0.85));
+    audio.play().catch(() => {
+      unavailableAudioAssets.add(assetPath);
+    });
+  } catch (error) {
+    unavailableAudioAssets.add(assetPath);
+  }
+}
+
+async function playSoundEffect(eventName, volume = 0.85) {
+  if (!soundEffectsEnabled) {
+    return;
+  }
+  await ensureAudioListsLoaded();
+  const fileName = SOUND_EFFECT_EVENTS[eventName];
+  if (!fileName || !soundEffectsList.includes(fileName)) {
+    return;
+  }
+  playSoundEffectByName(fileName, volume);
+}
+
+function stopBackgroundMusic() {
+  if (!backgroundMusicAudio) {
+    return;
+  }
+  backgroundMusicAudio.pause();
+  backgroundMusicAudio.currentTime = 0;
+  backgroundMusicAudio = null;
+}
+
+async function ensureBackgroundMusic() {
+  if (!backgroundMusicEnabled) {
+    stopBackgroundMusic();
+    return;
+  }
+  await ensureAudioListsLoaded();
+  if (!backgroundMusicList.length) {
+    return;
+  }
+  if (backgroundMusicAudio && !backgroundMusicAudio.paused) {
+    return;
+  }
+  for (const trackName of backgroundMusicList) {
+    const assetPath = resolveAudioAssetPath(trackName);
+    if (!assetPath || unavailableAudioAssets.has(assetPath)) {
+      continue;
+    }
+    try {
+      const audio = new Audio(assetPath);
+      audio.loop = true;
+      audio.volume = 0.3;
+      await audio.play();
+      backgroundMusicAudio = audio;
+      return;
+    } catch (error) {
+      unavailableAudioAssets.add(assetPath);
+    }
+  }
+}
+
+function applyAudioToggles() {
+  if (settingsSoundEffectsInput) {
+    settingsSoundEffectsInput.checked = soundEffectsEnabled;
+  }
+  if (settingsBackgroundMusicInput) {
+    settingsBackgroundMusicInput.checked = backgroundMusicEnabled;
+  }
+  if (!backgroundMusicEnabled) {
+    stopBackgroundMusic();
+  }
+}
 
 function updateActionButtonState() {
   actionButton.disabled = !selectedStyle;
@@ -248,7 +459,7 @@ function startCountdown(delaySeconds, source) {
   }
   countdownActive = true;
   let remaining = delay;
-  countdownValue.textContent = String(remaining);
+  void renderCountdownValue(remaining);
   countdownOverlay.classList.add("countdown-overlay--active");
   statusLabel.textContent = "Countdown";
   statusMeta.textContent = `Taking photo in ${remaining}s`;
@@ -262,13 +473,18 @@ function startCountdown(delaySeconds, source) {
       countdownTimer = null;
       countdownOverlay.classList.remove("countdown-overlay--active");
       countdownActive = false;
+      countdownGlyphToken += 1;
+      countdownValue.classList.remove("countdown-value--glyph");
+      countdownValue.style.removeProperty("--countdown-glyph-url");
+      void playSoundEffect("countdownGo", 0.9);
       triggerFlash();
       setTimeout(() => {
         queueSelfie(source);
       }, 140);
       return;
     }
-    countdownValue.textContent = String(remaining);
+    void renderCountdownValue(remaining);
+    void playSoundEffect("countdownTick", 0.6);
     statusMeta.textContent = `Taking photo in ${remaining}s`;
   }, 1000);
 }
@@ -306,7 +522,10 @@ function connectRemoteSocket() {
         queueSelfieWithImage(payload.image, payload.source ?? "remote-camera");
       }
       if (payload?.type === "style" && typeof payload.style === "string") {
-        applyStyleSelection(payload.style, { source: payload.source ?? "remote" });
+        if (payload.source === "booth") {
+          return;
+        }
+        applyStyleSelection(payload.style, { source: "remote" });
       }
       if (payload?.type === "exit") {
         handleDoneAction();
@@ -354,8 +573,13 @@ function applyStyleSelection(style, { source = "booth", announce = true } = {}) 
   selectedStyle = styleController.getSelectedStyle();
   if (selectedStyle) {
     writeStoredValue(storageKeys.selectedStyle, selectedStyle);
+  } else {
+    removeStoredValue(storageKeys.selectedStyle);
   }
-  refreshCaptureSelectionUi();
+  updateActionButtonState();
+  if (source !== "remote" && selectedStyle) {
+    void playSoundEffect("styleSelect", 0.65);
+  }
   if (announce && selectedStyle) {
     statusLabel.textContent = "Style Selected";
     statusMeta.textContent =
@@ -376,6 +600,10 @@ async function loadStyles() {
   });
   if (styles.length > 0 && selectedStyle) {
     applyStyleSelection(selectedStyle, { announce: false });
+  } else if (styles.length === 0) {
+    statusLabel.textContent = "No Styles";
+    statusMeta.textContent = "Add workflow JSON files to /workflows and reload.";
+    updateActionButtonState();
   }
 }
 
@@ -440,6 +668,14 @@ async function listCameraDevices() {
   }
 }
 
+function isCameraSecureContext() {
+  if (window.isSecureContext) {
+    return true;
+  }
+  const hostname = window.location.hostname || "";
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
 function getCameraDeviceLabel(device, index) {
   const label = typeof device.label === "string" ? device.label.trim() : "";
   if (label) {
@@ -473,6 +709,12 @@ async function refreshCameraOptions() {
 }
 
 async function startCamera() {
+  if (!isCameraSecureContext()) {
+    statusLabel.textContent = "Camera Requires HTTPS";
+    statusMeta.textContent = "Open this booth over HTTPS (or localhost) to enable camera access.";
+    return;
+  }
+
   if (!navigator.mediaDevices?.getUserMedia) {
     statusLabel.textContent = "Camera Unsupported";
     statusMeta.textContent = "This browser cannot access the camera.";
@@ -481,44 +723,67 @@ async function startCamera() {
 
   stopCameraStream();
 
-  const primaryConstraints = cameraDeviceId
-    ? { deviceId: { exact: cameraDeviceId } }
-    : { facingMode: "user" };
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: primaryConstraints,
-      audio: false,
+  const attempts = [];
+  if (cameraDeviceId) {
+    attempts.push({
+      constraints: { deviceId: { exact: cameraDeviceId } },
+      reason: "preferred-device",
     });
-    video.srcObject = stream;
-    await refreshCameraOptions();
-    statusLabel.textContent = "Camera Ready";
-    statusMeta.textContent = "Choose a style, then tap shutter or shake to shoot";
-  } catch (error) {
-    const canFallback =
-      cameraDeviceId && (error?.name === "OverconstrainedError" || error?.name === "NotFoundError");
+  }
+  attempts.push(
+    { constraints: { facingMode: "user" }, reason: "front-camera" },
+    { constraints: true, reason: "any-camera" }
+  );
 
-    if (canFallback) {
-      cameraDeviceId = "";
-      removeStoredValue(storageKeys.cameraDeviceId);
-      try {
-        const fallbackStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: false,
-        });
-        video.srcObject = fallbackStream;
-        await refreshCameraOptions();
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: attempt.constraints,
+        audio: false,
+      });
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+      await refreshCameraOptions();
+      if (attempt.reason === "preferred-device") {
         statusLabel.textContent = "Camera Ready";
-        statusMeta.textContent = "Selected camera unavailable; switched to default camera.";
-        return;
-      } catch (fallbackError) {
-        // handled by generic error status below
+        statusMeta.textContent = "Choose a style, then tap shutter or shake to shoot";
+      } else if (attempt.reason === "front-camera") {
+        statusLabel.textContent = "Camera Ready";
+        statusMeta.textContent = "Using default front camera.";
+      } else {
+        statusLabel.textContent = "Camera Ready";
+        statusMeta.textContent = "Using available camera device.";
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt.reason === "preferred-device") {
+        cameraDeviceId = "";
+        removeStoredValue(storageKeys.cameraDeviceId);
       }
     }
-
-    statusLabel.textContent = "Camera Blocked";
-    statusMeta.textContent = "Allow camera access to continue.";
   }
+
+  const name = lastError?.name || "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    statusLabel.textContent = "Camera Blocked";
+    statusMeta.textContent = "Allow camera access in browser settings, then reload.";
+    return;
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    statusLabel.textContent = "Camera Missing";
+    statusMeta.textContent = "No camera detected. Connect one and reload.";
+    return;
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    statusLabel.textContent = "Camera Busy";
+    statusMeta.textContent = "Camera is in use by another app. Close it and retry.";
+    return;
+  }
+
+  statusLabel.textContent = "Camera Error";
+  statusMeta.textContent = "Unable to initialize camera. Check permissions and device.";
 }
 
 function captureFrame() {
@@ -788,6 +1053,54 @@ function closeDiagnostics() {
   diagnosticsModal?.classList.remove("diagnostics-modal--open");
 }
 
+async function fetchDiagnostics() {
+  if (diagnosticsServer) {
+    diagnosticsServer.textContent = "Checking...";
+  }
+  if (diagnosticsSocket) {
+    diagnosticsSocket.textContent = "Checking...";
+  }
+  if (diagnosticsApi) {
+    diagnosticsApi.textContent = "Checking...";
+  }
+  if (diagnosticsUptime) {
+    diagnosticsUptime.textContent = "—";
+  }
+  try {
+    const response = await fetch("/api/health");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const health = await response.json();
+    if (diagnosticsServer) {
+      diagnosticsServer.textContent = health.comfyServerUrl || "Not configured";
+    }
+    if (diagnosticsSocket) {
+      diagnosticsSocket.textContent = health.websocketConnected ? "Connected" : "Offline";
+    }
+    if (diagnosticsApi) {
+      diagnosticsApi.textContent = health.apiKeyConfigured ? "Configured" : "Not configured";
+    }
+    if (diagnosticsUptime) {
+      diagnosticsUptime.textContent = formatUptime(health.uptimeSeconds || 0);
+    }
+  } catch (error) {
+    const message = error?.message || "Unavailable";
+    if (diagnosticsServer) {
+      diagnosticsServer.textContent = message;
+    }
+    if (diagnosticsSocket) {
+      diagnosticsSocket.textContent = "Unavailable";
+    }
+    if (diagnosticsApi) {
+      diagnosticsApi.textContent = "Unavailable";
+    }
+    if (diagnosticsUptime) {
+      diagnosticsUptime.textContent = "Unavailable";
+    }
+  }
+}
+
 function openTos() {
   if (!tosModal) {
     return;
@@ -1015,6 +1328,14 @@ function loadPrinterConfig() {
     if (remoteCameraRaw !== null) {
       remoteCameraCaptureEnabled = remoteCameraRaw === "true";
     }
+    const sfxRaw = readStoredValue(storageKeys.soundEffectsEnabled);
+    if (sfxRaw !== null) {
+      soundEffectsEnabled = sfxRaw === "true";
+    }
+    const musicRaw = readStoredValue(storageKeys.backgroundMusicEnabled);
+    if (musicRaw !== null) {
+      backgroundMusicEnabled = musicRaw === "true";
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
@@ -1032,6 +1353,8 @@ function loadPrinterConfig() {
     hideQrEnabled = false;
     remoteResultEnabled = true;
     remoteCameraCaptureEnabled = false;
+    soundEffectsEnabled = true;
+    backgroundMusicEnabled = false;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
@@ -1065,6 +1388,7 @@ function loadPrinterConfig() {
   if (settingsRemoteCameraInput) {
     settingsRemoteCameraInput.checked = remoteCameraCaptureEnabled;
   }
+  applyAudioToggles();
   settingsWatermarkInput.checked = watermarkEnabled;
   if (settingsWatermarkTextInput) {
     settingsWatermarkTextInput.value = watermarkText || "MKRShift";
@@ -1078,6 +1402,7 @@ function loadPrinterConfig() {
   updateRemoteInfo();
   applyUploadVisibility();
   printerController.loadPrinters(printerConfig.name);
+  void ensureBackgroundMusic();
 }
 
 function loadUiPreferences() {
@@ -1159,6 +1484,16 @@ async function savePrinterConfig() {
     remoteCameraCaptureEnabled = settingsRemoteCameraInput.checked;
     writeStoredValue(storageKeys.remoteCameraCaptureEnabled, String(remoteCameraCaptureEnabled));
   }
+  if (settingsSoundEffectsInput) {
+    soundEffectsEnabled = settingsSoundEffectsInput.checked;
+    writeStoredValue(storageKeys.soundEffectsEnabled, String(soundEffectsEnabled));
+  }
+  if (settingsBackgroundMusicInput) {
+    backgroundMusicEnabled = settingsBackgroundMusicInput.checked;
+    writeStoredValue(storageKeys.backgroundMusicEnabled, String(backgroundMusicEnabled));
+  }
+  applyAudioToggles();
+  void ensureBackgroundMusic();
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
@@ -1245,6 +1580,7 @@ function openGallery() {
     return;
   }
   galleryModal.classList.add("gallery-modal--open");
+  void playSoundEffect("galleryOpen", 0.7);
   setGalleryStatus("");
   if (galleryQr) {
     galleryQr.style.display = "none";
@@ -1974,13 +2310,19 @@ progressCloseButton.addEventListener("click", () => {
 window.addEventListener("devicemotion", handleShake);
 window.addEventListener("resize", applyCameraOrientation);
 ["pointerdown", "mousemove", "touchstart", "wheel"].forEach((eventName) => {
-  window.addEventListener(eventName, idleController.handleUserActivity, { passive: true });
+  window.addEventListener(eventName, (event) => {
+    idleController.handleUserActivity(event);
+    if (eventName === "pointerdown" || eventName === "touchstart") {
+      void ensureBackgroundMusic();
+    }
+  }, { passive: true });
 });
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     return;
   }
   idleController.handleUserActivity();
+  void ensureBackgroundMusic();
 });
 idleOverlay?.addEventListener("click", (event) => {
   if (idleOverlay.classList.contains("idle-overlay--hidden")) {
@@ -1995,13 +2337,15 @@ idleOverlay?.addEventListener("click", (event) => {
   });
 });
 
-startCamera();
 loadUiPreferences();
+void ensureAudioListsLoaded();
+applyCameraOrientation();
+refreshCaptureSelectionUi();
+startCamera();
 loadStyles();
 loadPrinterConfig();
 updateTimerLabel();
 updateActionButtonState();
-refreshCaptureSelectionUi();
 progressCloseButton.disabled = true;
 connectRemoteSocket();
 idleController.loadImages();
