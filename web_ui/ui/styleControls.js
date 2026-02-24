@@ -93,9 +93,15 @@ export function createStyleController({
       return;
     }
 
-    const targetLeft = alignCenter
-      ? activeButton.offsetLeft - (stylesContainer.clientWidth / 2 - activeButton.clientWidth / 2)
-      : buttonLeft - padding;
+    let targetLeft;
+    if (alignCenter) {
+      targetLeft = activeButton.offsetLeft - (stylesContainer.clientWidth / 2 - activeButton.clientWidth / 2);
+    } else if (buttonLeft < viewportLeft + padding) {
+      targetLeft = buttonLeft - padding;
+    } else {
+      const overflowRight = buttonRight - (viewportRight - padding);
+      targetLeft = viewportLeft + Math.max(0, overflowRight);
+    }
 
     stylesContainer.scrollTo({ left: Math.max(0, targetLeft), behavior });
     setTimeout(updateStyleScrollButtons, 180);
