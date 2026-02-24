@@ -12,6 +12,7 @@ export function renderSettingsModal() {
           <a class="settings-nav__link" href="#settings-camera">Camera</a>
           <a class="settings-nav__link" href="#settings-print">Print</a>
           <a class="settings-nav__link" href="#settings-watermark">Watermark</a>
+          <a class="settings-nav__link" href="#settings-audio">Audio</a>
           <a class="settings-nav__link" href="#settings-remote">Remote</a>
         </nav>
 
@@ -185,6 +186,24 @@ export function renderSettingsModal() {
                 />
               </div>
             </label>
+          </div>
+        </section>
+
+
+        <section class="settings-section" id="settings-audio">
+          <h3 class="settings-section__title">Audio</h3>
+          <div class="settings-grid settings-grid--two">
+            <label class="settings-field settings-field--toggle">
+              <input class="settings-input settings-input--sound-effects" type="checkbox" />
+              Enable sound effects
+            </label>
+            <label class="settings-field settings-field--toggle">
+              <input class="settings-input settings-input--background-music" type="checkbox" />
+              Enable looping background music
+            </label>
+            <p class="settings-help settings-field--span-2">
+              Optional files are loaded from <code>/web_ui/sounds</code> using <code>sfx-names.txt</code> and <code>music-names.txt</code>. Missing files are ignored.
+            </p>
           </div>
         </section>
 

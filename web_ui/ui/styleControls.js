@@ -1,12 +1,25 @@
 import { toTitleCase } from "./appUtils.js";
 
+function normalizeStyleValue(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function sanitizeStyleList(rawStyles) {
   if (!Array.isArray(rawStyles)) {
     return [];
   }
+  const seen = new Set();
   return rawStyles
     .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((name) => {
+      const normalized = normalizeStyleValue(name);
+      if (!normalized || seen.has(normalized)) {
+        return false;
+      }
+      seen.add(normalized);
+      return true;
+    });
 }
 
 export function createStyleController({
@@ -22,6 +35,21 @@ export function createStyleController({
   const stylesScrollPrev = document.querySelector(".styles-scroll--prev");
   const stylesScrollNext = document.querySelector(".styles-scroll--next");
 
+  function getStyleButtons() {
+    if (!stylesContainer) {
+      return [];
+    }
+    return Array.from(stylesContainer.querySelectorAll(".style"));
+  }
+
+  function setScrollControlDisabled(button, disabled) {
+    if (!button) {
+      return;
+    }
+    button.disabled = disabled;
+    button.classList.toggle("styles-scroll--disabled", disabled);
+    button.setAttribute("aria-disabled", String(disabled));
+  }
 
   function updateStyleScrollButtons() {
     if (!stylesContainer) {
@@ -30,14 +58,8 @@ export function createStyleController({
     const maxScroll = Math.max(0, stylesContainer.scrollWidth - stylesContainer.clientWidth);
     const atStart = stylesContainer.scrollLeft <= 2;
     const atEnd = stylesContainer.scrollLeft >= maxScroll - 2;
-    if (stylesScrollPrev) {
-      stylesScrollPrev.disabled = atStart;
-      stylesScrollPrev.classList.toggle("styles-scroll--disabled", atStart);
-    }
-    if (stylesScrollNext) {
-      stylesScrollNext.disabled = atEnd;
-      stylesScrollNext.classList.toggle("styles-scroll--disabled", atEnd);
-    }
+    setScrollControlDisabled(stylesScrollPrev, atStart);
+    setScrollControlDisabled(stylesScrollNext, atEnd);
   }
 
   function scrollStylesBy(direction) {
@@ -49,7 +71,7 @@ export function createStyleController({
     setTimeout(updateStyleScrollButtons, 180);
   }
 
-  function centerActiveStyleButton() {
+  function keepActiveStyleInView({ behavior = "smooth", alignCenter = false } = {}) {
     if (!stylesContainer || !selectedStyle) {
       return;
     }
@@ -57,9 +79,25 @@ export function createStyleController({
     if (!activeButton) {
       return;
     }
-    const targetLeft =
-      activeButton.offsetLeft - (stylesContainer.clientWidth / 2 - activeButton.clientWidth / 2);
-    stylesContainer.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
+
+    const viewportLeft = stylesContainer.scrollLeft;
+    const viewportRight = viewportLeft + stylesContainer.clientWidth;
+    const buttonLeft = activeButton.offsetLeft;
+    const buttonRight = buttonLeft + activeButton.offsetWidth;
+    const padding = 12;
+
+    const fullyVisible =
+      buttonLeft >= viewportLeft + padding &&
+      buttonRight <= viewportRight - padding;
+    if (fullyVisible) {
+      return;
+    }
+
+    const targetLeft = alignCenter
+      ? activeButton.offsetLeft - (stylesContainer.clientWidth / 2 - activeButton.clientWidth / 2)
+      : buttonLeft - padding;
+
+    stylesContainer.scrollTo({ left: Math.max(0, targetLeft), behavior });
     setTimeout(updateStyleScrollButtons, 180);
   }
 
@@ -100,8 +138,14 @@ export function createStyleController({
 
   function applySelection(style, { source = "booth", announce = true } = {}) {
     const trimmed = typeof style === "string" ? style.trim() : "";
+    const styleButtons = getStyleButtons();
+
     if (!trimmed) {
       selectedStyle = null;
+      styleButtons.forEach((button) => {
+        button.classList.remove("style--active");
+        button.setAttribute("aria-pressed", "false");
+      });
       updateActionButtonState();
       clearStylePreview();
       if (announce) {
@@ -110,14 +154,31 @@ export function createStyleController({
       return selectedStyle;
     }
 
+    const hasButtons = styleButtons.length > 0;
+    const styleExists = styleButtons.some((button) => button.dataset.style === trimmed);
+    if (hasButtons && !styleExists) {
+      selectedStyle = null;
+      styleButtons.forEach((button) => {
+        button.classList.remove("style--active");
+        button.setAttribute("aria-pressed", "false");
+      });
+      updateActionButtonState();
+      clearStylePreview();
+      if (announce) {
+        setStatusMeta("Style unavailable. Select another style.");
+      }
+      return selectedStyle;
+    }
+
     selectedStyle = trimmed;
-    document.querySelectorAll(".style").forEach((button) => {
+    styleButtons.forEach((button) => {
       const isMatch = button.dataset.style === trimmed;
       button.classList.toggle("style--active", isMatch);
+      button.setAttribute("aria-pressed", String(isMatch));
     });
     updateActionButtonState();
     updateStylePreview(trimmed);
-    centerActiveStyleButton();
+    keepActiveStyleInView({ behavior: "smooth", alignCenter: false });
     if (announce) {
       setStatusMeta(`Style ready: ${toTitleCase(trimmed)}`);
     }
@@ -127,7 +188,6 @@ export function createStyleController({
     return selectedStyle;
   }
 
-
   function renderStyles(styles) {
     const fragment = document.createDocumentFragment();
     if (!styles.length) {
@@ -136,14 +196,18 @@ export function createStyleController({
       empty.textContent = "No styles found in workflows.";
       fragment.appendChild(empty);
       stylesContainer.replaceChildren(fragment);
+      setScrollControlDisabled(stylesScrollPrev, true);
+      setScrollControlDisabled(stylesScrollNext, true);
       return;
     }
     styles.forEach((style) => {
       const button = document.createElement("button");
+      button.type = "button";
       button.className = "style";
       button.textContent = toTitleCase(style);
       button.dataset.style = style;
       button.title = `Use ${toTitleCase(style)} style`;
+      button.setAttribute("aria-pressed", "false");
       button.addEventListener("click", () => {
         applySelection(style, { source: "booth" });
       });
@@ -153,14 +217,32 @@ export function createStyleController({
     updateStyleScrollButtons();
   }
 
-
   if (stylesContainer) {
     stylesContainer.addEventListener("scroll", updateStyleScrollButtons, { passive: true });
     stylesContainer.addEventListener("keydown", (event) => {
+      const buttons = getStyleButtons();
+      if (!buttons.length) {
+        return;
+      }
+
+      if (event.key === "Home") {
+        buttons[0].click();
+        buttons[0].focus();
+        event.preventDefault();
+        return;
+      }
+
+      if (event.key === "End") {
+        const lastButton = buttons[buttons.length - 1];
+        lastButton.click();
+        lastButton.focus();
+        event.preventDefault();
+        return;
+      }
+
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
         return;
       }
-      const buttons = Array.from(stylesContainer.querySelectorAll(".style"));
       const activeIndex = buttons.findIndex((button) => button.classList.contains("style--active"));
       if (activeIndex < 0) {
         return;
@@ -191,6 +273,13 @@ export function createStyleController({
       return [];
     }
     try {
+      stylesContainer.setAttribute("aria-busy", "true");
+      if (!stylesContainer.children.length) {
+        const loading = document.createElement("span");
+        loading.className = "styles-empty styles-empty--loading";
+        loading.textContent = "Loading styles";
+        stylesContainer.replaceChildren(loading);
+      }
       const response = await fetch(endpoint);
       if (!response.ok) {
         throw new Error("Failed to load styles");
@@ -200,7 +289,16 @@ export function createStyleController({
       stylesContainer.tabIndex = 0;
       renderStyles(styles);
       if (selectedStyle) {
-        applySelection(selectedStyle, { announce: false });
+        const selectedNormalized = normalizeStyleValue(selectedStyle);
+        const exactMatch = styles.find((style) => style === selectedStyle) ?? null;
+        const normalizedMatch = styles.find(
+          (style) => normalizeStyleValue(style) === selectedNormalized
+        ) ?? null;
+        applySelection(exactMatch ?? normalizedMatch ?? null, { announce: false });
+      } else if (styles.length > 0) {
+        applySelection(styles[0], { source: "remote", announce: false });
+      } else {
+        applySelection(null, { announce: false });
       }
       return styles;
     } catch (error) {
@@ -213,7 +311,12 @@ export function createStyleController({
         offline.textContent = "Unable to load styles";
         stylesContainer.replaceChildren(offline);
       }
+      setScrollControlDisabled(stylesScrollPrev, true);
+      setScrollControlDisabled(stylesScrollNext, true);
+      applySelection(null, { announce: false });
       return [];
+    } finally {
+      stylesContainer.removeAttribute("aria-busy");
     }
   }
 

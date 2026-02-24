@@ -1,0 +1,2 @@
+# Background music file names (one per line)
+booth-loop.mp3
