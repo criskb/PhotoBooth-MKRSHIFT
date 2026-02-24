@@ -146,40 +146,54 @@ let gallerySortOrder = "recent";
 let selectedDelay = 0;
 let countdownTimer = null;
 let countdownActive = false;
-const countdownGlyphAvailability = new Map();
+const countdownGlyphUrlByValue = new Map();
+const countdownGlyphExtensions = ["svg", "png", "webp", "jpg", "jpeg"];
 let countdownGlyphToken = 0;
 
-function getCountdownGlyphUrl(value) {
-  return `/countdown-glyphs/${encodeURIComponent(String(value))}.svg`;
+function getCountdownGlyphUrl(value, extension = "svg") {
+  return `/countdown-glyphs/${encodeURIComponent(String(value))}.${extension}`;
 }
 
-async function hasCountdownGlyph(value) {
-  if (countdownGlyphAvailability.has(value)) {
-    return countdownGlyphAvailability.get(value);
+function getCountdownGlyphCandidateUrls(value) {
+  return countdownGlyphExtensions.map((extension) => getCountdownGlyphUrl(value, extension));
+}
+
+async function resolveCountdownGlyphUrl(value) {
+  if (countdownGlyphUrlByValue.has(value)) {
+    return countdownGlyphUrlByValue.get(value);
   }
-  const glyphUrl = getCountdownGlyphUrl(value);
-  try {
-    const response = await fetch(glyphUrl, { method: "HEAD", cache: "no-store" });
-    if (response.ok) {
-      countdownGlyphAvailability.set(value, true);
-      return true;
+
+  const glyphUrls = getCountdownGlyphCandidateUrls(value);
+  for (const glyphUrl of glyphUrls) {
+    try {
+      const response = await fetch(glyphUrl, { method: "HEAD", cache: "no-store" });
+      if (response.ok) {
+        countdownGlyphUrlByValue.set(value, glyphUrl);
+        return glyphUrl;
+      }
+      if (response.status === 405) {
+        const fallbackResponse = await fetch(glyphUrl, { cache: "no-store" });
+        if (fallbackResponse.ok) {
+          countdownGlyphUrlByValue.set(value, glyphUrl);
+          return glyphUrl;
+        }
+      }
+    } catch (error) {
+      // fallback GET probe below for servers that block HEAD or fail intermittently
     }
-    if (response.status !== 405) {
-      countdownGlyphAvailability.set(value, false);
-      return false;
+
+    try {
+      const fallbackResponse = await fetch(glyphUrl, { cache: "no-store" });
+      if (fallbackResponse.ok) {
+        countdownGlyphUrlByValue.set(value, glyphUrl);
+        return glyphUrl;
+      }
+    } catch (error) {
+      // try next extension
     }
-  } catch (error) {
-    // fallback to lightweight GET probe below
   }
-  try {
-    const fallbackResponse = await fetch(glyphUrl, { cache: "no-store" });
-    const available = fallbackResponse.ok;
-    countdownGlyphAvailability.set(value, available);
-    return available;
-  } catch (error) {
-    countdownGlyphAvailability.set(value, false);
-    return false;
-  }
+
+  return null;
 }
 
 async function renderCountdownValue(value) {
@@ -199,13 +213,13 @@ async function renderCountdownValue(value) {
     return;
   }
 
-  const available = await hasCountdownGlyph(safeNumber);
-  if (!available || token !== countdownGlyphToken) {
+  const glyphUrl = await resolveCountdownGlyphUrl(safeNumber);
+  if (!glyphUrl || token !== countdownGlyphToken) {
     return;
   }
 
   countdownValue.classList.add("countdown-value--glyph");
-  countdownValue.style.setProperty("--countdown-glyph-url", `url("${getCountdownGlyphUrl(safeNumber)}")`);
+  countdownValue.style.setProperty("--countdown-glyph-url", `url("${glyphUrl}")`);
 }
 let remoteSocket = null;
 let remoteSocketReconnect = null;
