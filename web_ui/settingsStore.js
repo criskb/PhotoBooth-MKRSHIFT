@@ -18,6 +18,8 @@ export const storageKeys = {
   hideQrEnabled: "hideQrEnabled",
   remoteResultEnabled: "remoteResultEnabled",
   remoteCameraCaptureEnabled: "remoteCameraCaptureEnabled",
+  soundEffectsEnabled: "soundEffectsEnabled",
+  backgroundMusicEnabled: "backgroundMusicEnabled",
 };
 
 function getStorage() {
