@@ -607,6 +607,25 @@ button:focus-visible {
   display: flex;
 }
 
+.countdown-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1em;
+  min-height: 1em;
+}
+
+.countdown-value--glyph {
+  width: clamp(4rem, 12vw, 10rem);
+  height: clamp(4rem, 12vw, 10rem);
+  font-size: 0;
+  color: transparent;
+  background-image: var(--countdown-glyph-url);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
 .flash-overlay {
   position: absolute;
   inset: 0;
@@ -2161,9 +2180,10 @@ button:focus-visible {
 }
 
 .style--active {
-  border-color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.18);
-  box-shadow: 0 8px 20px rgba(var(--accent-glow-rgb), 0.35);
+  border-color: var(--accent-success);
+  color: var(--accent-success);
+  background: rgba(88, 214, 141, 0.18);
+  box-shadow: 0 8px 20px rgba(88, 214, 141, 0.32);
 }
 
 .style:hover,

@@ -71,7 +71,7 @@ export function createStyleController({
     setTimeout(updateStyleScrollButtons, 180);
   }
 
-  function centerActiveStyleButton() {
+  function keepActiveStyleInView({ behavior = "smooth", alignCenter = false } = {}) {
     if (!stylesContainer || !selectedStyle) {
       return;
     }
@@ -79,9 +79,25 @@ export function createStyleController({
     if (!activeButton) {
       return;
     }
-    const targetLeft =
-      activeButton.offsetLeft - (stylesContainer.clientWidth / 2 - activeButton.clientWidth / 2);
-    stylesContainer.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
+
+    const viewportLeft = stylesContainer.scrollLeft;
+    const viewportRight = viewportLeft + stylesContainer.clientWidth;
+    const buttonLeft = activeButton.offsetLeft;
+    const buttonRight = buttonLeft + activeButton.offsetWidth;
+    const padding = 12;
+
+    const fullyVisible =
+      buttonLeft >= viewportLeft + padding &&
+      buttonRight <= viewportRight - padding;
+    if (fullyVisible) {
+      return;
+    }
+
+    const targetLeft = alignCenter
+      ? activeButton.offsetLeft - (stylesContainer.clientWidth / 2 - activeButton.clientWidth / 2)
+      : buttonLeft - padding;
+
+    stylesContainer.scrollTo({ left: Math.max(0, targetLeft), behavior });
     setTimeout(updateStyleScrollButtons, 180);
   }
 
@@ -162,7 +178,7 @@ export function createStyleController({
     });
     updateActionButtonState();
     updateStylePreview(trimmed);
-    centerActiveStyleButton();
+    keepActiveStyleInView({ behavior: "smooth", alignCenter: false });
     if (announce) {
       setStatusMeta(`Style ready: ${toTitleCase(trimmed)}`);
     }
@@ -279,7 +295,9 @@ export function createStyleController({
           (style) => normalizeStyleValue(style) === selectedNormalized
         ) ?? null;
         applySelection(exactMatch ?? normalizedMatch ?? null, { announce: false });
-      } else if (!styles.length) {
+      } else if (styles.length > 0) {
+        applySelection(styles[0], { source: "remote", announce: false });
+      } else {
         applySelection(null, { announce: false });
       }
       return styles;
