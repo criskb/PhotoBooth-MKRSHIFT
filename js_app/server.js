@@ -1821,8 +1821,19 @@ const server = http.createServer((req, res) => {
       ".html": "text/html",
       ".css": "text/css",
       ".js": "application/javascript",
+      ".svg": "image/svg+xml",
+      ".png": "image/png",
+      ".webp": "image/webp",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
     };
-    res.writeHead(200, { "Content-Type": typeMap[ext] ?? "application/octet-stream" });
+    const contentType = typeMap[ext] ?? "application/octet-stream";
+    if (req.method === "HEAD") {
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "Content-Type": contentType });
     res.end(data);
   });
 });

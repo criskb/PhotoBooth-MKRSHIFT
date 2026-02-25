@@ -8,3 +8,5 @@ config_local.py
 app.log
 **/wifi_qr.png
 **/hotspot_info.json
+gallery/input/*.png
+gallery/output/*.png
