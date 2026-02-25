@@ -14,7 +14,7 @@
   },
   "191": {
     "inputs": {
-      "image": "vertical-frame-beautiful-asian-female-black-robe-walking-smiling-camera-city-outdoors-trendy-fashion-vertical-393593647.png"
+      "image": "toon.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -100,7 +100,7 @@
   },
   "195:74": {
     "inputs": {
-      "text": "Change the style to disney stylized 3D style and fantasy environment background, retain subjects identity, porportions, looks and gender. with a atmosphere , big eyes, soft light, render, preserve skin color, disney ",
+      "text": "Change the style to disney stylized 3D style and {Landscape|Forest|City|beach|mountain top} toon styled environment background, retain subjects identity, porportions, looks and gender. with a atmosphere , big eyes, soft light, render, preserve skin color, disney ",
       "clip": [
         "195:71",
         0
