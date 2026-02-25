@@ -1,6 +1,22 @@
 import { initIdleOverlay } from "./idle.js";
 import { renderApp } from "./components/index.js";
 import {
+  HOSTED_COMFY_WAITING_LABEL,
+  createProgressPreviewManager,
+  getHostedProgressState,
+} from "./ui/progressState.js";
+import { createStyleController } from "./ui/styleControls.js";
+import { createPrinterController } from "./ui/printerControls.js";
+import {
+  formatUptime,
+  getOrientationDegrees,
+  hasUsableOutputUrl,
+  isHostedComfyUrl,
+  normalizeComfyInput,
+  toPrinterEntry,
+  toTitleCase,
+} from "./ui/appUtils.js";
+import {
   storageKeys,
   readStoredValue,
   writeStoredValue,
@@ -23,6 +39,7 @@ const video = document.querySelector("#camera");
 const stylesContainer = document.querySelector(".styles");
 const stylePreview = document.querySelector(".style-preview-card");
 const stylePreviewImage = document.querySelector(".style-preview__image");
+const styleSelectedValue = document.querySelector(".styles-selected__value");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
 const statusConnection = document.querySelector(".status__connection");
@@ -34,6 +51,7 @@ const progressLabels = Array.from(document.querySelectorAll(".progress__label"))
 const progressValues = Array.from(document.querySelectorAll(".progress__value"));
 const progressFills = Array.from(document.querySelectorAll(".progress__fill"));
 const progressPreviews = Array.from(document.querySelectorAll(".progress__preview"));
+const progressPreviewManager = createProgressPreviewManager(progressPreviews);
 const uploadButton = document.querySelector(".progress-action--upload");
 const printButton = document.querySelector(".progress-action--print");
 const doneButton = document.querySelector(".progress-action--done");
@@ -62,6 +80,8 @@ const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsHideQrInput = document.querySelector(".settings-input--hide-qr");
 const settingsRemoteResultInput = document.querySelector(".settings-input--remote-result");
 const settingsRemoteCameraInput = document.querySelector(".settings-input--remote-camera");
+const settingsSoundEffectsInput = document.querySelector(".settings-input--sound-effects");
+const settingsBackgroundMusicInput = document.querySelector(".settings-input--background-music");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsWatermarkPreview = document.querySelector(".settings-watermark__image");
 const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
@@ -87,12 +107,17 @@ const galleryClose = document.querySelector(".gallery-close");
 const galleryList = document.querySelector(".gallery-list");
 const gallerySearch = document.querySelector(".gallery-search");
 const gallerySort = document.querySelector(".gallery-sort");
+const galleryClear = document.querySelector(".gallery-clear");
+const galleryRefresh = document.querySelector(".gallery-refresh");
+const gallerySummary = document.querySelector(".gallery-summary");
 const galleryMetaId = document.querySelector(".gallery-meta__value--id");
 const galleryMetaDate = document.querySelector(".gallery-meta__value--date");
+const galleryMetaFile = document.querySelector(".gallery-meta__value--file");
 const galleryInputImage = document.querySelector(".gallery-image--input");
 const galleryOutputImage = document.querySelector(".gallery-image--output");
 const galleryUploadButton = document.querySelector(".gallery-action--upload");
 const galleryPrintButton = document.querySelector(".gallery-action--print");
+const galleryDeleteButton = document.querySelector(".gallery-action--delete");
 const galleryUploadStatus = document.querySelector(".gallery-upload-status");
 const galleryQr = document.querySelector(".gallery-qr");
 const galleryQrImage = document.querySelector(".gallery-qr-image");
@@ -121,10 +146,84 @@ let gallerySortOrder = "recent";
 let selectedDelay = 0;
 let countdownTimer = null;
 let countdownActive = false;
+const countdownGlyphUrlByValue = new Map();
+const countdownGlyphExtensions = ["svg", "png", "webp", "jpg", "jpeg"];
+let countdownGlyphToken = 0;
+
+function getCountdownGlyphUrl(value, extension = "svg") {
+  return `/countdown-glyphs/${encodeURIComponent(String(value))}.${extension}`;
+}
+
+function getCountdownGlyphCandidateUrls(value) {
+  return countdownGlyphExtensions.map((extension) => getCountdownGlyphUrl(value, extension));
+}
+
+async function resolveCountdownGlyphUrl(value) {
+  if (countdownGlyphUrlByValue.has(value)) {
+    return countdownGlyphUrlByValue.get(value);
+  }
+
+  const glyphUrls = getCountdownGlyphCandidateUrls(value);
+  for (const glyphUrl of glyphUrls) {
+    try {
+      const response = await fetch(glyphUrl, { method: "HEAD", cache: "no-store" });
+      if (response.ok) {
+        countdownGlyphUrlByValue.set(value, glyphUrl);
+        return glyphUrl;
+      }
+      if (response.status === 405) {
+        const fallbackResponse = await fetch(glyphUrl, { cache: "no-store" });
+        if (fallbackResponse.ok) {
+          countdownGlyphUrlByValue.set(value, glyphUrl);
+          return glyphUrl;
+        }
+      }
+    } catch (error) {
+      // fallback GET probe below for servers that block HEAD or fail intermittently
+    }
+
+    try {
+      const fallbackResponse = await fetch(glyphUrl, { cache: "no-store" });
+      if (fallbackResponse.ok) {
+        countdownGlyphUrlByValue.set(value, glyphUrl);
+        return glyphUrl;
+      }
+    } catch (error) {
+      // try next extension
+    }
+  }
+
+  return null;
+}
+
+async function renderCountdownValue(value) {
+  if (!countdownValue) {
+    return;
+  }
+  const numeric = Number(value);
+  const safeNumber = Number.isFinite(numeric) ? Math.max(0, Math.floor(numeric)) : 0;
+  const nextLabel = String(safeNumber);
+  const token = ++countdownGlyphToken;
+
+  countdownValue.textContent = nextLabel;
+  countdownValue.classList.remove("countdown-value--glyph");
+  countdownValue.style.removeProperty("--countdown-glyph-url");
+
+  if (safeNumber < 1) {
+    return;
+  }
+
+  const glyphUrl = await resolveCountdownGlyphUrl(safeNumber);
+  if (!glyphUrl || token !== countdownGlyphToken) {
+    return;
+  }
+
+  countdownValue.classList.add("countdown-value--glyph");
+  countdownValue.style.setProperty("--countdown-glyph-url", `url("${glyphUrl}")`);
+}
 let remoteSocket = null;
 let remoteSocketReconnect = null;
 let lastRemoteProgress = { status: "ready", label: "Ready", percent: 0, complete: false };
-let stylePreviewToken = 0;
 let selectedGalleryId = "";
 const defaultComfyServerUrl = "http://127.0.0.1:8188";
 let comfyServerUrl = defaultComfyServerUrl;
@@ -140,72 +239,182 @@ let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let remoteResultEnabled = true;
 let remoteCameraCaptureEnabled = false;
-let knownPrinters = [];
+let soundEffectsEnabled = true;
+let backgroundMusicEnabled = false;
+const SOUND_EFFECT_EVENTS = {
+  styleSelect: "style-select.mp3",
+  countdownTick: "countdown-tick.mp3",
+  countdownGo: "countdown-go.mp3",
+  galleryOpen: "gallery-open.mp3",
+};
+let soundEffectsList = [];
+let backgroundMusicList = [];
+let audioListsLoaded = false;
+let audioListsPromise = null;
+let backgroundMusicAudio = null;
+const unavailableAudioAssets = new Set();
 const idleController = initIdleOverlay({ timeoutMs: 5 * 60 * 1000 });
+const printerController = createPrinterController({
+  settingsPrinterInput,
+  settingsPrinterDetails,
+  toPrinterEntry,
+});
+let styleController;
 
-function updateActionButtonState() {
-  actionButton.disabled = !selectedStyle;
+styleController = createStyleController({
+  stylesContainer,
+  stylePreview,
+  stylePreviewImage,
+  updateActionButtonState: () => {
+    selectedStyle = styleController?.getSelectedStyle?.() ?? null;
+    updateActionButtonState();
+  },
+  setStatusMeta: (message) => {
+    statusMeta.textContent = message;
+  },
+  sendRemoteMessage: (payload) => sendRemoteMessage(payload),
+});
+
+function parseAudioList(rawText) {
+  return String(rawText || "")
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
 }
 
-function toTitleCase(value) {
-  return value
-    .split(" ")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function getOrientationDegrees(value) {
-  const orientation = Number(value) || 0;
-  if (orientation === 270) {
-    return -90;
-  }
-  return orientation;
-}
-
-function normalizeComfyInput(value) {
-  const trimmed = typeof value === "string" ? value.trim() : "";
+function resolveAudioAssetPath(name) {
+  const trimmed = String(name || "").trim();
   if (!trimmed) {
     return "";
   }
-  const withProtocol = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)
-    ? trimmed
-    : `https://${trimmed}`;
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  return `/sounds/${encodeURIComponent(trimmed)}`;
+}
+
+async function loadAudioListFile(pathname) {
   try {
-    const url = new URL(withProtocol);
-    return url.toString().replace(/\/$/, "");
+    const response = await fetch(pathname, { cache: "no-store" });
+    if (!response.ok) {
+      return [];
+    }
+    return parseAudioList(await response.text());
   } catch (error) {
-    return withProtocol;
+    return [];
   }
 }
 
-function isHostedComfyUrl(value) {
-  const normalized = normalizeComfyInput(value);
-  if (!normalized) {
-    return false;
+async function ensureAudioListsLoaded() {
+  if (audioListsLoaded) {
+    return;
+  }
+  if (!audioListsPromise) {
+    audioListsPromise = Promise.all([
+      loadAudioListFile("/sounds/sfx-names.txt"),
+      loadAudioListFile("/sounds/music-names.txt"),
+    ]).then(([sfxNames, musicNames]) => {
+      soundEffectsList = sfxNames;
+      backgroundMusicList = musicNames;
+      audioListsLoaded = true;
+    });
+  }
+  await audioListsPromise;
+}
+
+function playSoundEffectByName(fileName, volume = 0.85) {
+  if (!soundEffectsEnabled || !fileName) {
+    return;
+  }
+  const assetPath = resolveAudioAssetPath(fileName);
+  if (!assetPath || unavailableAudioAssets.has(assetPath)) {
+    return;
   }
   try {
-    const url = new URL(normalized);
-    return (
-      url.hostname.toLowerCase() === "comfy.icu" ||
-      /\/api\/v1\/workflows(\/|$)/i.test(url.pathname)
-    );
+    const audio = new Audio(assetPath);
+    audio.volume = Math.max(0, Math.min(1, Number(volume) || 0.85));
+    audio.play().catch(() => {
+      unavailableAudioAssets.add(assetPath);
+    });
   } catch (error) {
-    return /comfy\.icu|\/api\/v1\/workflows/i.test(String(value || ""));
+    unavailableAudioAssets.add(assetPath);
   }
 }
 
-function hasUsableOutputUrl(value) {
-  if (typeof value !== "string") {
-    return false;
+async function playSoundEffect(eventName, volume = 0.85) {
+  if (!soundEffectsEnabled) {
+    return;
   }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return false;
+  await ensureAudioListsLoaded();
+  const fileName = SOUND_EFFECT_EVENTS[eventName];
+  if (!fileName || !soundEffectsList.includes(fileName)) {
+    return;
   }
-  if (trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") {
-    return false;
+  playSoundEffectByName(fileName, volume);
+}
+
+function stopBackgroundMusic() {
+  if (!backgroundMusicAudio) {
+    return;
   }
-  return true;
+  backgroundMusicAudio.pause();
+  backgroundMusicAudio.currentTime = 0;
+  backgroundMusicAudio = null;
+}
+
+async function ensureBackgroundMusic() {
+  if (!backgroundMusicEnabled) {
+    stopBackgroundMusic();
+    return;
+  }
+  await ensureAudioListsLoaded();
+  if (!backgroundMusicList.length) {
+    return;
+  }
+  if (backgroundMusicAudio && !backgroundMusicAudio.paused) {
+    return;
+  }
+  for (const trackName of backgroundMusicList) {
+    const assetPath = resolveAudioAssetPath(trackName);
+    if (!assetPath || unavailableAudioAssets.has(assetPath)) {
+      continue;
+    }
+    try {
+      const audio = new Audio(assetPath);
+      audio.loop = true;
+      audio.volume = 0.3;
+      await audio.play();
+      backgroundMusicAudio = audio;
+      return;
+    } catch (error) {
+      unavailableAudioAssets.add(assetPath);
+    }
+  }
+}
+
+function applyAudioToggles() {
+  if (settingsSoundEffectsInput) {
+    settingsSoundEffectsInput.checked = soundEffectsEnabled;
+  }
+  if (settingsBackgroundMusicInput) {
+    settingsBackgroundMusicInput.checked = backgroundMusicEnabled;
+  }
+  if (!backgroundMusicEnabled) {
+    stopBackgroundMusic();
+  }
+}
+
+function updateActionButtonState() {
+  actionButton.disabled = !selectedStyle;
+  refreshCaptureSelectionUi();
+}
+
+function refreshCaptureSelectionUi() {
+  const selectedLabel = selectedStyle ? toTitleCase(selectedStyle) : "None";
+  if (styleSelectedValue) {
+    styleSelectedValue.textContent = selectedLabel;
+  }
+  actionButton.textContent = selectedStyle ? `Take ${toTitleCase(selectedStyle)} Selfie` : "Take Selfie";
 }
 
 function updateTimerLabel() {
@@ -264,7 +473,7 @@ function startCountdown(delaySeconds, source) {
   }
   countdownActive = true;
   let remaining = delay;
-  countdownValue.textContent = String(remaining);
+  void renderCountdownValue(remaining);
   countdownOverlay.classList.add("countdown-overlay--active");
   statusLabel.textContent = "Countdown";
   statusMeta.textContent = `Taking photo in ${remaining}s`;
@@ -278,13 +487,18 @@ function startCountdown(delaySeconds, source) {
       countdownTimer = null;
       countdownOverlay.classList.remove("countdown-overlay--active");
       countdownActive = false;
+      countdownGlyphToken += 1;
+      countdownValue.classList.remove("countdown-value--glyph");
+      countdownValue.style.removeProperty("--countdown-glyph-url");
+      void playSoundEffect("countdownGo", 0.9);
       triggerFlash();
       setTimeout(() => {
         queueSelfie(source);
       }, 140);
       return;
     }
-    countdownValue.textContent = String(remaining);
+    void renderCountdownValue(remaining);
+    void playSoundEffect("countdownTick", 0.6);
     statusMeta.textContent = `Taking photo in ${remaining}s`;
   }, 1000);
 }
@@ -322,7 +536,10 @@ function connectRemoteSocket() {
         queueSelfieWithImage(payload.image, payload.source ?? "remote-camera");
       }
       if (payload?.type === "style" && typeof payload.style === "string") {
-        applyStyleSelection(payload.style, { source: payload.source ?? "remote" });
+        if (payload.source === "booth") {
+          return;
+        }
+        applyStyleSelection(payload.style, { source: "remote" });
       }
       if (payload?.type === "exit") {
         handleDoneAction();
@@ -365,70 +582,43 @@ function broadcastRemoteConfig() {
   });
 }
 
-function clearStylePreview() {
-  if (!stylePreview || !stylePreviewImage) {
-    return;
-  }
-  stylePreview.classList.remove("style-preview--visible");
-  stylePreviewImage.removeAttribute("src");
-}
-
-function updateStylePreview(style) {
-  if (!stylePreview || !stylePreviewImage) {
-    return;
-  }
-  const trimmed = typeof style === "string" ? style.trim() : "";
-  if (!trimmed) {
-    clearStylePreview();
-    return;
-  }
-  stylePreviewToken += 1;
-  const token = stylePreviewToken;
-  const previewUrl = `/api/style-preview?style=${encodeURIComponent(trimmed)}`;
-  stylePreviewImage.onload = () => {
-    if (token !== stylePreviewToken) {
-      return;
-    }
-    stylePreview.classList.add("style-preview--visible");
-  };
-  stylePreviewImage.onerror = () => {
-    if (token !== stylePreviewToken) {
-      return;
-    }
-    clearStylePreview();
-  };
-  stylePreviewImage.src = previewUrl;
-}
-
 function applyStyleSelection(style, { source = "booth", announce = true } = {}) {
-  const trimmed = typeof style === "string" ? style.trim() : "";
-  if (!trimmed) {
-    return;
-  }
-  selectedStyle = trimmed;
-  writeStoredValue(storageKeys.selectedStyle, trimmed);
-  updateActionButtonState();
-  let matched = false;
-  document.querySelectorAll(".style").forEach((button) => {
-    const isMatch = button.dataset.style === trimmed;
-    button.classList.toggle("style--active", isMatch);
-    if (isMatch) {
-      matched = true;
-    }
-  });
-  if (matched) {
-    updateStylePreview(trimmed);
+  const matched = styleController.applySelection(style, { source, announce: false });
+  selectedStyle = styleController.getSelectedStyle();
+  if (selectedStyle) {
+    writeStoredValue(storageKeys.selectedStyle, selectedStyle);
   } else {
-    clearStylePreview();
+    removeStoredValue(storageKeys.selectedStyle);
   }
-  if (announce) {
+  updateActionButtonState();
+  if (source !== "remote" && selectedStyle) {
+    void playSoundEffect("styleSelect", 0.65);
+  }
+  if (announce && selectedStyle) {
     statusLabel.textContent = "Style Selected";
     statusMeta.textContent =
       source === "remote"
-        ? `${toTitleCase(trimmed)} selected on remote`
-        : `${toTitleCase(trimmed)} ready to shoot`;
+        ? `${toTitleCase(selectedStyle)} selected on remote`
+        : `${toTitleCase(selectedStyle)} ready to shoot`;
   }
-  return matched;
+  return Boolean(matched);
+}
+
+async function loadStyles() {
+  const styles = await styleController.loadStyles({
+    endpoint: "/api/styles",
+    onOffline: () => {
+      statusLabel.textContent = "Offline";
+      statusMeta.textContent = "Unable to load styles";
+    },
+  });
+  if (styles.length > 0 && selectedStyle) {
+    applyStyleSelection(selectedStyle, { announce: false });
+  } else if (styles.length === 0) {
+    statusLabel.textContent = "No Styles";
+    statusMeta.textContent = "Add workflow JSON files to /workflows and reload.";
+    updateActionButtonState();
+  }
 }
 
 function updateRemoteProgress(payload) {
@@ -492,6 +682,14 @@ async function listCameraDevices() {
   }
 }
 
+function isCameraSecureContext() {
+  if (window.isSecureContext) {
+    return true;
+  }
+  const hostname = window.location.hostname || "";
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
 function getCameraDeviceLabel(device, index) {
   const label = typeof device.label === "string" ? device.label.trim() : "";
   if (label) {
@@ -525,6 +723,12 @@ async function refreshCameraOptions() {
 }
 
 async function startCamera() {
+  if (!isCameraSecureContext()) {
+    statusLabel.textContent = "Camera Requires HTTPS";
+    statusMeta.textContent = "Open this booth over HTTPS (or localhost) to enable camera access.";
+    return;
+  }
+
   if (!navigator.mediaDevices?.getUserMedia) {
     statusLabel.textContent = "Camera Unsupported";
     statusMeta.textContent = "This browser cannot access the camera.";
@@ -533,44 +737,67 @@ async function startCamera() {
 
   stopCameraStream();
 
-  const primaryConstraints = cameraDeviceId
-    ? { deviceId: { exact: cameraDeviceId } }
-    : { facingMode: "user" };
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: primaryConstraints,
-      audio: false,
+  const attempts = [];
+  if (cameraDeviceId) {
+    attempts.push({
+      constraints: { deviceId: { exact: cameraDeviceId } },
+      reason: "preferred-device",
     });
-    video.srcObject = stream;
-    await refreshCameraOptions();
-    statusLabel.textContent = "Camera Ready";
-    statusMeta.textContent = "Select a style, then tap or shake to shoot";
-  } catch (error) {
-    const canFallback =
-      cameraDeviceId && (error?.name === "OverconstrainedError" || error?.name === "NotFoundError");
+  }
+  attempts.push(
+    { constraints: { facingMode: "user" }, reason: "front-camera" },
+    { constraints: true, reason: "any-camera" }
+  );
 
-    if (canFallback) {
-      cameraDeviceId = "";
-      removeStoredValue(storageKeys.cameraDeviceId);
-      try {
-        const fallbackStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: false,
-        });
-        video.srcObject = fallbackStream;
-        await refreshCameraOptions();
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: attempt.constraints,
+        audio: false,
+      });
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+      await refreshCameraOptions();
+      if (attempt.reason === "preferred-device") {
         statusLabel.textContent = "Camera Ready";
-        statusMeta.textContent = "Selected camera unavailable; switched to default camera.";
-        return;
-      } catch (fallbackError) {
-        // handled by generic error status below
+        statusMeta.textContent = "Choose a style, then tap shutter or shake to shoot";
+      } else if (attempt.reason === "front-camera") {
+        statusLabel.textContent = "Camera Ready";
+        statusMeta.textContent = "Using default front camera.";
+      } else {
+        statusLabel.textContent = "Camera Ready";
+        statusMeta.textContent = "Using available camera device.";
+      }
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt.reason === "preferred-device") {
+        cameraDeviceId = "";
+        removeStoredValue(storageKeys.cameraDeviceId);
       }
     }
-
-    statusLabel.textContent = "Camera Blocked";
-    statusMeta.textContent = "Allow camera access to continue.";
   }
+
+  const name = lastError?.name || "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    statusLabel.textContent = "Camera Blocked";
+    statusMeta.textContent = "Allow camera access in browser settings, then reload.";
+    return;
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    statusLabel.textContent = "Camera Missing";
+    statusMeta.textContent = "No camera detected. Connect one and reload.";
+    return;
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    statusLabel.textContent = "Camera Busy";
+    statusMeta.textContent = "Camera is in use by another app. Close it and retry.";
+    return;
+  }
+
+  statusLabel.textContent = "Camera Error";
+  statusMeta.textContent = "Unable to initialize camera. Check permissions and device.";
 }
 
 function captureFrame() {
@@ -765,14 +992,15 @@ function handleShake(event) {
 }
 
 function updateProgress(progress) {
-  const hasOutputUrl = hasUsableOutputUrl(progress.outputUrl);
-  const waitingLabel = "Waiting for image to be processed by comfy.icu";
-  const waitingForHostedImage = isHostedComfyUrl(comfyServerUrl) && !hasOutputUrl;
-
-  const percent = waitingForHostedImage
-    ? 90
-    : Math.max(0, Math.min(100, Math.round(progress.percent ?? 0)));
-  const label = waitingForHostedImage ? waitingLabel : progress.label ?? "Sampling";
+  const outputUrl = hasUsableOutputUrl(progress.outputUrl) ? progress.outputUrl.trim() : "";
+  const hasOutputUrl = Boolean(outputUrl);
+  const outputReadyForDisplay = progressPreviewManager.isReady(outputUrl);
+  const { waitingForHostedImage, percent, label } = getHostedProgressState({
+    progress,
+    outputUrl,
+    outputReadyForDisplay,
+    isHostedComfy: isHostedComfyUrl(comfyServerUrl),
+  });
 
   progressLabels.forEach((element) => {
     element.textContent = label;
@@ -784,24 +1012,23 @@ function updateProgress(progress) {
     element.style.width = `${percent}%`;
   });
   if (hasOutputUrl) {
-    lastOutputUrl = progress.outputUrl;
-    progressPreviews.forEach((element) => {
-      element.src = progress.outputUrl.trim();
-      element.style.display = "block";
-    });
+    lastOutputUrl = outputUrl;
+    progressPreviewManager.queue(outputUrl);
+    if (outputReadyForDisplay) {
+      progressPreviewManager.show(outputUrl);
+    } else {
+      progressPreviewManager.clear();
+    }
   } else {
-    progressPreviews.forEach((element) => {
-      element.src = "";
-      element.style.display = "none";
-    });
+    progressPreviewManager.clear();
   }
 
   updateRemoteProgress({
     status: waitingForHostedImage ? "waiting" : progress.complete ? "complete" : "generating",
     label,
     percent,
-    complete: Boolean(progress.complete && hasOutputUrl),
-    outputUrl: hasOutputUrl ? progress.outputUrl.trim() : null,
+    complete: Boolean(progress.complete && outputReadyForDisplay),
+    outputUrl: outputReadyForDisplay ? outputUrl : null,
   });
   if (typeof progress.websocketConnected === "boolean") {
     updateComfyConnectionStatus(progress.websocketConnected);
@@ -828,42 +1055,6 @@ function toggleSystemMenus() {
   document.body.classList.toggle("system-controls-hidden");
 }
 
-function formatUptime(seconds) {
-  const totalSeconds = Number(seconds) || 0;
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const secs = Math.floor(totalSeconds % 60);
-  return `${hours}h ${minutes}m ${secs}s`;
-}
-
-async function fetchDiagnostics() {
-  if (!diagnosticsServer || !diagnosticsSocket || !diagnosticsApi || !diagnosticsUptime) {
-    return;
-  }
-  diagnosticsServer.textContent = "Loading...";
-  diagnosticsSocket.textContent = "Loading...";
-  diagnosticsApi.textContent = "Loading...";
-  diagnosticsUptime.textContent = "Loading...";
-  try {
-    const response = await fetch("/api/health");
-    if (!response.ok) {
-      throw new Error("Diagnostics unavailable");
-    }
-    const data = await response.json();
-    diagnosticsServer.textContent = data.comfyServerUrl || "Unknown";
-    diagnosticsSocket.textContent = data.websocketConnected ? "Connected" : "Offline";
-    diagnosticsApi.textContent = data.apiKeyConfigured ? "Configured" : "Not set";
-    diagnosticsUptime.textContent = formatUptime(data.uptimeSeconds);
-    updateComfyConnectionStatus(Boolean(data.websocketConnected));
-  } catch (error) {
-    diagnosticsServer.textContent = "Unavailable";
-    diagnosticsSocket.textContent = "Unavailable";
-    diagnosticsApi.textContent = "Unavailable";
-    diagnosticsUptime.textContent = "Unavailable";
-    updateComfyConnectionStatus(false);
-  }
-}
-
 function openDiagnostics() {
   if (!diagnosticsModal) {
     return;
@@ -874,6 +1065,54 @@ function openDiagnostics() {
 
 function closeDiagnostics() {
   diagnosticsModal?.classList.remove("diagnostics-modal--open");
+}
+
+async function fetchDiagnostics() {
+  if (diagnosticsServer) {
+    diagnosticsServer.textContent = "Checking...";
+  }
+  if (diagnosticsSocket) {
+    diagnosticsSocket.textContent = "Checking...";
+  }
+  if (diagnosticsApi) {
+    diagnosticsApi.textContent = "Checking...";
+  }
+  if (diagnosticsUptime) {
+    diagnosticsUptime.textContent = "—";
+  }
+  try {
+    const response = await fetch("/api/health");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const health = await response.json();
+    if (diagnosticsServer) {
+      diagnosticsServer.textContent = health.comfyServerUrl || "Not configured";
+    }
+    if (diagnosticsSocket) {
+      diagnosticsSocket.textContent = health.websocketConnected ? "Connected" : "Offline";
+    }
+    if (diagnosticsApi) {
+      diagnosticsApi.textContent = health.apiKeyConfigured ? "Configured" : "Not configured";
+    }
+    if (diagnosticsUptime) {
+      diagnosticsUptime.textContent = formatUptime(health.uptimeSeconds || 0);
+    }
+  } catch (error) {
+    const message = error?.message || "Unavailable";
+    if (diagnosticsServer) {
+      diagnosticsServer.textContent = message;
+    }
+    if (diagnosticsSocket) {
+      diagnosticsSocket.textContent = "Unavailable";
+    }
+    if (diagnosticsApi) {
+      diagnosticsApi.textContent = "Unavailable";
+    }
+    if (diagnosticsUptime) {
+      diagnosticsUptime.textContent = "Unavailable";
+    }
+  }
 }
 
 function openTos() {
@@ -887,125 +1126,6 @@ function closeTos() {
   tosModal?.classList.remove("tos-modal--open");
 }
 
-function toPrinterEntry(entry) {
-  if (typeof entry === "string") {
-    return {
-      name: entry,
-      connection: "unknown",
-      isDefault: false,
-      uri: "",
-      location: "",
-      interface: "",
-      options: {},
-    };
-  }
-  if (!entry || typeof entry !== "object") {
-    return null;
-  }
-  const name = typeof entry.name === "string" ? entry.name.trim() : "";
-  if (!name) {
-    return null;
-  }
-  return {
-    name,
-    connection: entry.connection || "unknown",
-    isDefault: Boolean(entry.isDefault),
-    uri: entry.uri || "",
-    location: entry.location || "",
-    interface: entry.interface || "",
-    options: entry.options || {},
-  };
-}
-
-function findPrinterByName(name) {
-  return knownPrinters.find((printer) => printer.name === name) || null;
-}
-
-function formatPrinterDetails(printer) {
-  if (!printer) {
-    return "No printer selected.";
-  }
-  const lines = [
-    `Connection: ${printer.connection || "unknown"}`,
-    `URI/Port: ${printer.uri || "n/a"}`,
-    `Location: ${printer.location || "n/a"}`,
-    `Driver/Interface: ${printer.interface || "n/a"}`,
-  ];
-  const optionEntries = Object.entries(printer.options || {});
-  if (optionEntries.length) {
-    lines.push("Options:");
-    optionEntries.slice(0, 8).forEach(([key, values]) => {
-      const rendered = Array.isArray(values) ? values.join(", ") : String(values || "");
-      lines.push(`• ${key}: ${rendered}`);
-    });
-  } else {
-    lines.push("Options: none reported");
-  }
-  return lines.join("\n");
-}
-
-function updatePrinterDetails(selectedName) {
-  if (!settingsPrinterDetails) {
-    return;
-  }
-  const selectedPrinter = findPrinterByName(selectedName);
-  settingsPrinterDetails.textContent = formatPrinterDetails(selectedPrinter);
-}
-
-function renderPrinterOptions(printers, selectedName) {
-  const options = [];
-  const seen = new Set();
-  const sorted = [...printers].sort((a, b) => a.name.localeCompare(b.name));
-  sorted.forEach((printer) => {
-    if (!printer?.name || seen.has(printer.name)) {
-      return;
-    }
-    seen.add(printer.name);
-    const tags = [];
-    if (printer.isDefault) {
-      tags.push("default");
-    }
-    if (printer.connection && printer.connection !== "unknown") {
-      tags.push(printer.connection);
-    }
-    const suffix = tags.length ? ` (${tags.join(", ")})` : "";
-    options.push({ name: printer.name, label: `${printer.name}${suffix}` });
-  });
-  if (selectedName && !seen.has(selectedName)) {
-    options.unshift({ name: selectedName, label: `${selectedName} (saved)` });
-  }
-  settingsPrinterInput.innerHTML = "";
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = options.length ? "Select a printer" : "No printers detected";
-  settingsPrinterInput.appendChild(placeholder);
-  options.forEach((entry) => {
-    const option = document.createElement("option");
-    option.value = entry.name;
-    option.textContent = entry.label;
-    settingsPrinterInput.appendChild(option);
-  });
-  settingsPrinterInput.value = selectedName || "";
-  updatePrinterDetails(settingsPrinterInput.value || selectedName || "");
-}
-
-async function loadPrinters(selectedName = printerConfig.name) {
-  try {
-    const response = await fetch("/api/printers");
-    if (!response.ok) {
-      throw new Error("Printer list unavailable");
-    }
-    const data = await response.json();
-    const detailed = Array.isArray(data.printerDetails) ? data.printerDetails : data.printers;
-    knownPrinters = (Array.isArray(detailed) ? detailed : [])
-      .map((entry) => toPrinterEntry(entry))
-      .filter(Boolean);
-  } catch (error) {
-    knownPrinters = [];
-  }
-  renderPrinterOptions(knownPrinters, selectedName);
-}
-
 function applyUploadVisibility() {
   document.body.classList.toggle("is-upload-hidden", !uploadEnabled);
   document.body.classList.toggle("is-qr-hidden", hideQrEnabled);
@@ -1016,7 +1136,7 @@ function applyUploadVisibility() {
   if (!uploadEnabled || hideQrEnabled) {
     qrContainer.style.display = "none";
     qrImage.src = "";
-    galleryUploadStatus.textContent = "";
+    setGalleryStatus("");
     galleryQr.style.display = "none";
     galleryQrImage.src = "";
   }
@@ -1061,7 +1181,7 @@ function startProgressPolling() {
       }
       const data = await response.json();
       updateProgress(data);
-      if (data.complete && hasUsableOutputUrl(data.outputUrl)) {
+      if (data.complete && progressPreviewManager.isReady(data.outputUrl)) {
         clearInterval(progressPoller);
         progressPoller = null;
         progressLabels.forEach((element) => {
@@ -1081,12 +1201,9 @@ function startProgressPolling() {
       }
     } catch (error) {
       progressLabels.forEach((element) => {
-        element.textContent = "Waiting for image to be processed by comfy.icu";
+        element.textContent = HOSTED_COMFY_WAITING_LABEL;
       });
-      progressPreviews.forEach((element) => {
-        element.src = "";
-        element.style.display = "none";
-      });
+      progressPreviewManager.clear();
       progressValues.forEach((element) => {
         element.textContent = "90%";
       });
@@ -1095,7 +1212,7 @@ function startProgressPolling() {
       });
       updateRemoteProgress({
         status: "waiting",
-        label: "Waiting for image to be processed by comfy.icu",
+        label: HOSTED_COMFY_WAITING_LABEL,
         percent: 90,
         complete: false,
       });
@@ -1126,10 +1243,6 @@ function setBusy(isBusy) {
   progressFills.forEach((element) => {
     element.style.width = "0%";
   });
-  progressPreviews.forEach((element) => {
-    element.src = "";
-    element.style.display = "none";
-  });
   qrContainer.style.display = "none";
   qrImage.src = "";
   uploadButton.disabled = true;
@@ -1143,6 +1256,7 @@ function setBusy(isBusy) {
   currentPromptId = null;
   outputReady = false;
   lastOutputUrl = null;
+  progressPreviewManager.reset();
   lastRemoteProgress = {
     status: "ready",
     label: "Ready",
@@ -1228,6 +1342,14 @@ function loadPrinterConfig() {
     if (remoteCameraRaw !== null) {
       remoteCameraCaptureEnabled = remoteCameraRaw === "true";
     }
+    const sfxRaw = readStoredValue(storageKeys.soundEffectsEnabled);
+    if (sfxRaw !== null) {
+      soundEffectsEnabled = sfxRaw === "true";
+    }
+    const musicRaw = readStoredValue(storageKeys.backgroundMusicEnabled);
+    if (musicRaw !== null) {
+      backgroundMusicEnabled = musicRaw === "true";
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
@@ -1245,6 +1367,8 @@ function loadPrinterConfig() {
     hideQrEnabled = false;
     remoteResultEnabled = true;
     remoteCameraCaptureEnabled = false;
+    soundEffectsEnabled = true;
+    backgroundMusicEnabled = false;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
@@ -1278,6 +1402,7 @@ function loadPrinterConfig() {
   if (settingsRemoteCameraInput) {
     settingsRemoteCameraInput.checked = remoteCameraCaptureEnabled;
   }
+  applyAudioToggles();
   settingsWatermarkInput.checked = watermarkEnabled;
   if (settingsWatermarkTextInput) {
     settingsWatermarkTextInput.value = watermarkText || "MKRShift";
@@ -1290,7 +1415,8 @@ function loadPrinterConfig() {
   applyCameraOrientation();
   updateRemoteInfo();
   applyUploadVisibility();
-  loadPrinters(printerConfig.name);
+  printerController.loadPrinters(printerConfig.name);
+  void ensureBackgroundMusic();
 }
 
 function loadUiPreferences() {
@@ -1372,6 +1498,16 @@ async function savePrinterConfig() {
     remoteCameraCaptureEnabled = settingsRemoteCameraInput.checked;
     writeStoredValue(storageKeys.remoteCameraCaptureEnabled, String(remoteCameraCaptureEnabled));
   }
+  if (settingsSoundEffectsInput) {
+    soundEffectsEnabled = settingsSoundEffectsInput.checked;
+    writeStoredValue(storageKeys.soundEffectsEnabled, String(soundEffectsEnabled));
+  }
+  if (settingsBackgroundMusicInput) {
+    backgroundMusicEnabled = settingsBackgroundMusicInput.checked;
+    writeStoredValue(storageKeys.backgroundMusicEnabled, String(backgroundMusicEnabled));
+  }
+  applyAudioToggles();
+  void ensureBackgroundMusic();
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
@@ -1433,7 +1569,7 @@ async function openSettings() {
   if (settingsClose) {
     settingsClose.disabled = false;
   }
-  loadPrinters(printerConfig.name);
+  printerController.loadPrinters(printerConfig.name);
   await refreshCameraOptions();
   await refreshHostedCredits();
 }
@@ -1445,7 +1581,7 @@ function handlePrinterSelection() {
     name: selectedName,
   };
   writeStoredJson(storageKeys.printerConfig, printerConfig);
-  updatePrinterDetails(selectedName);
+  printerController.updatePrinterDetails(selectedName);
   applyPrintVisibility();
 }
 
@@ -1458,7 +1594,8 @@ function openGallery() {
     return;
   }
   galleryModal.classList.add("gallery-modal--open");
-  galleryUploadStatus.textContent = "";
+  void playSoundEffect("galleryOpen", 0.7);
+  setGalleryStatus("");
   if (galleryQr) {
     galleryQr.style.display = "none";
   }
@@ -1479,6 +1616,40 @@ function closeGallery() {
   galleryModal?.classList.remove("gallery-modal--open");
 }
 
+function formatGalleryTimestamp(updatedAt) {
+  const numeric = Number(updatedAt);
+  if (!Number.isFinite(numeric)) {
+    return "—";
+  }
+  return new Date(numeric).toLocaleString();
+}
+
+function setGallerySummary(count) {
+  if (!gallerySummary) {
+    return;
+  }
+  gallerySummary.textContent = `${count} result${count === 1 ? "" : "s"}`;
+}
+
+function setGalleryStatus(message, tone = "") {
+  if (!galleryUploadStatus) {
+    return;
+  }
+  galleryUploadStatus.textContent = message || "";
+  galleryUploadStatus.dataset.tone = tone;
+}
+
+function focusGalleryRowByOffset(offset) {
+  const rows = Array.from(galleryList.querySelectorAll(".gallery-item"));
+  if (!rows.length) {
+    return;
+  }
+  const index = Math.max(0, rows.findIndex((row) => row.dataset.id === selectedGalleryId));
+  const next = Math.min(rows.length - 1, Math.max(0, index + offset));
+  rows[next].click();
+  rows[next].focus();
+}
+
 function setGallerySelection(item) {
   if (!item) {
     selectedGalleryUrl = "";
@@ -1489,10 +1660,16 @@ function setGallerySelection(item) {
     if (galleryMetaDate) {
       galleryMetaDate.textContent = "—";
     }
+    if (galleryMetaFile) {
+      galleryMetaFile.textContent = "—";
+    }
     updateGallerySelectionHighlight();
     galleryUploadButton.disabled = true;
     if (galleryPrintButton) {
       galleryPrintButton.disabled = true;
+    }
+    if (galleryDeleteButton) {
+      galleryDeleteButton.disabled = true;
     }
     return;
   }
@@ -1502,14 +1679,20 @@ function setGallerySelection(item) {
     galleryMetaId.textContent = item.id;
   }
   if (galleryMetaDate) {
-    galleryMetaDate.textContent = new Date(item.updatedAt).toLocaleString();
+    galleryMetaDate.textContent = formatGalleryTimestamp(item.updatedAt);
+  }
+  if (galleryMetaFile) {
+    galleryMetaFile.textContent = `${item.id}.png`;
   }
   galleryInputImage.src = item.inputUrl;
   galleryOutputImage.src = item.outputUrl;
   updateGallerySelectionHighlight();
   galleryUploadButton.disabled = !uploadEnabled;
+  if (galleryDeleteButton) {
+    galleryDeleteButton.disabled = false;
+  }
   applyPrintVisibility();
-  galleryUploadStatus.textContent = "";
+  setGalleryStatus("");
   galleryQr.style.display = "none";
   galleryQrImage.src = "";
 }
@@ -1550,10 +1733,11 @@ function toggleFullscreen() {
 
 function renderGalleryItems(items) {
   galleryList.innerHTML = "";
+  setGallerySummary(items.length);
   if (!items.length) {
     const empty = document.createElement("div");
-    empty.textContent = "No results yet.";
-    empty.style.opacity = "0.6";
+    empty.className = "gallery-empty";
+    empty.textContent = galleryFilterText ? "No captures match your filter." : "No captures yet.";
     galleryList.appendChild(empty);
     setGallerySelection(null);
     return;
@@ -1564,18 +1748,38 @@ function renderGalleryItems(items) {
     row.className = "gallery-item";
     row.dataset.id = item.id;
     row.setAttribute("aria-pressed", "false");
+    row.setAttribute("role", "option");
+    row.setAttribute("tabindex", "0");
     const thumb = document.createElement("img");
     thumb.src = item.outputUrl;
-    const label = document.createElement("span");
-    label.textContent = item.id;
+    const meta = document.createElement("div");
+    meta.className = "gallery-item__meta";
+    const title = document.createElement("span");
+    title.className = "gallery-item__title";
+    title.textContent = item.id;
+    const date = document.createElement("span");
+    date.className = "gallery-item__date";
+    date.textContent = formatGalleryTimestamp(item.updatedAt);
+    meta.appendChild(title);
+    meta.appendChild(date);
     row.appendChild(thumb);
-    row.appendChild(label);
+    row.appendChild(meta);
     row.addEventListener("click", () => {
       setGallerySelection(item);
     });
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        focusGalleryRowByOffset(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        focusGalleryRowByOffset(-1);
+      }
+    });
     galleryList.appendChild(row);
   });
-  setGallerySelection(items[0]);
+  const matched = items.find((item) => item.id === selectedGalleryId);
+  setGallerySelection(matched ?? items[0]);
 }
 
 function applyGalleryFilters() {
@@ -1604,6 +1808,10 @@ function updateGallerySelectionHighlight() {
 }
 
 async function loadGallery() {
+  setGalleryStatus("Loading gallery…");
+  if (galleryRefresh) {
+    galleryRefresh.disabled = true;
+  }
   try {
     const response = await fetch("/api/gallery");
     if (!response.ok) {
@@ -1612,9 +1820,15 @@ async function loadGallery() {
     const data = await response.json();
     galleryItems = data.items ?? [];
     applyGalleryFilters();
+    setGalleryStatus("");
   } catch (error) {
     galleryItems = [];
     renderGalleryItems([]);
+    setGalleryStatus(error?.message || "Unable to load gallery.", "error");
+  } finally {
+    if (galleryRefresh) {
+      galleryRefresh.disabled = false;
+    }
   }
 }
 
@@ -1852,7 +2066,7 @@ async function uploadGallerySelection() {
     return;
   }
   galleryUploadButton.disabled = true;
-  galleryUploadStatus.textContent = "Uploading...";
+  setGalleryStatus("Uploading…");
   try {
     const imageUrl = await resolveShareImageUrl(selectedGalleryUrl);
     const data = await uploadImage(imageUrl);
@@ -1860,11 +2074,43 @@ async function uploadGallerySelection() {
       galleryQrImage.src = data.qrUrl;
       galleryQr.style.display = "flex";
     }
-    galleryUploadStatus.textContent = "Upload complete.";
+    setGalleryStatus("Upload complete.", "success");
   } catch (error) {
-    galleryUploadStatus.textContent = error?.message || "Upload failed.";
+    setGalleryStatus(error?.message || "Upload failed.", "error");
   } finally {
     galleryUploadButton.disabled = !uploadEnabled;
+  }
+}
+
+async function deleteGallerySelection() {
+  if (!selectedGalleryId) {
+    return;
+  }
+  const confirmed = window.confirm(`Are you sure you want to delete ${selectedGalleryId}?
+
+Yes = delete permanently
+No = keep capture`);
+  if (!confirmed) {
+    return;
+  }
+  if (galleryDeleteButton) {
+    galleryDeleteButton.disabled = true;
+  }
+  setGalleryStatus("Deleting…");
+  try {
+    const response = await fetch(`/api/gallery?id=${encodeURIComponent(selectedGalleryId)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    setGalleryStatus("Capture deleted.", "success");
+    await loadGallery();
+  } catch (error) {
+    setGalleryStatus(error?.message || "Delete failed.", "error");
+    if (galleryDeleteButton) {
+      galleryDeleteButton.disabled = !selectedGalleryId;
+    }
   }
 }
 
@@ -1876,7 +2122,7 @@ async function printGallerySelection() {
     return;
   }
   galleryPrintButton.disabled = true;
-  galleryUploadStatus.textContent = "Sending to printer...";
+  setGalleryStatus("Sending to printer…");
   try {
     const imageUrl = await resolveShareImageUrl(selectedGalleryUrl);
     const response = await fetch("/api/print", {
@@ -1891,9 +2137,9 @@ async function printGallerySelection() {
     if (!response.ok) {
       throw new Error(await response.text());
     }
-    galleryUploadStatus.textContent = `Sent to printer ${printerConfig.name}`;
+    setGalleryStatus(`Sent to printer ${printerConfig.name}`, "success");
   } catch (error) {
-    galleryUploadStatus.textContent = error?.message || "Print failed.";
+    setGalleryStatus(error?.message || "Print failed.", "error");
   } finally {
     applyPrintVisibility();
   }
@@ -1928,35 +2174,6 @@ async function sendToPrinter() {
   }
 }
 
-async function loadStyles() {
-  try {
-    const response = await fetch("/api/styles");
-    if (!response.ok) {
-      throw new Error("Failed to load styles");
-    }
-    const data = await response.json();
-    const styles = data.styles ?? [];
-    stylesContainer.innerHTML = "";
-    styles.forEach((style) => {
-      const button = document.createElement("button");
-      button.className = "style";
-      button.textContent = toTitleCase(style);
-      button.dataset.style = style;
-      button.addEventListener("click", () => {
-        applyStyleSelection(style, { source: "booth" });
-        sendRemoteMessage({ type: "style", style, source: "booth" });
-      });
-      stylesContainer.appendChild(button);
-    });
-    if (selectedStyle) {
-      applyStyleSelection(selectedStyle, { announce: false });
-    }
-  } catch (error) {
-    statusLabel.textContent = "Offline";
-    statusMeta.textContent = "Unable to load styles";
-  }
-}
-
 actionButton.addEventListener("click", async () => {
   await ensureMotionPermission();
   startCountdown(selectedDelay, "tap");
@@ -1985,20 +2202,30 @@ document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") {
     return;
   }
+
+  let closedOverlay = false;
   if (timerMenu.classList.contains("timer-menu--open")) {
     closeTimerMenu();
+    closedOverlay = true;
   }
   if (settingsModal.classList.contains("settings-modal--open")) {
     closeSettings();
+    closedOverlay = true;
   }
   if (galleryModal.classList.contains("gallery-modal--open")) {
     closeGallery();
+    closedOverlay = true;
   }
   if (diagnosticsModal?.classList.contains("diagnostics-modal--open")) {
     closeDiagnostics();
+    closedOverlay = true;
   }
   if (tosModal?.classList.contains("tos-modal--open")) {
     closeTos();
+    closedOverlay = true;
+  }
+  if (!closedOverlay) {
+    idleController.show();
   }
 });
 settingsModal?.addEventListener("click", (event) => {
@@ -2070,6 +2297,20 @@ gallerySort?.addEventListener("change", (event) => {
   gallerySortOrder = event.target.value;
   applyGalleryFilters();
 });
+galleryClear?.addEventListener("click", () => {
+  galleryFilterText = "";
+  if (gallerySearch) {
+    gallerySearch.value = "";
+    gallerySearch.focus();
+  }
+  if (gallerySort) {
+    gallerySortOrder = "recent";
+    gallerySort.value = gallerySortOrder;
+  }
+  applyGalleryFilters();
+});
+galleryRefresh?.addEventListener("click", loadGallery);
+galleryDeleteButton?.addEventListener("click", deleteGallerySelection);
 galleryUploadButton.addEventListener("click", uploadGallerySelection);
 galleryPrintButton?.addEventListener("click", printGallerySelection);
 uploadButton.addEventListener("click", uploadToFreeimage);
@@ -2082,8 +2323,20 @@ progressCloseButton.addEventListener("click", () => {
 });
 window.addEventListener("devicemotion", handleShake);
 window.addEventListener("resize", applyCameraOrientation);
-["pointerdown", "mousemove", "keydown", "touchstart", "wheel"].forEach((eventName) => {
-  window.addEventListener(eventName, idleController.handleUserActivity, { passive: true });
+["pointerdown", "mousemove", "touchstart", "wheel"].forEach((eventName) => {
+  window.addEventListener(eventName, (event) => {
+    idleController.handleUserActivity(event);
+    if (eventName === "pointerdown" || eventName === "touchstart") {
+      void ensureBackgroundMusic();
+    }
+  }, { passive: true });
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    return;
+  }
+  idleController.handleUserActivity();
+  void ensureBackgroundMusic();
 });
 idleOverlay?.addEventListener("click", (event) => {
   if (idleOverlay.classList.contains("idle-overlay--hidden")) {
@@ -2098,8 +2351,11 @@ idleOverlay?.addEventListener("click", (event) => {
   });
 });
 
-startCamera();
 loadUiPreferences();
+void ensureAudioListsLoaded();
+applyCameraOrientation();
+refreshCaptureSelectionUi();
+startCamera();
 loadStyles();
 loadPrinterConfig();
 updateTimerLabel();
@@ -2115,5 +2371,5 @@ function handleDoneAction() {
   }
   setBusy(false);
   statusLabel.textContent = "Ready";
-  statusMeta.textContent = "Select a style, then tap or shake to shoot";
+  statusMeta.textContent = "Choose a style, then tap shutter or shake to shoot";
 }
