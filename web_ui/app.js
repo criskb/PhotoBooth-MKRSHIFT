@@ -810,19 +810,20 @@ function captureFrame() {
   canvas.width = needsSwap ? video.videoHeight : video.videoWidth;
   canvas.height = needsSwap ? video.videoWidth : video.videoHeight;
   const context = canvas.getContext("2d");
-  if (orientation) {
-    context.translate(canvas.width / 2, canvas.height / 2);
-    context.rotate((orientation * Math.PI) / 180);
-    context.drawImage(
-      video,
-      -video.videoWidth / 2,
-      -video.videoHeight / 2,
-      video.videoWidth,
-      video.videoHeight
-    );
-  } else {
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  context.save();
+  context.translate(canvas.width / 2, canvas.height / 2);
+  context.rotate((orientation * Math.PI) / 180);
+  if (cameraMirrored) {
+    context.scale(-1, 1);
   }
+  context.drawImage(
+    video,
+    -video.videoWidth / 2,
+    -video.videoHeight / 2,
+    video.videoWidth,
+    video.videoHeight
+  );
+  context.restore();
   return canvas.toDataURL("image/png");
 }
 

@@ -14,7 +14,7 @@
   },
   "191": {
     "inputs": {
-      "image": "Screenshot 2025-09-03 164545.png"
+      "image": "ComfyUI_00487_.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -143,7 +143,7 @@
   },
   "195:73": {
     "inputs": {
-      "noise_seed": 922279731711768
+      "noise_seed": 833008644884048
     },
     "class_type": "RandomNoise",
     "_meta": {
@@ -169,6 +169,19 @@
     "class_type": "CLIPLoader",
     "_meta": {
       "title": "Load CLIP"
+    }
+  },
+  "195:74": {
+    "inputs": {
+      "text": "Swap the background with lapland, finnish scenery with nornern lights, match light on subject but dont change subjects ",
+      "clip": [
+        "195:71",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
     }
   },
   "195:67": {
@@ -210,59 +223,6 @@
       "title": "Empty Flux 2 Latent"
     }
   },
-  "195:80": {
-    "inputs": {
-      "upscale_method": "nearest-exact",
-      "megapixels": 1,
-      "resolution_steps": 1,
-      "image": [
-        "196",
-        0
-      ]
-    },
-    "class_type": "ImageScaleToTotalPixels",
-    "_meta": {
-      "title": "ImageScaleToTotalPixels"
-    }
-  },
-  "195:81": {
-    "inputs": {
-      "image": [
-        "195:80",
-        0
-      ]
-    },
-    "class_type": "GetImageSize",
-    "_meta": {
-      "title": "Get Image Size"
-    }
-  },
-  "195:74": {
-    "inputs": {
-      "text": "keep the identety of the subjects dont change faces just, dont add makeup, soft skin, create a 1990s fashion editorial close up beauty Portrait, Dramatic side lighting, 4k, itricate details,  Shot on 35mm film (Kodak Portra 400) with shallow depth of field—subject razor-sharp, background flat color softly blurred.\n\n",
-      "clip": [
-        "195:71",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Positive Prompt)"
-    }
-  },
-  "195:208": {
-    "inputs": {
-      "reference_latents_method": "index",
-      "conditioning": [
-        "195:74",
-        0
-      ]
-    },
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
-    "_meta": {
-      "title": "Edit Model Reference Method"
-    }
-  },
   "195:79:76": {
     "inputs": {
       "conditioning": [
@@ -298,7 +258,7 @@
   "195:79:77": {
     "inputs": {
       "conditioning": [
-        "195:208",
+        "195:74",
         0
       ],
       "latent": [
@@ -309,6 +269,33 @@
     "class_type": "ReferenceLatent",
     "_meta": {
       "title": "ReferenceLatent"
+    }
+  },
+  "195:80": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": 1,
+      "resolution_steps": 1,
+      "image": [
+        "196",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    }
+  },
+  "195:81": {
+    "inputs": {
+      "image": [
+        "195:80",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "Get Image Size"
     }
   }
 }
