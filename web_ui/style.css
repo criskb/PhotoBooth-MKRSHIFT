@@ -1425,6 +1425,17 @@ button:focus-visible {
   background: linear-gradient(180deg, rgba(9, 12, 20, 0), rgba(9, 12, 20, 0.95) 28%);
 }
 
+.settings-actions::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -2rem;
+  height: 2rem;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(9, 12, 20, 0), rgba(9, 12, 20, 0.65));
+}
+
 .settings-watermark {
   display: flex;
   flex-direction: column;
