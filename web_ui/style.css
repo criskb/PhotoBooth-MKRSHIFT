@@ -690,18 +690,39 @@ body.debate-fever::before {
   height: 100%;
   width: 0%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--accent-warm));
-  background-size: 220% 100%;
-  animation: progress-flow-right 1.8s linear infinite;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--accent-rgb), 0.7),
+    rgba(var(--accent-warm-rgb), 0.7)
+  );
   transition: width 0.25s ease;
 }
 
-@keyframes progress-flow-right {
+.progress__fill::before,
+.remote-progress__fill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent) 18%,
+    var(--accent-warm) 50%,
+    var(--accent) 82%,
+    transparent 100%
+  );
+  background-size: 180% 100%;
+  animation: progress-flow-left 1.8s linear infinite;
+}
+
+@keyframes progress-flow-left {
   0% {
     background-position: 0% 50%;
   }
   100% {
-    background-position: 220% 50%;
+    background-position: -180% 50%;
   }
 }
 
@@ -2545,7 +2566,9 @@ body.debate-fever::before {
   .styles-scroll,
   .styles-empty--loading::after,
   .progress__fill,
-  .remote-progress__fill {
+  .remote-progress__fill,
+  .progress__fill::before,
+  .remote-progress__fill::before {
     transition: none;
     animation: none;
   }
@@ -2827,9 +2850,13 @@ body.debate-fever::before {
   height: 100%;
   width: 0%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--accent-warm));
-  background-size: 220% 100%;
-  animation: progress-flow-right 1.8s linear infinite;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--accent-rgb), 0.7),
+    rgba(var(--accent-warm-rgb), 0.7)
+  );
   transition: width 0.25s ease;
 }
 
