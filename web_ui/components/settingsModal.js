@@ -201,6 +201,10 @@ export function renderSettingsModal() {
               <input class="settings-input settings-input--background-music" type="checkbox" />
               Enable looping background music
             </label>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--debate-spark" type="checkbox" />
+              Enable Debate Spark widget
+            </label>
             <p class="settings-help settings-field--span-2">
               Optional files are loaded from <code>/web_ui/sounds</code> using <code>sfx-names.txt</code> and <code>music-names.txt</code>. Missing files are ignored.
             </p>

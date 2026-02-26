@@ -43,6 +43,17 @@ const styleSelectedValue = document.querySelector(".styles-selected__value");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
 const statusConnection = document.querySelector(".status__connection");
+const debateSpark = document.querySelector(".debate-spark");
+const debatePromptLabel = document.querySelector(".debate-spark__prompt");
+const debateStreakLabel = document.querySelector(".debate-spark__streak");
+const debateMeterFill = document.querySelector(".debate-spark__meter-fill");
+const debateVotesLabel = document.querySelector(".debate-spark__votes");
+const debateSplitLabel = document.querySelector(".debate-spark__split");
+const debateHeatLabel = document.querySelector(".debate-spark__heat");
+const debateAgreeButton = document.querySelector(".debate-spark__button--yes");
+const debateDisagreeButton = document.querySelector(".debate-spark__button--no");
+const debateNextButton = document.querySelector(".debate-spark__button--next");
+const debateResetButton = document.querySelector(".debate-spark__button--reset");
 const actionButton = document.querySelector(".action");
 const timerToggle = document.querySelector(".timer-toggle");
 const timerMenu = document.querySelector(".timer-menu");
@@ -82,6 +93,7 @@ const settingsRemoteResultInput = document.querySelector(".settings-input--remot
 const settingsRemoteCameraInput = document.querySelector(".settings-input--remote-camera");
 const settingsSoundEffectsInput = document.querySelector(".settings-input--sound-effects");
 const settingsBackgroundMusicInput = document.querySelector(".settings-input--background-music");
+const settingsDebateSparkInput = document.querySelector(".settings-input--debate-spark");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsWatermarkPreview = document.querySelector(".settings-watermark__image");
 const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
@@ -149,6 +161,20 @@ let countdownActive = false;
 const countdownGlyphUrlByValue = new Map();
 const countdownGlyphExtensions = ["svg", "png", "webp", "jpg", "jpeg"];
 let countdownGlyphToken = 0;
+let debatePromptIndex = 0;
+let debateStreak = 0;
+let debateHeat = 0;
+let debatePromptVotes = {};
+let debateSparkEnabled = true;
+const defaultDebatePrompts = [
+  "Is AI creativity more honest than human creativity?",
+  "Should AI-generated portraits require a visible watermark?",
+  "Would you trust an AI to choose your best profile photo?",
+  "Do filters reveal personality or hide authenticity?",
+  "Should people be paid when their style trains an AI model?",
+  "Is speed more important than originality in visual art?",
+];
+let debatePrompts = [...defaultDebatePrompts];
 
 function getCountdownGlyphUrl(value, extension = "svg") {
   return `/countdown-glyphs/${encodeURIComponent(String(value))}.${extension}`;
@@ -415,6 +441,179 @@ function refreshCaptureSelectionUi() {
     styleSelectedValue.textContent = selectedLabel;
   }
   actionButton.textContent = selectedStyle ? `Take ${toTitleCase(selectedStyle)} Selfie` : "Take Selfie";
+}
+
+function getActiveDebatePrompt() {
+  return debatePrompts[debatePromptIndex] || defaultDebatePrompts[0] || "";
+}
+
+function getDebatePromptKey(prompt) {
+  return String(prompt || "").trim().toLowerCase();
+}
+
+async function loadDebatePrompts() {
+  try {
+    const response = await fetch("/api/debate-prompts", { cache: "no-store" });
+    if (!response.ok) {
+      return;
+    }
+    const data = await response.json();
+    if (!Array.isArray(data?.prompts)) {
+      return;
+    }
+    const prompts = data.prompts
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+    if (prompts.length) {
+      debatePrompts = prompts;
+    }
+  } catch (error) {
+    // keep defaults
+  }
+}
+
+function persistDebateVote(prompt, side) {
+  fetch("/api/debate-stats", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      event: "vote",
+      prompt,
+      side,
+      streak: debateStreak,
+      heat: debateHeat,
+      createdAt: Date.now(),
+    }),
+  }).catch(() => {});
+}
+
+function persistDebateReset() {
+  fetch("/api/debate-stats", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      event: "reset",
+      prompt: getActiveDebatePrompt(),
+      streak: debateStreak,
+      heat: debateHeat,
+      createdAt: Date.now(),
+    }),
+  }).catch(() => {});
+}
+
+function saveDebateState() {
+  writeStoredJson(storageKeys.debateState, {
+    promptIndex: debatePromptIndex,
+    streak: debateStreak,
+    heat: debateHeat,
+    votes: debatePromptVotes,
+  });
+}
+
+function updateDebateUi({ animate = false } = {}) {
+  if (!debateSpark) {
+    return;
+  }
+  const prompt = getActiveDebatePrompt();
+  const promptKey = getDebatePromptKey(prompt);
+  const votes = debatePromptVotes[promptKey] || { agree: 0, disagree: 0 };
+  const totalVotes = votes.agree + votes.disagree;
+  const agreeRatio = totalVotes > 0 ? votes.agree / totalVotes : 0.5;
+
+  if (debatePromptLabel) {
+    debatePromptLabel.textContent = prompt;
+  }
+  if (debateStreakLabel) {
+    debateStreakLabel.textContent = `🔥 Streak ${debateStreak}`;
+  }
+  const agreePercent = Math.round(agreeRatio * 100);
+  const disagreePercent = 100 - agreePercent;
+
+  if (debateMeterFill) {
+    debateMeterFill.style.width = `${agreePercent}%`;
+  }
+  if (debateVotesLabel) {
+    debateVotesLabel.textContent = `${totalVotes} vote${totalVotes === 1 ? "" : "s"}`;
+  }
+  if (debateSplitLabel) {
+    debateSplitLabel.textContent = `${agreePercent}% agree · ${disagreePercent}% disagree`;
+  }
+  if (debateHeatLabel) {
+    debateHeatLabel.textContent = `Heat ${debateHeat}%`;
+  }
+
+  debateSpark.classList.toggle("debate-spark--hot", debateStreak >= 3 || debateHeat >= 70);
+  if (debateSpark) {
+    debateSpark.style.setProperty("--debate-heat", String(debateHeat / 100));
+  }
+  document.body.classList.toggle("debate-fever", debateSparkEnabled && debateHeat >= 80);
+
+  if (animate) {
+    debateSpark.classList.remove("debate-spark--pulse");
+    void debateSpark.offsetWidth;
+    debateSpark.classList.add("debate-spark--pulse");
+  }
+}
+
+function voteOnDebate(side) {
+  const prompt = getActiveDebatePrompt();
+  const promptKey = getDebatePromptKey(prompt);
+  const current = debatePromptVotes[promptKey] || { agree: 0, disagree: 0 };
+  if (side === "agree") {
+    current.agree += 1;
+  } else {
+    current.disagree += 1;
+  }
+  debatePromptVotes[promptKey] = current;
+  debateStreak += 1;
+  debateHeat = Math.min(100, debateHeat + 12);
+  persistDebateVote(prompt, side);
+  saveDebateState();
+  updateDebateUi({ animate: true });
+  statusLabel.textContent = "Hot Take Registered";
+  statusMeta.textContent = `${side === "agree" ? "Agree" : "Disagree"} locked in — now capture your reaction.`;
+}
+
+function coolDebateHeat() {
+  debateHeat = Math.max(0, debateHeat - 3);
+  updateDebateUi();
+  saveDebateState();
+}
+
+function resetDebateState() {
+  persistDebateReset();
+  debatePromptVotes = {};
+  debateStreak = 0;
+  debateHeat = 0;
+  saveDebateState();
+  updateDebateUi();
+  statusLabel.textContent = "Debate Reset";
+  statusMeta.textContent = "Fresh prompt energy — stir the crowd again.";
+}
+
+function nextDebatePrompt() {
+  if (!debatePrompts.length) {
+    return;
+  }
+  debatePromptIndex = (debatePromptIndex + 1) % debatePrompts.length;
+  saveDebateState();
+  updateDebateUi();
+}
+
+function loadDebateState() {
+  const fallback = { promptIndex: 0, streak: 0, heat: 0, votes: {} };
+  const stored = readStoredJson(storageKeys.debateState, fallback) || fallback;
+  const parsedPromptIndex = Number(stored.promptIndex);
+  const maxPromptIndex = Math.max(0, debatePrompts.length - 1);
+  debatePromptIndex = Number.isFinite(parsedPromptIndex)
+    ? Math.max(0, Math.min(maxPromptIndex, Math.floor(parsedPromptIndex)))
+    : 0;
+  const parsedStreak = Number(stored.streak);
+  debateStreak = Number.isFinite(parsedStreak) ? Math.max(0, Math.floor(parsedStreak)) : 0;
+  const parsedHeat = Number(stored.heat);
+  debateHeat = Number.isFinite(parsedHeat) ? Math.max(0, Math.min(100, Math.floor(parsedHeat))) : 0;
+  debatePromptVotes = stored.votes && typeof stored.votes === "object" ? stored.votes : {};
+  updateDebateUi();
 }
 
 function updateTimerLabel() {
@@ -1155,6 +1354,16 @@ function applyPrintVisibility() {
   }
 }
 
+function applyDebateSparkVisibility() {
+  document.body.classList.toggle("is-debate-spark-hidden", !debateSparkEnabled);
+  if (!debateSparkEnabled) {
+    document.body.classList.remove("debate-fever");
+  }
+  if (settingsDebateSparkInput) {
+    settingsDebateSparkInput.checked = debateSparkEnabled;
+  }
+}
+
 function startProgressPolling() {
   if (!currentPromptId) {
     return;
@@ -1351,6 +1560,10 @@ function loadPrinterConfig() {
     if (musicRaw !== null) {
       backgroundMusicEnabled = musicRaw === "true";
     }
+    const debateSparkRaw = readStoredValue(storageKeys.debateSparkEnabled);
+    if (debateSparkRaw !== null) {
+      debateSparkEnabled = debateSparkRaw === "true";
+    }
   } catch (error) {
     printerConfig = { name: "", enabled: false, copies: 1 };
     freeimageApiKey = "";
@@ -1370,6 +1583,7 @@ function loadPrinterConfig() {
     remoteCameraCaptureEnabled = false;
     soundEffectsEnabled = true;
     backgroundMusicEnabled = false;
+    debateSparkEnabled = true;
   }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
@@ -1404,6 +1618,9 @@ function loadPrinterConfig() {
     settingsRemoteCameraInput.checked = remoteCameraCaptureEnabled;
   }
   applyAudioToggles();
+  if (settingsDebateSparkInput) {
+    settingsDebateSparkInput.checked = debateSparkEnabled;
+  }
   settingsWatermarkInput.checked = watermarkEnabled;
   if (settingsWatermarkTextInput) {
     settingsWatermarkTextInput.value = watermarkText || "MKRShift";
@@ -1416,6 +1633,7 @@ function loadPrinterConfig() {
   applyCameraOrientation();
   updateRemoteInfo();
   applyUploadVisibility();
+  applyDebateSparkVisibility();
   printerController.loadPrinters(printerConfig.name);
   void ensureBackgroundMusic();
 }
@@ -1507,11 +1725,16 @@ async function savePrinterConfig() {
     backgroundMusicEnabled = settingsBackgroundMusicInput.checked;
     writeStoredValue(storageKeys.backgroundMusicEnabled, String(backgroundMusicEnabled));
   }
+  if (settingsDebateSparkInput) {
+    debateSparkEnabled = settingsDebateSparkInput.checked;
+    writeStoredValue(storageKeys.debateSparkEnabled, String(debateSparkEnabled));
+  }
   applyAudioToggles();
   void ensureBackgroundMusic();
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
+  applyDebateSparkVisibility();
   broadcastRemoteConfig();
   updateRemoteProgress(lastRemoteProgress);
   if (cameraChanged) {
@@ -2179,6 +2402,10 @@ actionButton.addEventListener("click", async () => {
   await ensureMotionPermission();
   startCountdown(selectedDelay, "tap");
 });
+debateAgreeButton?.addEventListener("click", () => voteOnDebate("agree"));
+debateDisagreeButton?.addEventListener("click", () => voteOnDebate("disagree"));
+debateNextButton?.addEventListener("click", nextDebatePrompt);
+debateResetButton?.addEventListener("click", resetDebateState);
 timerToggle.addEventListener("click", (event) => {
   event.stopPropagation();
   toggleTimerMenu();
@@ -2365,6 +2592,15 @@ progressCloseButton.disabled = true;
 connectRemoteSocket();
 idleController.loadImages();
 idleController.schedule();
+applyDebateSparkVisibility();
+setInterval(coolDebateHeat, 12000);
+
+async function initializeDebateSpark() {
+  await loadDebatePrompts();
+  loadDebateState();
+}
+
+void initializeDebateSpark();
 
 function handleDoneAction() {
   if (isQueueing) {

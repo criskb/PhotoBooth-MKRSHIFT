@@ -155,6 +155,24 @@ Each workflow JSON inside `workflows/` contains its own prompt text and settings
 GET /api/styles
 ```
 
+## Debate Spark prompts and stats
+
+Debate Spark questions are defined in:
+
+- `web_ui/debate-prompts.json`
+
+Runtime vote/reset events are recorded to:
+
+- `gallery/debate-stats.json`
+
+API endpoints:
+
+- `GET /api/debate-prompts`
+- `GET /api/debate-stats`
+- `POST /api/debate-stats`
+
+See `docs/debate-spark.md` for the full format and examples.
+
 ## ComfyUI runtime notes
 
 Start ComfyUI with preview updates enabled so the UI can show sampling progress:
