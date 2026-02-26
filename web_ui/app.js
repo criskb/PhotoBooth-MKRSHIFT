@@ -43,6 +43,9 @@ const styleSelectedValue = document.querySelector(".styles-selected__value");
 const statusLabel = document.querySelector(".status__label");
 const statusMeta = document.querySelector(".status__meta");
 const statusConnection = document.querySelector(".status__connection");
+const brandTitleLabel = document.querySelector(".brand__title");
+const brandSubtitleAccentLabel = document.querySelector(".brand__subtitle-accent");
+const brandSubtitleNeutralLabel = document.querySelector(".brand__subtitle-neutral");
 const debateSpark = document.querySelector(".debate-spark");
 const debatePromptLabel = document.querySelector(".debate-spark__prompt");
 const debateStreakLabel = document.querySelector(".debate-spark__streak");
@@ -80,7 +83,6 @@ const remoteLaunchClose = document.querySelector(".remote-launch-close");
 const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
-const settingsComfyCredits = document.querySelector(".settings-comfy-credits");
 const settingsComfyMinCreditsInput = document.querySelector(".settings-input--comfy-min-credits");
 const settingsComfyAcceleratorInput = document.querySelector(".settings-input--comfy-accelerator");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
@@ -101,6 +103,8 @@ const settingsSoundEffectsInput = document.querySelector(".settings-input--sound
 const settingsBackgroundMusicInput = document.querySelector(".settings-input--background-music");
 const settingsDebateSparkInput = document.querySelector(".settings-input--debate-spark");
 const settingsHideStatusInput = document.querySelector(".settings-input--hide-status");
+const settingsDiagnosticsShortcutInput = document.querySelector(".settings-input--diagnostics-shortcut");
+const settingsGalleryShortcutInput = document.querySelector(".settings-input--gallery-shortcut");
 const settingsResetDebateAction = document.querySelector(".settings-action--reset-debate");
 const settingsDebateResetStatus = document.querySelector(".settings-debate-reset-status");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
@@ -108,6 +112,12 @@ const settingsWatermarkPreview = document.querySelector(".settings-watermark__im
 const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
 const settingsWatermarkFileInput = document.querySelector(".settings-input--watermark-file");
 const settingsWatermarkClear = document.querySelector(".settings-action--clear-watermark");
+const settingsBrandTitleInput = document.querySelector(".settings-input--brand-title");
+const settingsBrandAccentTextInput = document.querySelector(".settings-input--brand-accent-text");
+const settingsBrandNeutralTextInput = document.querySelector(".settings-input--brand-neutral-text");
+const settingsBrandTitleColorInput = document.querySelector(".settings-input--brand-title-color");
+const settingsBrandAccentColorInput = document.querySelector(".settings-input--brand-accent-color");
+const settingsBrandNeutralColorInput = document.querySelector(".settings-input--brand-neutral-color");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const remoteLaunchQr = document.querySelector(".remote-launch-qr");
@@ -272,12 +282,23 @@ let watermarkEnabled = false;
 let watermarkCustomDataUrl = "";
 let watermarkImageCache = { src: "", image: null };
 let watermarkText = "MKRShift";
+const defaultBranding = {
+  titleText: "AI PHOTOBOOTH",
+  accentText: "MKR",
+  neutralText: "Shift",
+  titleColor: "#f7f7fb",
+  accentColor: "#58d36e",
+  neutralColor: "#f7f7fb",
+};
+let branding = { ...defaultBranding };
 let uploadEnabled = true;
 let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let remoteResultEnabled = true;
 let remoteCameraCaptureEnabled = false;
 let remoteShortcutEnabled = true;
+let diagnosticsShortcutEnabled = true;
+let galleryShortcutEnabled = true;
 let soundEffectsEnabled = true;
 let backgroundMusicEnabled = false;
 let hideStatusEnabled = false;
@@ -441,6 +462,70 @@ function applyAudioToggles() {
   }
   if (!backgroundMusicEnabled) {
     stopBackgroundMusic();
+  }
+}
+
+function normalizeBrandText(value, fallback, maxLength = 48) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  return trimmed.slice(0, maxLength);
+}
+
+function normalizeBrandColor(value, fallback) {
+  const candidate = String(value || "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(candidate)) {
+    return candidate.toLowerCase();
+  }
+  if (/^#[0-9a-fA-F]{3}$/.test(candidate)) {
+    const [, r, g, b] = candidate;
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return fallback;
+}
+
+function applyBranding() {
+  branding.titleText = normalizeBrandText(branding.titleText, defaultBranding.titleText, 48);
+  branding.accentText = normalizeBrandText(branding.accentText, defaultBranding.accentText, 24);
+  branding.neutralText = normalizeBrandText(branding.neutralText, defaultBranding.neutralText, 24);
+  branding.titleColor = normalizeBrandColor(branding.titleColor, defaultBranding.titleColor);
+  branding.accentColor = normalizeBrandColor(branding.accentColor, defaultBranding.accentColor);
+  branding.neutralColor = normalizeBrandColor(branding.neutralColor, defaultBranding.neutralColor);
+
+  if (brandTitleLabel) {
+    brandTitleLabel.textContent = branding.titleText;
+  }
+  if (brandSubtitleAccentLabel) {
+    brandSubtitleAccentLabel.textContent = branding.accentText;
+  }
+  if (brandSubtitleNeutralLabel) {
+    brandSubtitleNeutralLabel.textContent = branding.neutralText;
+  }
+
+  document.documentElement.style.setProperty("--brand-title-color", branding.titleColor);
+  document.documentElement.style.setProperty("--brand-accent-color", branding.accentColor);
+  document.documentElement.style.setProperty("--brand-neutral-color", branding.neutralColor);
+}
+
+function syncBrandingInputs() {
+  if (settingsBrandTitleInput) {
+    settingsBrandTitleInput.value = branding.titleText;
+  }
+  if (settingsBrandAccentTextInput) {
+    settingsBrandAccentTextInput.value = branding.accentText;
+  }
+  if (settingsBrandNeutralTextInput) {
+    settingsBrandNeutralTextInput.value = branding.neutralText;
+  }
+  if (settingsBrandTitleColorInput) {
+    settingsBrandTitleColorInput.value = branding.titleColor;
+  }
+  if (settingsBrandAccentColorInput) {
+    settingsBrandAccentColorInput.value = branding.accentColor;
+  }
+  if (settingsBrandNeutralColorInput) {
+    settingsBrandNeutralColorInput.value = branding.neutralColor;
   }
 }
 
@@ -1573,6 +1658,30 @@ function loadPrinterConfig() {
     if (watermarkTextRaw) {
       watermarkText = watermarkTextRaw;
     }
+    const brandTitleTextRaw = readStoredValue(storageKeys.brandTitleText);
+    if (brandTitleTextRaw) {
+      branding.titleText = brandTitleTextRaw;
+    }
+    const brandAccentTextRaw = readStoredValue(storageKeys.brandAccentText);
+    if (brandAccentTextRaw) {
+      branding.accentText = brandAccentTextRaw;
+    }
+    const brandNeutralTextRaw = readStoredValue(storageKeys.brandNeutralText);
+    if (brandNeutralTextRaw) {
+      branding.neutralText = brandNeutralTextRaw;
+    }
+    const brandTitleColorRaw = readStoredValue(storageKeys.brandTitleColor);
+    if (brandTitleColorRaw) {
+      branding.titleColor = brandTitleColorRaw;
+    }
+    const brandAccentColorRaw = readStoredValue(storageKeys.brandAccentColor);
+    if (brandAccentColorRaw) {
+      branding.accentColor = brandAccentColorRaw;
+    }
+    const brandNeutralColorRaw = readStoredValue(storageKeys.brandNeutralColor);
+    if (brandNeutralColorRaw) {
+      branding.neutralColor = brandNeutralColorRaw;
+    }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
@@ -1596,6 +1705,14 @@ function loadPrinterConfig() {
     const remoteShortcutRaw = readStoredValue(storageKeys.remoteShortcutEnabled);
     if (remoteShortcutRaw !== null) {
       remoteShortcutEnabled = remoteShortcutRaw === "true";
+    }
+    const diagnosticsShortcutRaw = readStoredValue(storageKeys.diagnosticsShortcutEnabled);
+    if (diagnosticsShortcutRaw !== null) {
+      diagnosticsShortcutEnabled = diagnosticsShortcutRaw === "true";
+    }
+    const galleryShortcutRaw = readStoredValue(storageKeys.galleryShortcutEnabled);
+    if (galleryShortcutRaw !== null) {
+      galleryShortcutEnabled = galleryShortcutRaw === "true";
     }
     const sfxRaw = readStoredValue(storageKeys.soundEffectsEnabled);
     if (sfxRaw !== null) {
@@ -1621,12 +1738,15 @@ function loadPrinterConfig() {
     watermarkCustomDataUrl = "";
     watermarkImageCache = { src: "", image: null };
     watermarkText = "MKRShift";
+    branding = { ...defaultBranding };
     uploadEnabled = true;
     hidePrintEnabled = false;
     hideQrEnabled = false;
     remoteResultEnabled = true;
     remoteCameraCaptureEnabled = false;
     remoteShortcutEnabled = true;
+    diagnosticsShortcutEnabled = true;
+    galleryShortcutEnabled = true;
     soundEffectsEnabled = true;
     backgroundMusicEnabled = false;
     debateSparkEnabled = true;
@@ -1666,7 +1786,15 @@ function loadPrinterConfig() {
   if (settingsRemoteShortcutInput) {
     settingsRemoteShortcutInput.checked = remoteShortcutEnabled;
   }
+  if (settingsDiagnosticsShortcutInput) {
+    settingsDiagnosticsShortcutInput.checked = diagnosticsShortcutEnabled;
+  }
+  if (settingsGalleryShortcutInput) {
+    settingsGalleryShortcutInput.checked = galleryShortcutEnabled;
+  }
   applyRemoteShortcutVisibility();
+  applyDiagnosticsShortcutVisibility();
+  applyGalleryShortcutVisibility();
   applyAudioToggles();
   if (settingsDebateSparkInput) {
     settingsDebateSparkInput.checked = debateSparkEnabled;
@@ -1675,9 +1803,11 @@ function loadPrinterConfig() {
   if (settingsWatermarkTextInput) {
     settingsWatermarkTextInput.value = watermarkText || "MKRShift";
   }
+  syncBrandingInputs();
   if (settingsWatermarkClear) {
     settingsWatermarkClear.disabled = !watermarkCustomDataUrl;
   }
+  applyBranding();
   renderWatermarkPreview();
   applyPrintVisibility();
   applyCameraOrientation();
@@ -1706,6 +1836,40 @@ function loadUiPreferences() {
     selectedDelay = 0;
     selectedStyle = null;
   }
+}
+
+function updateBrandingFromInputs({ persist = false } = {}) {
+  if (settingsBrandTitleInput) {
+    branding.titleText = settingsBrandTitleInput.value;
+  }
+  if (settingsBrandAccentTextInput) {
+    branding.accentText = settingsBrandAccentTextInput.value;
+  }
+  if (settingsBrandNeutralTextInput) {
+    branding.neutralText = settingsBrandNeutralTextInput.value;
+  }
+  if (settingsBrandTitleColorInput) {
+    branding.titleColor = settingsBrandTitleColorInput.value;
+  }
+  if (settingsBrandAccentColorInput) {
+    branding.accentColor = settingsBrandAccentColorInput.value;
+  }
+  if (settingsBrandNeutralColorInput) {
+    branding.neutralColor = settingsBrandNeutralColorInput.value;
+  }
+
+  applyBranding();
+  syncBrandingInputs();
+
+  if (!persist) {
+    return;
+  }
+  writeStoredValue(storageKeys.brandTitleText, branding.titleText);
+  writeStoredValue(storageKeys.brandAccentText, branding.accentText);
+  writeStoredValue(storageKeys.brandNeutralText, branding.neutralText);
+  writeStoredValue(storageKeys.brandTitleColor, branding.titleColor);
+  writeStoredValue(storageKeys.brandAccentColor, branding.accentColor);
+  writeStoredValue(storageKeys.brandNeutralColor, branding.neutralColor);
 }
 
 async function savePrinterConfig() {
@@ -1752,6 +1916,7 @@ async function savePrinterConfig() {
     watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
     writeStoredValue(storageKeys.watermarkText, watermarkText);
   }
+  updateBrandingFromInputs({ persist: true });
   renderWatermarkPreview();
   uploadEnabled = settingsUploadsInput.checked;
   writeStoredValue(storageKeys.uploadEnabled, String(uploadEnabled));
@@ -1774,6 +1939,14 @@ async function savePrinterConfig() {
   if (settingsRemoteShortcutInput) {
     remoteShortcutEnabled = settingsRemoteShortcutInput.checked;
     writeStoredValue(storageKeys.remoteShortcutEnabled, String(remoteShortcutEnabled));
+  }
+  if (settingsDiagnosticsShortcutInput) {
+    diagnosticsShortcutEnabled = settingsDiagnosticsShortcutInput.checked;
+    writeStoredValue(storageKeys.diagnosticsShortcutEnabled, String(diagnosticsShortcutEnabled));
+  }
+  if (settingsGalleryShortcutInput) {
+    galleryShortcutEnabled = settingsGalleryShortcutInput.checked;
+    writeStoredValue(storageKeys.galleryShortcutEnabled, String(galleryShortcutEnabled));
   }
   if (settingsSoundEffectsInput) {
     soundEffectsEnabled = settingsSoundEffectsInput.checked;
@@ -1799,53 +1972,12 @@ async function savePrinterConfig() {
   applyDebateSparkVisibility();
   applyStatusVisibility();
   applyRemoteShortcutVisibility();
+  applyDiagnosticsShortcutVisibility();
+  applyGalleryShortcutVisibility();
   broadcastRemoteConfig();
   updateRemoteProgress(lastRemoteProgress);
   if (cameraChanged) {
     await startCamera();
-  }
-  await refreshHostedCredits();
-}
-
-async function refreshHostedCredits() {
-  if (!settingsComfyCredits) {
-    return;
-  }
-  const endpointInput = settingsComfyInput?.value?.trim?.() || comfyServerUrl || "";
-  const keyInput = settingsComfyKeyInput?.value?.trim?.() || comfyApiKey || "";
-  if (!endpointInput || !/comfy\.icu|\/api\/v1\/workflows/i.test(endpointInput)) {
-    settingsComfyCredits.textContent = "Remaining credits: n/a (not hosted)";
-    return;
-  }
-  if (!keyInput) {
-    settingsComfyCredits.textContent = "Remaining credits: add API key";
-    return;
-  }
-  settingsComfyCredits.textContent = "Remaining credits: checking...";
-  try {
-    const response = await fetch(
-      `/api/comfy-credits?comfyServerUrl=${encodeURIComponent(endpointInput)}`,
-      {
-        headers: {
-          "x-comfy-api-key": keyInput,
-        },
-      }
-    );
-    if (!response.ok) {
-      throw new Error("lookup failed");
-    }
-    const payload = await response.json();
-    if (!payload?.hosted) {
-      settingsComfyCredits.textContent = "Remaining credits: n/a (not hosted)";
-      return;
-    }
-    if (Number.isFinite(Number(payload?.credits))) {
-      settingsComfyCredits.textContent = `Remaining credits: ${Number(payload.credits)}`;
-      return;
-    }
-    settingsComfyCredits.textContent = "Remaining credits: unavailable";
-  } catch (error) {
-    settingsComfyCredits.textContent = "Remaining credits: unavailable";
   }
 }
 
@@ -1860,7 +1992,6 @@ async function openSettings() {
   }
   printerController.loadPrinters(printerConfig.name);
   await refreshCameraOptions();
-  await refreshHostedCredits();
 }
 
 function handlePrinterSelection() {
@@ -1888,6 +2019,26 @@ function applyRemoteShortcutVisibility() {
   }
 }
 
+function applyDiagnosticsShortcutVisibility() {
+  if (!diagnosticsToggle) {
+    return;
+  }
+  diagnosticsToggle.classList.toggle("diagnostics-toggle--hidden", !diagnosticsShortcutEnabled);
+  if (!diagnosticsShortcutEnabled) {
+    closeDiagnostics();
+  }
+}
+
+function applyGalleryShortcutVisibility() {
+  if (!galleryToggle) {
+    return;
+  }
+  galleryToggle.classList.toggle("gallery-toggle--hidden", !galleryShortcutEnabled);
+  if (!galleryShortcutEnabled) {
+    closeGallery();
+  }
+}
+
 async function openRemoteLaunch() {
   if (!remoteShortcutEnabled || !remoteLaunchModal) {
     return;
@@ -1901,6 +2052,9 @@ function closeRemoteLaunch() {
 }
 
 function openGallery() {
+  if (!galleryShortcutEnabled) {
+    return;
+  }
   if (!galleryModal) {
     return;
   }
@@ -2618,6 +2772,24 @@ settingsWatermarkTextInput?.addEventListener("input", () => {
   watermarkText = settingsWatermarkTextInput.value.trim() || "MKRShift";
   writeStoredValue(storageKeys.watermarkText, watermarkText);
   renderWatermarkPreview();
+});
+settingsBrandTitleInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandAccentTextInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandNeutralTextInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandTitleColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandAccentColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandNeutralColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
 settingsWatermarkClear?.addEventListener("click", clearCustomWatermark);

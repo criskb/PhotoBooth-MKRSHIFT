@@ -43,7 +43,6 @@ export function renderSettingsModal() {
                 autocomplete="off"
               />
             </label>
-            <div class="settings-comfy-credits settings-field--span-2" aria-live="polite">Remaining credits: --</div>
             <label class="settings-field">
               Minimum hosted credits required
               <input
@@ -188,6 +187,62 @@ export function renderSettingsModal() {
               </div>
             </label>
           </div>
+          <div class="settings-branding">
+            <p class="settings-watermark__label">Booth branding</p>
+            <div class="settings-grid settings-grid--two">
+              <label class="settings-field settings-field--span-2">
+                Title text
+                <input
+                  class="settings-input form-input settings-input--brand-title"
+                  type="text"
+                  value="AI PHOTOBOOTH"
+                  maxlength="48"
+                />
+              </label>
+              <label class="settings-field">
+                Accent text
+                <input
+                  class="settings-input form-input settings-input--brand-accent-text"
+                  type="text"
+                  value="MKR"
+                  maxlength="24"
+                />
+              </label>
+              <label class="settings-field">
+                Secondary text
+                <input
+                  class="settings-input form-input settings-input--brand-neutral-text"
+                  type="text"
+                  value="Shift"
+                  maxlength="24"
+                />
+              </label>
+              <label class="settings-field">
+                Title color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-title-color"
+                  type="color"
+                  value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
+                Accent color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-accent-color"
+                  type="color"
+                  value="#58d36e"
+                />
+              </label>
+              <label class="settings-field">
+                Secondary color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-neutral-color"
+                  type="color"
+                  value="#f7f7fb"
+                />
+              </label>
+            </div>
+          </div>
         </section>
 
 
@@ -201,6 +256,14 @@ export function renderSettingsModal() {
             <label class="settings-field settings-field--toggle settings-field--span-2">
               <input class="settings-input settings-input--hide-status" type="checkbox" />
               Hide Status widget (top-right) and shift layout
+            </label>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--diagnostics-shortcut" type="checkbox" />
+              Show Diagnostics button
+            </label>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--gallery-shortcut" type="checkbox" />
+              Show Gallery button
             </label>
             <div class="settings-inline-actions settings-field--span-2">
               <button class="settings-action settings-action--reset-debate btn btn--secondary" type="button">
