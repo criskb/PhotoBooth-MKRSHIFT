@@ -44,16 +44,6 @@ export function renderSettingsModal() {
               />
             </label>
             <label class="settings-field">
-              Minimum hosted credits required
-              <input
-                class="settings-input form-input settings-input--comfy-min-credits"
-                type="number"
-                min="0"
-                step="1"
-                value="2500"
-              />
-            </label>
-            <label class="settings-field">
               Hosted GPU accelerator
               <select class="settings-input form-input settings-input--comfy-accelerator">
                 <option value="L4">L4 (default)</option>
