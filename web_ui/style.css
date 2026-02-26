@@ -286,7 +286,7 @@ body.debate-fever::before {
 .debate-spark {
   --debate-heat: 0;
   position: absolute;
-  top: calc(var(--space-xl) + 5.9rem);
+  top: calc(var(--space-xl) + 6.5rem);
   right: calc(var(--space-xl) + var(--space-md));
   width: min(34rem, 40vw);
   padding: 0.95rem 1rem;
@@ -2828,7 +2828,7 @@ body.debate-fever::before {
   }
 
   .debate-spark {
-    top: calc(var(--space-xl) + 11.6rem);
+    top: calc(var(--space-xl) + 12.2rem);
     left: calc(var(--space-xl) + var(--space-md));
     right: auto;
     width: min(90vw, 34rem);
