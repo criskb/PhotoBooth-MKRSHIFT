@@ -21,6 +21,7 @@ export function renderHud() {
       <p class="debate-spark__prompt">Is AI creativity more honest than human creativity?</p>
       <div class="debate-spark__meter" aria-hidden="true">
         <div class="debate-spark__meter-fill"></div>
+        <span class="debate-spark__meter-emoji" aria-hidden="true">😐</span>
       </div>
       <div class="debate-spark__meta">
         <span class="debate-spark__votes">0 votes</span>
@@ -31,7 +32,6 @@ export function renderHud() {
         <button class="debate-spark__button debate-spark__button--yes" type="button">Agree</button>
         <button class="debate-spark__button debate-spark__button--no" type="button">Disagree</button>
         <button class="debate-spark__button debate-spark__button--next" type="button">Next take ↻</button>
-        <button class="debate-spark__button debate-spark__button--reset" type="button">Reset</button>
       </div>
     </section>
   `;

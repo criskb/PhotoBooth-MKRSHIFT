@@ -47,6 +47,7 @@ const debateSpark = document.querySelector(".debate-spark");
 const debatePromptLabel = document.querySelector(".debate-spark__prompt");
 const debateStreakLabel = document.querySelector(".debate-spark__streak");
 const debateMeterFill = document.querySelector(".debate-spark__meter-fill");
+const debateMeterEmoji = document.querySelector(".debate-spark__meter-emoji");
 const debateVotesLabel = document.querySelector(".debate-spark__votes");
 const debateSplitLabel = document.querySelector(".debate-spark__split");
 const debateHeatLabel = document.querySelector(".debate-spark__heat");
@@ -66,6 +67,7 @@ const progressPreviewManager = createProgressPreviewManager(progressPreviews);
 const uploadButton = document.querySelector(".progress-action--upload");
 const printButton = document.querySelector(".progress-action--print");
 const doneButton = document.querySelector(".progress-action--done");
+const redoButton = document.querySelector(".progress-action--redo");
 const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const progressCloseButton = document.querySelector(".progress-close");
@@ -94,6 +96,9 @@ const settingsRemoteCameraInput = document.querySelector(".settings-input--remot
 const settingsSoundEffectsInput = document.querySelector(".settings-input--sound-effects");
 const settingsBackgroundMusicInput = document.querySelector(".settings-input--background-music");
 const settingsDebateSparkInput = document.querySelector(".settings-input--debate-spark");
+const settingsHideStatusInput = document.querySelector(".settings-input--hide-status");
+const settingsResetDebateAction = document.querySelector(".settings-action--reset-debate");
+const settingsDebateResetStatus = document.querySelector(".settings-debate-reset-status");
 const settingsWatermarkInput = document.querySelector(".settings-input--watermark");
 const settingsWatermarkPreview = document.querySelector(".settings-watermark__image");
 const settingsWatermarkTextInput = document.querySelector(".settings-input--watermark-text");
@@ -146,6 +151,7 @@ let currentPromptId = null;
 let progressPoller = null;
 let outputReady = false;
 let lastOutputUrl = null;
+let lastCapturedImageData = null;
 let printerConfig = { name: "", enabled: false, copies: 1 };
 let freeimageApiKey = "";
 let comfyApiKey = "";
@@ -267,6 +273,7 @@ let remoteResultEnabled = true;
 let remoteCameraCaptureEnabled = false;
 let soundEffectsEnabled = true;
 let backgroundMusicEnabled = false;
+let hideStatusEnabled = false;
 const SOUND_EFFECT_EVENTS = {
   styleSelect: "style-select.mp3",
   countdownTick: "countdown-tick.mp3",
@@ -430,6 +437,11 @@ function applyAudioToggles() {
   }
 }
 
+function applyStatusVisibility() {
+  document.body.classList.toggle("is-status-hidden", hideStatusEnabled);
+  recalcDebateOffset();
+}
+
 function updateActionButtonState() {
   actionButton.disabled = !selectedStyle;
   refreshCaptureSelectionUi();
@@ -449,6 +461,15 @@ function getActiveDebatePrompt() {
 
 function getDebatePromptKey(prompt) {
   return String(prompt || "").trim().toLowerCase();
+}
+
+function getDebateEmoji(agreePercent) {
+  const p = Math.max(0, Math.min(100, Math.round(Number(agreePercent) || 0)));
+  if (p >= 80) return "😄";
+  if (p >= 60) return "🙂";
+  if (p >= 45) return "😐";
+  if (p >= 25) return "🙁";
+  return "😡";
 }
 
 async function loadDebatePrompts() {
@@ -531,6 +552,10 @@ function updateDebateUi({ animate = false } = {}) {
 
   if (debateMeterFill) {
     debateMeterFill.style.width = `${agreePercent}%`;
+  }
+  if (debateMeterEmoji) {
+    debateMeterEmoji.textContent = getDebateEmoji(agreePercent);
+    debateMeterEmoji.style.left = `${agreePercent}%`;
   }
   if (debateVotesLabel) {
     debateVotesLabel.textContent = `${totalVotes} vote${totalVotes === 1 ? "" : "s"}`;
@@ -1036,6 +1061,7 @@ async function queueSelfie(source = "tap") {
     return;
   }
   const imageData = captureFrame();
+  lastCapturedImageData = imageData || lastCapturedImageData;
   await queueSelfieWithImage(imageData, source);
 }
 
@@ -1054,6 +1080,7 @@ async function queueSelfieWithImage(imageData, source = "tap") {
     return;
   }
 
+  lastCapturedImageData = imageData;
   isQueueing = true;
   setBusy(true);
   outputReady = false;
@@ -1362,6 +1389,7 @@ function applyDebateSparkVisibility() {
   if (settingsDebateSparkInput) {
     settingsDebateSparkInput.checked = debateSparkEnabled;
   }
+  recalcDebateOffset();
 }
 
 function startProgressPolling() {
@@ -1399,6 +1427,7 @@ function startProgressPolling() {
         });
         outputReady = true;
         uploadButton.disabled = !uploadEnabled;
+      redoButton && (redoButton.disabled = !lastCapturedImageData);
         applyPrintVisibility();
         doneButton.disabled = false;
         progressCloseButton.disabled = false;
@@ -1648,6 +1677,10 @@ function loadUiPreferences() {
     if (storedStyle) {
       selectedStyle = storedStyle;
     }
+    const hideStatusRaw = readStoredValue(storageKeys.hideStatusEnabled);
+    if (hideStatusRaw !== null) {
+      hideStatusEnabled = hideStatusRaw === "true";
+    }
   } catch (error) {
     selectedDelay = 0;
     selectedStyle = null;
@@ -1729,12 +1762,17 @@ async function savePrinterConfig() {
     debateSparkEnabled = settingsDebateSparkInput.checked;
     writeStoredValue(storageKeys.debateSparkEnabled, String(debateSparkEnabled));
   }
+  if (settingsHideStatusInput) {
+    hideStatusEnabled = settingsHideStatusInput.checked;
+    writeStoredValue(storageKeys.hideStatusEnabled, String(hideStatusEnabled));
+  }
   applyAudioToggles();
   void ensureBackgroundMusic();
   applyPrintVisibility();
   applyCameraOrientation();
   applyUploadVisibility();
   applyDebateSparkVisibility();
+  applyStatusVisibility();
   broadcastRemoteConfig();
   updateRemoteProgress(lastRemoteProgress);
   if (cameraChanged) {
@@ -2402,6 +2440,12 @@ actionButton.addEventListener("click", async () => {
   await ensureMotionPermission();
   startCountdown(selectedDelay, "tap");
 });
+redoButton?.addEventListener("click", async () => {
+  if (!lastCapturedImageData || isQueueing || !selectedStyle) {
+    return;
+  }
+  await queueSelfieWithImage(lastCapturedImageData, "redo");
+});
 debateAgreeButton?.addEventListener("click", () => voteOnDebate("agree"));
 debateDisagreeButton?.addEventListener("click", () => voteOnDebate("disagree"));
 debateNextButton?.addEventListener("click", nextDebatePrompt);
@@ -2456,6 +2500,14 @@ document.addEventListener("keydown", (event) => {
     idleController.show();
   }
 });
+function recalcDebateOffset() {
+  const hud = document.querySelector(".hud");
+  const height = hud ? hud.offsetHeight : 0;
+  const gap = 24;
+  const offsetPx = hideStatusEnabled ? 0 : height + gap;
+  document.documentElement.style.setProperty("--debate-offset", `${offsetPx}px`);
+}
+window.addEventListener("resize", recalcDebateOffset);
 settingsModal?.addEventListener("click", (event) => {
   if (event.target === settingsModal) {
     closeSettings();
@@ -2512,6 +2564,41 @@ settingsSave?.addEventListener("click", async () => {
   closeSettings();
 });
 settingsClose?.addEventListener("click", closeSettings);
+settingsResetDebateAction?.addEventListener("click", async () => {
+  settingsResetDebateAction.disabled = true;
+  try {
+    const response = await fetch("/api/debate-stats", { method: "DELETE" });
+    if (response.ok) {
+      removeStoredValue(storageKeys.debateState);
+      debatePromptVotes = {};
+      debatePromptIndex = 0;
+      debateStreak = 0;
+      debateHeat = 0;
+      saveDebateState();
+      updateDebateUi();
+      statusLabel.textContent = "Debate Results Reset";
+      statusMeta.textContent = "Saved votes cleared.";
+      if (settingsDebateResetStatus) {
+        settingsDebateResetStatus.textContent = "Debate Spark results cleared (0 votes).";
+      }
+      try {
+        const verify = await fetch("/api/debate-stats");
+        if (verify.ok) {
+          const data = await verify.json();
+          if (settingsDebateResetStatus) {
+            settingsDebateResetStatus.textContent = `Debate Spark results cleared (totalEvents: ${data.totalEvents}).`;
+          }
+        }
+      } catch (_) {}
+    }
+  } catch (error) {
+    if (settingsDebateResetStatus) {
+      settingsDebateResetStatus.textContent = "Unable to reset results. Try again.";
+    }
+  } finally {
+    settingsResetDebateAction.disabled = false;
+  }
+});
 diagnosticsClose?.addEventListener("click", closeDiagnostics);
 tosClose?.addEventListener("click", closeTos);
 diagnosticsRefresh?.addEventListener("click", fetchDiagnostics);
@@ -2593,6 +2680,7 @@ connectRemoteSocket();
 idleController.loadImages();
 idleController.schedule();
 applyDebateSparkVisibility();
+applyStatusVisibility();
 setInterval(coolDebateHeat, 12000);
 
 async function initializeDebateSpark() {

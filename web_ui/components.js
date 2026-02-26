@@ -56,6 +56,7 @@ function renderProgressOverlay() {
         </div>
         <img class="progress__preview" alt="Latest generated output" />
         <div class="progress__actions">
+          <button class="progress-action progress-action--redo btn btn--secondary" disabled>Re-Do with current style</button>
           <button class="progress-action progress-action--upload btn btn--primary" disabled>Upload</button>
           <button class="progress-action progress-action--print btn btn--primary" disabled>Print</button>
           <button class="progress-action progress-action--done btn btn--primary" disabled>Back to Capture</button>

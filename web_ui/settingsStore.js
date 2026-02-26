@@ -22,6 +22,7 @@ export const storageKeys = {
   backgroundMusicEnabled: "backgroundMusicEnabled",
   debateSparkEnabled: "debateSparkEnabled",
   debateState: "debateState",
+  hideStatusEnabled: "hideStatusEnabled",
 };
 
 function getStorage() {

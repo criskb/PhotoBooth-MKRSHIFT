@@ -1141,22 +1141,29 @@ function loadDebatePromptsFromFile() {
 
 function readDebateStatsFile() {
   if (!fs.existsSync(debateStatsPath)) {
-    return { events: [] };
+    return { summary: {} };
   }
   try {
     const raw = fs.readFileSync(debateStatsPath, "utf8");
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed?.events)) {
-      return { events: [] };
+    if (parsed && parsed.summary && typeof parsed.summary === "object") {
+      return { summary: parsed.summary };
     }
-    return { events: parsed.events };
+    const events = Array.isArray(parsed?.events) ? parsed.events : [];
+    const items = summarizeDebateEvents(events);
+    const summary = {};
+    for (const item of items) {
+      summary[item.prompt] = { agree: item.agree, disagree: item.disagree, total: item.total };
+    }
+    return { summary };
   } catch (error) {
-    return { events: [] };
+    return { summary: {} };
   }
 }
 
 function writeDebateStatsFile(payload) {
-  fs.writeFileSync(debateStatsPath, JSON.stringify(payload, null, 2));
+  const summary = payload && typeof payload.summary === "object" ? payload.summary : {};
+  fs.writeFileSync(debateStatsPath, JSON.stringify({ summary }, null, 2));
 }
 
 function summarizeDebateEvents(events) {
@@ -1198,13 +1205,13 @@ const server = http.createServer((req, res) => {
 
   if (req.url.startsWith("/api/debate-stats") && req.method === "GET") {
     const stats = readDebateStatsFile();
-    const summary = summarizeDebateEvents(stats.events);
+    const totalEvents = Object.values(stats.summary || {}).reduce((acc, v) => acc + (Number(v?.total) || 0), 0);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       path: debateStatsPath,
-      totalEvents: stats.events.length,
-      summary,
-      events: stats.events,
+      totalEvents,
+      summary: stats.summary || {},
+      events: [],
     }));
     return;
   }
@@ -1213,27 +1220,19 @@ const server = http.createServer((req, res) => {
     readJsonBody(req)
       .then((payload) => {
         const event = typeof payload?.event === "string" ? payload.event.trim() : "vote";
+        if (event === "reset") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true }));
+          return;
+        }
         const prompt = sanitizeDebatePrompt(payload?.prompt);
         const side = payload?.side === "disagree" ? "disagree" : "agree";
-        const streak = Number(payload?.streak);
-        const heat = Number(payload?.heat);
-        const createdAt = Number(payload?.createdAt);
-
         const stats = readDebateStatsFile();
-        const entry = {
-          event: event || "vote",
-          prompt,
-          side,
-          streak: Number.isFinite(streak) ? Math.max(0, Math.floor(streak)) : 0,
-          heat: Number.isFinite(heat) ? Math.max(0, Math.floor(heat)) : 0,
-          createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
-        };
-        stats.events.push(entry);
-        if (stats.events.length > 5000) {
-          stats.events = stats.events.slice(-5000);
-        }
+        const current = stats.summary[prompt] || { agree: 0, disagree: 0, total: 0 };
+        current[side] += 1;
+        current.total += 1;
+        stats.summary[prompt] = current;
         writeDebateStatsFile(stats);
-
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true }));
       })
@@ -1241,6 +1240,13 @@ const server = http.createServer((req, res) => {
         res.writeHead(400);
         res.end(`Invalid debate stats payload: ${error.message}`);
       });
+    return;
+  }
+
+  if (req.url.startsWith("/api/debate-stats") && req.method === "DELETE") {
+    writeDebateStatsFile({ summary: {} });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, reset: true }));
     return;
   }
 

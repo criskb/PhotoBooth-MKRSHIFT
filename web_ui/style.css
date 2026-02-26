@@ -201,6 +201,10 @@ body.debate-fever::before {
   z-index: 2;
 }
 
+.is-status-hidden .hud .status {
+  display: none;
+}
+
 .brand {
   display: flex;
   flex-direction: column;
@@ -286,7 +290,7 @@ body.debate-fever::before {
 .debate-spark {
   --debate-heat: 0;
   position: absolute;
-  top: calc(var(--space-xl) + 6.5rem);
+  top: calc(var(--space-xl) + var(--space-xs) + var(--debate-offset, 6.5rem));
   right: calc(var(--space-xl) + var(--space-md));
   width: min(34rem, 40vw);
   padding: 0.95rem 1rem;
@@ -329,7 +333,7 @@ body.debate-fever::before {
   margin-top: 0.6rem;
   height: 0.35rem;
   border-radius: 999px;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(255, 90, 95, 0.38);
 }
 
@@ -339,6 +343,19 @@ body.debate-fever::before {
   border-radius: inherit;
   background: linear-gradient(90deg, rgba(88, 214, 141, 0.9), rgba(95, 211, 255, 0.9));
   transition: width 0.35s ease;
+}
+
+.debate-spark__meter-emoji {
+  position: absolute;
+  top: 0%;
+  left: 50%;
+  transform: translate(-50%, -90%);
+  font-size: 1.8rem;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+  transition: left 0.25s ease;
 }
 
 .debate-spark__meta {
@@ -567,6 +584,15 @@ body.debate-fever::before {
 
 .app--busy .progress-overlay {
   display: flex;
+}
+
+.app--busy .debate-spark {
+  display: none;
+}
+
+.is-status-hidden .debate-spark {
+  right: calc(var(--space-xl) + var(--space-md));
+  left: auto;
 }
 
 .progress-card {
@@ -2839,7 +2865,7 @@ body.debate-fever::before {
   }
 
   .debate-spark {
-    top: calc(var(--space-xl) + 12.2rem);
+    top: calc(var(--space-xl) + var(--space-xs) + var(--debate-offset, 12.2rem));
     left: calc(var(--space-xl) + var(--space-md));
     right: auto;
     width: min(90vw, 34rem);

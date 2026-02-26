@@ -205,9 +205,19 @@ export function renderSettingsModal() {
               <input class="settings-input settings-input--debate-spark" type="checkbox" />
               Enable Debate Spark widget
             </label>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--hide-status" type="checkbox" />
+              Hide Status widget (top-right) and shift layout
+            </label>
             <p class="settings-help settings-field--span-2">
               Optional files are loaded from <code>/web_ui/sounds</code> using <code>sfx-names.txt</code> and <code>music-names.txt</code>. Missing files are ignored.
             </p>
+            <div class="settings-inline-actions settings-field--span-2">
+              <button class="settings-action settings-action--reset-debate btn btn--secondary" type="button">
+                Reset Debate Spark saved results
+              </button>
+              <span class="settings-debate-reset-status" aria-live="polite"></span>
+            </div>
           </div>
         </section>
 
