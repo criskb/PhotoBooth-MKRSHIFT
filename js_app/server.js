@@ -18,6 +18,8 @@ const workflowDir = path.join(rootDir, "workflows");
 const galleryDir = path.join(rootDir, "gallery");
 const galleryInputDir = path.join(galleryDir, "input");
 const galleryOutputDir = path.join(galleryDir, "output");
+const debateStatsPath = path.join(galleryDir, "debate-stats.json");
+const debatePromptsPath = path.join(webDir, "debate-prompts.json");
 const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
 let comfyServerUrl = normalizeComfyServerUrl(process.env.COMFY_SERVER_URL) ?? "http://127.0.0.1:8188";
@@ -1117,6 +1119,62 @@ function broadcastRemote(payload) {
   });
 }
 
+function sanitizeDebatePrompt(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function loadDebatePromptsFromFile() {
+  if (!fs.existsSync(debatePromptsPath)) {
+    return [];
+  }
+  try {
+    const raw = fs.readFileSync(debatePromptsPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.prompts)) {
+      return [];
+    }
+    return parsed.prompts.map(sanitizeDebatePrompt).filter(Boolean);
+  } catch (error) {
+    return [];
+  }
+}
+
+function readDebateStatsFile() {
+  if (!fs.existsSync(debateStatsPath)) {
+    return { events: [] };
+  }
+  try {
+    const raw = fs.readFileSync(debateStatsPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.events)) {
+      return { events: [] };
+    }
+    return { events: parsed.events };
+  } catch (error) {
+    return { events: [] };
+  }
+}
+
+function writeDebateStatsFile(payload) {
+  fs.writeFileSync(debateStatsPath, JSON.stringify(payload, null, 2));
+}
+
+function summarizeDebateEvents(events) {
+  const summaryByPrompt = new Map();
+  for (const event of events) {
+    if (event?.event !== "vote") {
+      continue;
+    }
+    const prompt = sanitizeDebatePrompt(event.prompt) || "Unknown";
+    const side = event.side === "disagree" ? "disagree" : "agree";
+    const current = summaryByPrompt.get(prompt) ?? { agree: 0, disagree: 0, total: 0 };
+    current[side] += 1;
+    current.total += 1;
+    summaryByPrompt.set(prompt, current);
+  }
+  return Array.from(summaryByPrompt.entries()).map(([prompt, stats]) => ({ prompt, ...stats }));
+}
+
 const server = http.createServer((req, res) => {
   if (!req.url) {
     res.writeHead(400);
@@ -1128,6 +1186,61 @@ const server = http.createServer((req, res) => {
     const styles = loadWorkflowStyles(workflowDir);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ styles }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/debate-prompts")) {
+    const prompts = loadDebatePromptsFromFile();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ prompts, source: "web_ui/debate-prompts.json" }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/debate-stats") && req.method === "GET") {
+    const stats = readDebateStatsFile();
+    const summary = summarizeDebateEvents(stats.events);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      path: debateStatsPath,
+      totalEvents: stats.events.length,
+      summary,
+      events: stats.events,
+    }));
+    return;
+  }
+
+  if (req.url.startsWith("/api/debate-stats") && req.method === "POST") {
+    readJsonBody(req)
+      .then((payload) => {
+        const event = typeof payload?.event === "string" ? payload.event.trim() : "vote";
+        const prompt = sanitizeDebatePrompt(payload?.prompt);
+        const side = payload?.side === "disagree" ? "disagree" : "agree";
+        const streak = Number(payload?.streak);
+        const heat = Number(payload?.heat);
+        const createdAt = Number(payload?.createdAt);
+
+        const stats = readDebateStatsFile();
+        const entry = {
+          event: event || "vote",
+          prompt,
+          side,
+          streak: Number.isFinite(streak) ? Math.max(0, Math.floor(streak)) : 0,
+          heat: Number.isFinite(heat) ? Math.max(0, Math.floor(heat)) : 0,
+          createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+        };
+        stats.events.push(entry);
+        if (stats.events.length > 5000) {
+          stats.events = stats.events.slice(-5000);
+        }
+        writeDebateStatsFile(stats);
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      })
+      .catch((error) => {
+        res.writeHead(400);
+        res.end(`Invalid debate stats payload: ${error.message}`);
+      });
     return;
   }
 

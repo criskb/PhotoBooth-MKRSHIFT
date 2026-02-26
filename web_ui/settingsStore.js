@@ -20,6 +20,8 @@ export const storageKeys = {
   remoteCameraCaptureEnabled: "remoteCameraCaptureEnabled",
   soundEffectsEnabled: "soundEffectsEnabled",
   backgroundMusicEnabled: "backgroundMusicEnabled",
+  debateSparkEnabled: "debateSparkEnabled",
+  debateState: "debateState",
 };
 
 function getStorage() {
