@@ -12,6 +12,7 @@ export function renderSettingsModal() {
           <a class="settings-nav__link" href="#settings-camera">Camera</a>
           <a class="settings-nav__link" href="#settings-print">Print</a>
           <a class="settings-nav__link" href="#settings-watermark">Watermark</a>
+          <a class="settings-nav__link" href="#settings-interface">Interface</a>
           <a class="settings-nav__link" href="#settings-audio">Audio</a>
           <a class="settings-nav__link" href="#settings-remote">Remote</a>
         </nav>
@@ -190,6 +191,26 @@ export function renderSettingsModal() {
         </section>
 
 
+        <section class="settings-section" id="settings-interface">
+          <h3 class="settings-section__title">Interface</h3>
+          <div class="settings-grid settings-grid--two">
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--debate-spark" type="checkbox" />
+              Enable Debate Spark widget
+            </label>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--hide-status" type="checkbox" />
+              Hide Status widget (top-right) and shift layout
+            </label>
+            <div class="settings-inline-actions settings-field--span-2">
+              <button class="settings-action settings-action--reset-debate btn btn--secondary" type="button">
+                Reset Debate Spark saved results
+              </button>
+              <span class="settings-debate-reset-status" aria-live="polite"></span>
+            </div>
+          </div>
+        </section>
+
         <section class="settings-section" id="settings-audio">
           <h3 class="settings-section__title">Audio</h3>
           <div class="settings-grid settings-grid--two">
@@ -201,28 +222,18 @@ export function renderSettingsModal() {
               <input class="settings-input settings-input--background-music" type="checkbox" />
               Enable looping background music
             </label>
-            <label class="settings-field settings-field--toggle settings-field--span-2">
-              <input class="settings-input settings-input--debate-spark" type="checkbox" />
-              Enable Debate Spark widget
-            </label>
-            <label class="settings-field settings-field--toggle settings-field--span-2">
-              <input class="settings-input settings-input--hide-status" type="checkbox" />
-              Hide Status widget (top-right) and shift layout
-            </label>
             <p class="settings-help settings-field--span-2">
               Optional files are loaded from <code>/web_ui/sounds</code> using <code>sfx-names.txt</code> and <code>music-names.txt</code>. Missing files are ignored.
             </p>
-            <div class="settings-inline-actions settings-field--span-2">
-              <button class="settings-action settings-action--reset-debate btn btn--secondary" type="button">
-                Reset Debate Spark saved results
-              </button>
-              <span class="settings-debate-reset-status" aria-live="polite"></span>
-            </div>
           </div>
         </section>
 
         <div class="settings-remote" id="settings-remote">
           <p class="settings-remote__title">Phone remote shutter</p>
+          <label class="settings-field settings-field--toggle settings-field--span-2">
+            <input class="settings-input settings-input--remote-shortcut" type="checkbox" />
+            Show Remote QR button on booth screen
+          </label>
           <p class="settings-remote__text">
             Scan the QR code to open the remote on your phone. Connect to the same Wi-Fi, choose a
             timer, and tap capture to trigger the booth over the WebSocket.

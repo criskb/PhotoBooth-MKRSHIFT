@@ -1,7 +1,9 @@
 const timerButtons = Array.from(document.querySelectorAll(".remote-timer"));
 const actionButton = document.querySelector(".remote-action");
 const statusLabel = document.querySelector(".remote-status");
-const styleList = document.querySelector(".remote-style-list");
+const styleList = document.querySelector(".remote-styles-list");
+const styleScrollPrev = document.querySelector(".remote-styles-scroll--prev");
+const styleScrollNext = document.querySelector(".remote-styles-scroll--next");
 const styleDrawer = document.querySelector(".remote-style-drawer");
 const styleDrawerBackdrop = document.querySelector(".remote-style-drawer-backdrop");
 const styleDrawerToggle = document.querySelector(".remote-styles-toggle");
@@ -104,6 +106,10 @@ function isPhoneLayout() {
   return document.body.classList.contains("remote-layout--phone");
 }
 
+function isTabletLayout() {
+  return document.body.classList.contains("remote-layout--tablet");
+}
+
 function openStyleDrawer() {
   if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
     return;
@@ -120,15 +126,17 @@ function openStyleDrawer() {
   if (!pendingStyleSelection && selectedStyle) {
     setPendingStyle(selectedStyle);
   }
+  setTimeout(updateStyleScrollButtons, 40);
 }
 
 function closeStyleDrawer() {
   if (!styleDrawer || !styleDrawerBackdrop || !styleDrawerToggle) {
     return;
   }
+  const keepVisible = allowRemoteCameraCapture && isTabletLayout() && !isPhoneLayout();
   styleDrawer.classList.remove("remote-style-drawer--open");
   styleDrawerBackdrop.classList.remove("remote-style-drawer-backdrop--visible");
-  styleDrawer.hidden = true;
+  styleDrawer.hidden = !keepVisible;
   styleDrawerBackdrop.hidden = true;
   styleDrawerToggle.setAttribute("aria-expanded", "false");
 }
@@ -153,10 +161,15 @@ function syncStyleDrawerForViewport() {
     styleDrawerOk.hidden = false;
     styleDrawerOk.disabled = !pendingStyleSelection || pendingStyleSelection === selectedStyle;
   }
-  if (!isPhoneLayout() && !document.body.classList.contains("remote-layout--tablet")) {
+  if (isPhoneLayout()) {
+    closeStyleDrawer();
     return;
   }
-  closeStyleDrawer();
+  styleDrawer.hidden = false;
+  styleDrawerBackdrop.hidden = true;
+  styleDrawer.classList.remove("remote-style-drawer--open");
+  styleDrawerBackdrop.classList.remove("remote-style-drawer-backdrop--visible");
+  styleDrawerToggle.setAttribute("aria-expanded", "false");
 }
 
 function updateViewportClass() {
@@ -166,13 +179,16 @@ function updateViewportClass() {
   }
   const width = window.innerWidth || 0;
   const height = window.innerHeight || 0;
+  const shortestSide = Math.min(width, height);
+  const longestSide = Math.max(width, height);
   const isLandscape = width > height;
-  const isTablet = Math.max(width, height) >= 900;
+  const isTablet = shortestSide >= 700 && longestSide >= 900;
   body.classList.toggle("remote-layout--tablet", isTablet);
   body.classList.toggle("remote-layout--phone", !isTablet);
   body.classList.toggle("remote-layout--landscape", isLandscape);
   body.classList.toggle("remote-layout--portrait", !isLandscape);
   syncStyleDrawerForViewport();
+  updateStyleScrollButtons();
 }
 
 function setStyleStatus(message) {
@@ -186,6 +202,79 @@ function toTitleCase(value) {
     .split(" ")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function getStyleButtons() {
+  if (!styleList) {
+    return [];
+  }
+  return Array.from(styleList.querySelectorAll(".style"));
+}
+
+function setStyleScrollControlDisabled(button, disabled) {
+  if (!button) {
+    return;
+  }
+  button.disabled = disabled;
+  button.classList.toggle("styles-scroll--disabled", disabled);
+  button.setAttribute("aria-disabled", String(disabled));
+}
+
+function updateStyleScrollButtons() {
+  if (!styleList) {
+    return;
+  }
+  const maxScroll = Math.max(0, styleList.scrollWidth - styleList.clientWidth);
+  const atStart = styleList.scrollLeft <= 2;
+  const atEnd = styleList.scrollLeft >= maxScroll - 2;
+  setStyleScrollControlDisabled(styleScrollPrev, atStart);
+  setStyleScrollControlDisabled(styleScrollNext, atEnd);
+}
+
+function scrollStylesBy(direction) {
+  if (!styleList) {
+    return;
+  }
+  const amount = Math.max(160, Math.floor(styleList.clientWidth * 0.55));
+  styleList.scrollBy({ left: amount * direction, behavior: "smooth" });
+  setTimeout(updateStyleScrollButtons, 180);
+}
+
+function keepActiveStyleInView({ behavior = "smooth", alignCenter = false } = {}) {
+  if (!styleList || !selectedStyle) {
+    return;
+  }
+
+  const activeButton = getStyleButtons().find((button) => button.dataset.style === selectedStyle);
+  if (!activeButton) {
+    return;
+  }
+
+  const viewportLeft = styleList.scrollLeft;
+  const viewportRight = viewportLeft + styleList.clientWidth;
+  const buttonLeft = activeButton.offsetLeft;
+  const buttonRight = buttonLeft + activeButton.offsetWidth;
+  const padding = 12;
+
+  const fullyVisible =
+    buttonLeft >= viewportLeft + padding &&
+    buttonRight <= viewportRight - padding;
+  if (fullyVisible) {
+    return;
+  }
+
+  let targetLeft;
+  if (alignCenter) {
+    targetLeft = activeButton.offsetLeft - (styleList.clientWidth / 2 - activeButton.clientWidth / 2);
+  } else if (buttonLeft < viewportLeft + padding) {
+    targetLeft = buttonLeft - padding;
+  } else {
+    const overflowRight = buttonRight - (viewportRight - padding);
+    targetLeft = viewportLeft + Math.max(0, overflowRight);
+  }
+
+  styleList.scrollTo({ left: Math.max(0, targetLeft), behavior });
+  setTimeout(updateStyleScrollButtons, 180);
 }
 
 function setSelectedDelay(value) {
@@ -204,7 +293,10 @@ function setRemoteBusy(isBusy) {
   const controls = [
     ...timerButtons,
     actionButton,
-    ...Array.from(document.querySelectorAll(".remote-style")),
+    styleScrollPrev,
+    styleScrollNext,
+    styleDrawerOk,
+    ...getStyleButtons(),
   ];
   controls.forEach((button) => {
     if (!button) {
@@ -331,11 +423,17 @@ function applyRemoteConfig() {
   if (remoteResultSection && !showResultOnRemote) {
     remoteResultSection.classList.remove("remote-result--visible");
   }
-  if (remoteCameraSection) {
-    remoteCameraSection.classList.toggle("remote-camera--enabled", allowRemoteCameraCapture);
+  if (remoteCameraCapture) {
+    remoteCameraCapture.disabled = !allowRemoteCameraCapture;
+    remoteCameraCapture.title = allowRemoteCameraCapture
+      ? "Capture from your phone camera"
+      : "Enable phone camera capture in booth settings";
   }
-  if (remoteCameraSelect) {
-    remoteCameraSelect.disabled = !allowRemoteCameraCapture;
+  if (remoteCameraStatus && !allowRemoteCameraCapture && !phoneCameraStream) {
+    setCameraStatus("Phone camera preview is available, but remote capture is disabled in booth settings.");
+  }
+  if (allowRemoteCameraCapture && remoteCameraStatus?.textContent?.includes("disabled in booth settings")) {
+    setCameraStatus("");
   }
   if (styleDrawerToggle) {
     styleDrawerToggle.style.display = allowRemoteCameraCapture ? "inline-flex" : "none";
@@ -349,7 +447,6 @@ function applyRemoteConfig() {
   }
   syncStyleDrawerForViewport();
   if (!allowRemoteCameraCapture) {
-    stopPhoneCamera();
     if (stylePreview && stylePreviewImage?.src) {
       stylePreview.classList.add("remote-style-preview--visible");
     }
@@ -376,9 +473,6 @@ function stopPhoneCamera() {
 }
 
 async function startPhoneCamera() {
-  if (!allowRemoteCameraCapture) {
-    return;
-  }
   if (!navigator.mediaDevices?.getUserMedia) {
     setCameraStatus("Phone camera is not available in this browser.");
     return;
@@ -639,15 +733,18 @@ function setSelectedStyle(style, { announce = true } = {}) {
   if (style) {
     localStorage.setItem(remotePreferenceKeys.selectedStyle, style);
   }
-  const styleButtons = Array.from(document.querySelectorAll(".remote-style"));
+  const styleButtons = getStyleButtons();
   styleButtons.forEach((button) => {
-    button.classList.toggle("remote-style--active", button.dataset.style === style);
+    const isMatch = button.dataset.style === style;
+    button.classList.toggle("style--active", isMatch);
+    button.setAttribute("aria-pressed", String(isMatch));
   });
   if (announce && style) {
     setStyleStatus(`Selected: ${toTitleCase(style)}`);
   }
   if (style) {
     updateStylePreview(style);
+    keepActiveStyleInView();
   } else {
     clearStylePreview();
   }
@@ -656,12 +753,15 @@ function setSelectedStyle(style, { announce = true } = {}) {
 
 function setPendingStyle(style) {
   pendingStyleSelection = style;
-  const styleButtons = Array.from(document.querySelectorAll(".remote-style"));
+  const styleButtons = getStyleButtons();
   styleButtons.forEach((button) => {
-    button.classList.toggle("remote-style--active", button.dataset.style === style);
+    const isMatch = button.dataset.style === style;
+    button.classList.toggle("style--active", isMatch);
+    button.setAttribute("aria-pressed", String(isMatch));
   });
   if (style) {
     updateStylePreview(style);
+    keepActiveStyleInView();
     setStyleStatus(`Pending: ${toTitleCase(style)} (tap OK to confirm)`);
   }
   if (styleDrawerOk) {
@@ -699,22 +799,32 @@ async function loadStyles() {
   }
   setStyleStatus("Loading styles…");
   try {
+    styleList.setAttribute("aria-busy", "true");
+    if (!styleList.children.length) {
+      styleList.innerHTML = '<span class="styles-empty styles-empty--loading">Loading styles</span>';
+    }
     const response = await fetch("/api/styles");
     if (!response.ok) {
       throw new Error("Failed to load styles");
     }
     const data = await response.json();
-    const styles = data.styles ?? [];
+    const styles = Array.from(new Set(Array.isArray(data.styles) ? data.styles : []));
     styleList.innerHTML = "";
     if (!styles.length) {
       setStyleStatus("No styles available.");
+      styleList.innerHTML = '<span class="styles-empty">No styles available.</span>';
+      setStyleScrollControlDisabled(styleScrollPrev, true);
+      setStyleScrollControlDisabled(styleScrollNext, true);
       return;
     }
     styles.forEach((style) => {
       const button = document.createElement("button");
-      button.className = "remote-style";
+      button.type = "button";
+      button.className = "style";
       button.textContent = toTitleCase(style);
       button.dataset.style = style;
+      button.title = `Use ${toTitleCase(style)} style`;
+      button.setAttribute("aria-pressed", "false");
       button.addEventListener("click", () => {
         if (allowRemoteCameraCapture) {
           setPendingStyle(style);
@@ -728,6 +838,8 @@ async function loadStyles() {
       });
       styleList.appendChild(button);
     });
+    styleList.tabIndex = 0;
+    updateStyleScrollButtons();
     setStyleStatus("Tap a style to select it.");
     if (selectedStyle) {
       setSelectedStyle(selectedStyle, { announce: false });
@@ -740,6 +852,11 @@ async function loadStyles() {
     }
   } catch (error) {
     setStyleStatus("Unable to load styles.");
+    styleList.innerHTML = '<span class="styles-empty">Unable to load styles.</span>';
+    setStyleScrollControlDisabled(styleScrollPrev, true);
+    setStyleScrollControlDisabled(styleScrollNext, true);
+  } finally {
+    styleList.removeAttribute("aria-busy");
   }
 }
 
@@ -756,10 +873,6 @@ if (exitButton) {
 }
 if (remoteCameraToggle) {
   remoteCameraToggle.addEventListener("click", async () => {
-    if (!allowRemoteCameraCapture) {
-      setCameraStatus("Phone camera capture is disabled in settings.");
-      return;
-    }
     if (phoneCameraStream) {
       stopPhoneCamera();
       setCameraStatus("");
@@ -810,6 +923,53 @@ if (styleDrawerOk) {
 }
 if (styleDrawerBackdrop) {
   styleDrawerBackdrop.addEventListener("click", closeStyleDrawer);
+}
+if (styleList) {
+  styleList.addEventListener("scroll", updateStyleScrollButtons, { passive: true });
+  styleList.addEventListener("keydown", (event) => {
+    const styleButtons = getStyleButtons();
+    if (!styleButtons.length) {
+      return;
+    }
+
+    if (event.key === "Home") {
+      const firstButton = styleButtons[0];
+      firstButton.click();
+      firstButton.focus();
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key === "End") {
+      const lastButton = styleButtons[styleButtons.length - 1];
+      lastButton.click();
+      lastButton.focus();
+      event.preventDefault();
+      return;
+    }
+
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+      return;
+    }
+    const activeIndex = styleButtons.findIndex((button) => button.classList.contains("style--active"));
+    if (activeIndex < 0) {
+      return;
+    }
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    const nextIndex = Math.max(0, Math.min(styleButtons.length - 1, activeIndex + direction));
+    const nextButton = styleButtons[nextIndex];
+    if (nextButton && nextButton !== styleButtons[activeIndex]) {
+      nextButton.click();
+      nextButton.focus();
+      event.preventDefault();
+    }
+  });
+}
+if (styleScrollPrev) {
+  styleScrollPrev.addEventListener("click", () => scrollStylesBy(-1));
+}
+if (styleScrollNext) {
+  styleScrollNext.addEventListener("click", () => scrollStylesBy(1));
 }
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {

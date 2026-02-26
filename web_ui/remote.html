@@ -9,66 +9,94 @@
 <body class="remote-body">
   <main class="remote-card">
     <header class="remote-header">
-      <h1>Photo Booth Remote</h1>
-      <p>Choose a style, set a timer, and tap capture to trigger the booth.</p>
+      <div class="remote-header__copy">
+        <h1>Photo Booth Remote</h1>
+        <p>Choose a style, set the timer, then trigger capture from your phone.</p>
+      </div>
+      <div class="remote-header__meta">
+        <span class="remote-chip">Live Control</span>
+        <p class="remote-status" aria-live="polite">Connecting…</p>
+      </div>
     </header>
-    <section class="remote-styles" aria-label="Style options">
-      <div class="remote-styles__header">
-        <h2 class="remote-subtitle">Styles</h2>
-        <button class="remote-styles-toggle" type="button" aria-expanded="false" aria-controls="remote-style-drawer">Choose Style</button>
-      </div>
-      <div class="remote-style-drawer-backdrop" hidden></div>
-      <div class="remote-style-drawer" id="remote-style-drawer" hidden>
-        <div class="remote-style-drawer__header">
-          <p class="remote-style-drawer__title">Select a Style</p>
-          <button class="remote-style-drawer__close" type="button" aria-label="Close style drawer">✕</button>
+    <div class="remote-layout">
+      <section class="remote-styles remote-panel" aria-label="Style options">
+        <div class="remote-styles__header">
+          <h2 class="remote-subtitle">Style</h2>
+          <button class="remote-styles-toggle" type="button" aria-expanded="false" aria-controls="remote-style-drawer">Choose Style</button>
         </div>
-        <section class="remote-style-preview" aria-label="Selected style preview">
-          <img class="remote-style-preview__image" alt="Selected style preview" />
+        <p class="remote-style-status" aria-live="polite">Loading styles…</p>
+        <div class="remote-style-drawer-backdrop" hidden></div>
+        <div class="remote-style-drawer" id="remote-style-drawer" hidden>
+          <div class="remote-style-drawer__header">
+            <p class="remote-style-drawer__title">Select a Style</p>
+            <button class="remote-style-drawer__close" type="button" aria-label="Close style drawer">✕</button>
+          </div>
+          <section class="remote-style-preview" aria-label="Selected style preview">
+            <img class="remote-style-preview__image" alt="Selected style preview" />
+          </section>
+          <div class="styles-scroller remote-styles-scroller">
+            <button
+              class="styles-scroll styles-scroll--prev remote-styles-scroll--prev"
+              type="button"
+              aria-label="Scroll styles left"
+            >
+              ‹
+            </button>
+            <div class="styles remote-styles-list" aria-live="polite">
+              <span class="styles-empty styles-empty--loading">Loading styles</span>
+            </div>
+            <button
+              class="styles-scroll styles-scroll--next remote-styles-scroll--next"
+              type="button"
+              aria-label="Scroll styles right"
+            >
+              ›
+            </button>
+          </div>
+          <button class="remote-style-drawer__ok" type="button" disabled>Apply Style</button>
+        </div>
+      </section>
+      <section class="remote-camera remote-panel" aria-label="Capture and phone camera">
+        <h2 class="remote-subtitle">Capture & Camera</h2>
+        <label class="remote-camera-select-wrap">
+          Camera
+          <select class="remote-camera-select" aria-label="Select phone camera">
+            <option value="">Default camera</option>
+          </select>
+        </label>
+        <div class="remote-camera-actions">
+          <button class="remote-camera-toggle" type="button">Use Phone Camera</button>
+          <button class="remote-camera-capture" type="button">Capture from Phone</button>
+        </div>
+        <div class="remote-camera-preview-wrap">
+          <video class="remote-camera-preview" playsinline muted></video>
+        </div>
+        <p class="remote-camera-status" aria-live="polite"></p>
+        <section class="remote-timers" aria-label="Timer options">
+          <button class="remote-timer remote-timer--active" data-delay="0">0s</button>
+          <button class="remote-timer" data-delay="3">3s</button>
+          <button class="remote-timer" data-delay="5">5s</button>
+          <button class="remote-timer" data-delay="10">10s</button>
         </section>
-        <div class="remote-style-list"></div>
-        <button class="remote-style-drawer__ok" type="button" disabled>OK</button>
-      </div>
-      <p class="remote-style-status" aria-live="polite">Loading styles…</p>
-    </section>
-    <section class="remote-timers" aria-label="Timer options">
-      <button class="remote-timer remote-timer--active" data-delay="0">0s</button>
-      <button class="remote-timer" data-delay="3">3s</button>
-      <button class="remote-timer" data-delay="5">5s</button>
-      <button class="remote-timer" data-delay="10">10s</button>
-    </section>
-    <section class="remote-camera" aria-label="Phone camera capture">
-      <label class="remote-camera-select-wrap">
-        Camera
-        <select class="remote-camera-select" aria-label="Select phone camera">
-          <option value="">Default camera</option>
-        </select>
-      </label>
-      <button class="remote-camera-toggle" type="button">Use Phone Camera</button>
-      <div class="remote-camera-preview-wrap">
-        <video class="remote-camera-preview" playsinline muted></video>
-      </div>
-      <button class="remote-camera-capture" type="button">Capture from Phone</button>
-      <p class="remote-camera-status" aria-live="polite"></p>
-    </section>
-    <section class="remote-progress" aria-live="polite">
-      <div class="remote-progress__meta">
-        <span class="remote-progress__label">Ready</span>
-        <span class="remote-progress__value">0%</span>
-      </div>
-      <div class="remote-progress__bar">
-        <span class="remote-progress__fill"></span>
-      </div>
-    </section>
-    <section class="remote-result" aria-label="Finished result">
-      <img class="remote-result__image" alt="Finished generated image" />
-      <a class="remote-result__save" download="photobooth-result.png" target="_blank" rel="noreferrer">Save to phone</a>
-    </section>
-    <div class="remote-actions">
-      <button class="remote-action">Take Selfie</button>
-      <button class="remote-exit" disabled>Back to Capture</button>
+        <div class="remote-actions">
+          <button class="remote-action">Take Selfie</button>
+          <button class="remote-exit" disabled>Back to Capture</button>
+        </div>
+        <section class="remote-progress" aria-live="polite">
+          <div class="remote-progress__meta">
+            <span class="remote-progress__label">Ready</span>
+            <span class="remote-progress__value">0%</span>
+          </div>
+          <div class="remote-progress__bar">
+            <span class="remote-progress__fill"></span>
+          </div>
+        </section>
+        <section class="remote-result" aria-label="Finished result">
+          <img class="remote-result__image" alt="Finished generated image" />
+          <a class="remote-result__save" download="photobooth-result.png" target="_blank" rel="noreferrer">Save to phone</a>
+        </section>
+      </section>
     </div>
-    <p class="remote-status" aria-live="polite">Connecting…</p>
   </main>
   <script type="module" src="./remote.js"></script>
 </body>

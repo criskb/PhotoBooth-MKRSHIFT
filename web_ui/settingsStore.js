@@ -18,6 +18,7 @@ export const storageKeys = {
   hideQrEnabled: "hideQrEnabled",
   remoteResultEnabled: "remoteResultEnabled",
   remoteCameraCaptureEnabled: "remoteCameraCaptureEnabled",
+  remoteShortcutEnabled: "remoteShortcutEnabled",
   soundEffectsEnabled: "soundEffectsEnabled",
   backgroundMusicEnabled: "backgroundMusicEnabled",
   debateSparkEnabled: "debateSparkEnabled",

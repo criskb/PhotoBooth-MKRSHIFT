@@ -4,6 +4,7 @@ import { renderUtilityControls } from "./utilityControls.js";
 import { renderGalleryToggle } from "./galleryToggle.js";
 import { renderProgressOverlay } from "./progressOverlay.js";
 import { renderIdleOverlay } from "./idleOverlay.js";
+import { renderRemoteLaunchModal } from "./remoteLaunchModal.js";
 import { renderSettingsModal } from "./settingsModal.js";
 import { renderGalleryModal } from "./galleryModal.js";
 import { renderOverlays } from "./overlays.js";
@@ -42,6 +43,7 @@ export function renderApp(container) {
     ${renderGalleryToggle()}
     ${renderProgressOverlay()}
     ${renderIdleOverlay()}
+    ${renderRemoteLaunchModal()}
     ${renderSettingsModal()}
     ${renderDiagnosticsModal()}
     ${renderTosModal()}

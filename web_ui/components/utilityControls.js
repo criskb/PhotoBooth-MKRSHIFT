@@ -1,6 +1,7 @@
 export function renderUtilityControls() {
   return `
     <div class="utility-controls">
+      <button class="remote-toggle remote-toggle--hidden" aria-label="Phone remote">📱</button>
       <button class="tos-toggle" aria-label="Terms of Service">ToS</button>
       <button class="settings-toggle" aria-label="Settings">⚙️</button>
       <button class="diagnostics-toggle" aria-label="Diagnostics">🩺</button>

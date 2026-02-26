@@ -1,4 +1,5 @@
 const DEFAULT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_BACKDROP_CYCLE_MS = 8500;
 
 function shuffleArray(values) {
   const array = [...values];
@@ -16,8 +17,12 @@ function randomBetween(min, max) {
 export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   const overlay = document.querySelector(".idle-overlay");
   const canvas = document.querySelector(".idle-overlay__canvas");
-  const backdrop = document.querySelector(".idle-overlay__backdrop");
+  const backdrops = Array.from(document.querySelectorAll(".idle-overlay__backdrop"));
   let idleTimer = null;
+  let backdropCycleTimer = null;
+  let activeBackdropIndex = -1;
+  let lastBackdropImage = "";
+  let backdropDirectionForward = true;
   let images = [];
   let resizeTimer = null;
   let paused = false;
@@ -34,17 +39,131 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
     };
   }
 
+  const stopBackdropCycle = () => {
+    if (backdropCycleTimer) {
+      clearInterval(backdropCycleTimer);
+      backdropCycleTimer = null;
+    }
+  };
+
+  const clearBackdrops = () => {
+    activeBackdropIndex = -1;
+    lastBackdropImage = "";
+    backdrops.forEach((backdrop) => {
+      backdrop.classList.remove("idle-overlay__backdrop--active");
+      backdrop.style.backgroundImage = "none";
+    });
+  };
+
+  const pickBackdropImage = () => {
+    if (!images.length) {
+      return null;
+    }
+    if (images.length === 1) {
+      lastBackdropImage = images[0];
+      return images[0];
+    }
+    let next = images[Math.floor(Math.random() * images.length)];
+    for (let attempts = 0; attempts < 5 && next === lastBackdropImage; attempts += 1) {
+      next = images[Math.floor(Math.random() * images.length)];
+    }
+    lastBackdropImage = next;
+    return next;
+  };
+
+  const applyBackdropImage = (backdrop, image) => {
+    if (!backdrop || !image) {
+      return;
+    }
+    const travelX = randomBetween(1.8, 4.8);
+    const travelY = randomBetween(1.2, 3.8);
+    const horizontalSign = backdropDirectionForward ? 1 : -1;
+    const startX = travelX * -horizontalSign;
+    const midX = randomBetween(-0.9, 0.9);
+    const endX = travelX * horizontalSign * randomBetween(0.75, 1.1);
+    const startY = randomBetween(-travelY, travelY);
+    const midY = randomBetween(-0.7, 0.7);
+    const endY = -startY * randomBetween(0.5, 1.1);
+    backdropDirectionForward = !backdropDirectionForward;
+
+    backdrop.style.backgroundImage = `url("${image}")`;
+    backdrop.style.setProperty("--bg-focus-x", `${randomBetween(18, 82).toFixed(2)}%`);
+    backdrop.style.setProperty("--bg-focus-y", `${randomBetween(12, 88).toFixed(2)}%`);
+    backdrop.style.setProperty("--bg-pan-duration", `${randomBetween(18, 28).toFixed(2)}s`);
+    backdrop.style.setProperty("--bg-scale-start", randomBetween(1.08, 1.16).toFixed(3));
+    backdrop.style.setProperty("--bg-scale-mid", randomBetween(1.15, 1.23).toFixed(3));
+    backdrop.style.setProperty("--bg-scale-end", randomBetween(1.22, 1.31).toFixed(3));
+    backdrop.style.setProperty("--bg-shift-start-x", `${startX.toFixed(2)}%`);
+    backdrop.style.setProperty("--bg-shift-start-y", `${startY.toFixed(2)}%`);
+    backdrop.style.setProperty("--bg-shift-mid-x", `${midX.toFixed(2)}%`);
+    backdrop.style.setProperty("--bg-shift-mid-y", `${midY.toFixed(2)}%`);
+    backdrop.style.setProperty("--bg-shift-end-x", `${endX.toFixed(2)}%`);
+    backdrop.style.setProperty("--bg-shift-end-y", `${endY.toFixed(2)}%`);
+  };
+
+  const cycleBackdrops = ({ instant = false } = {}) => {
+    if (!images.length || !backdrops.length) {
+      return;
+    }
+
+    const image = pickBackdropImage();
+    if (!image) {
+      return;
+    }
+
+    const nextIndex = activeBackdropIndex < 0 ? 0 : (activeBackdropIndex + 1) % backdrops.length;
+    const nextBackdrop = backdrops[nextIndex];
+    const previousBackdrop = activeBackdropIndex >= 0 ? backdrops[activeBackdropIndex] : null;
+
+    applyBackdropImage(nextBackdrop, image);
+
+    nextBackdrop.classList.remove("idle-overlay__backdrop--active", "idle-overlay__backdrop--instant");
+    if (instant) {
+      nextBackdrop.classList.add("idle-overlay__backdrop--instant");
+      nextBackdrop.classList.add("idle-overlay__backdrop--active");
+      requestAnimationFrame(() => {
+        nextBackdrop.classList.remove("idle-overlay__backdrop--instant");
+      });
+    } else {
+      requestAnimationFrame(() => {
+        nextBackdrop.classList.add("idle-overlay__backdrop--active");
+      });
+    }
+
+    if (previousBackdrop && previousBackdrop !== nextBackdrop) {
+      previousBackdrop.classList.remove("idle-overlay__backdrop--active");
+    }
+
+    activeBackdropIndex = nextIndex;
+  };
+
+  const startBackdropCycle = ({ forceInitial = false } = {}) => {
+    stopBackdropCycle();
+    if (!images.length || !backdrops.length) {
+      return;
+    }
+
+    if (forceInitial || activeBackdropIndex < 0) {
+      cycleBackdrops({ instant: true });
+    }
+    backdropCycleTimer = setInterval(() => {
+      cycleBackdrops();
+    }, DEFAULT_BACKDROP_CYCLE_MS);
+  };
+
   const show = () => {
     if (paused) {
       return;
     }
     overlay.classList.remove("idle-overlay--hidden");
     overlay.classList.add("idle-overlay--active");
+    startBackdropCycle();
   };
 
   const hide = () => {
     overlay.classList.add("idle-overlay--hidden");
     overlay.classList.remove("idle-overlay--active");
+    stopBackdropCycle();
   };
 
   const schedule = () => {
@@ -127,17 +246,19 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       }
       const data = await response.json();
       images = Array.from(data.images ?? []);
-      if (images.length && backdrop) {
-        const backdropImage = images[Math.floor(Math.random() * images.length)];
-        backdrop.style.backgroundImage = `url("${backdropImage}")`;
-      }
       buildCanvas();
+      clearBackdrops();
+      if (images.length) {
+        cycleBackdrops({ instant: true });
+        if (!overlay.classList.contains("idle-overlay--hidden")) {
+          startBackdropCycle();
+        }
+      }
     } catch (error) {
       images = [];
       canvas.innerHTML = "";
-      if (backdrop) {
-        backdrop.style.backgroundImage = "none";
-      }
+      stopBackdropCycle();
+      clearBackdrops();
     }
   };
 

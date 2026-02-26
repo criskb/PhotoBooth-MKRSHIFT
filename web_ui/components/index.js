@@ -5,6 +5,7 @@ export { renderUtilityControls } from "./utilityControls.js";
 export { renderGalleryToggle } from "./galleryToggle.js";
 export { renderProgressOverlay } from "./progressOverlay.js";
 export { renderIdleOverlay } from "./idleOverlay.js";
+export { renderRemoteLaunchModal } from "./remoteLaunchModal.js";
 export { renderSettingsModal } from "./settingsModal.js";
 export { renderDiagnosticsModal } from "./diagnosticsModal.js";
 export { renderGalleryModal } from "./galleryModal.js";

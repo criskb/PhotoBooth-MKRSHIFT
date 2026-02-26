@@ -71,9 +71,12 @@ const redoButton = document.querySelector(".progress-action--redo");
 const qrContainer = document.querySelector(".progress__qr");
 const qrImage = document.querySelector(".progress__qr-image");
 const progressCloseButton = document.querySelector(".progress-close");
+const remoteToggle = document.querySelector(".remote-toggle");
 const tosToggle = document.querySelector(".tos-toggle");
 const settingsToggle = document.querySelector(".settings-toggle");
 const fullscreenToggle = document.querySelector(".fullscreen-toggle");
+const remoteLaunchModal = document.querySelector(".remote-launch-modal");
+const remoteLaunchClose = document.querySelector(".remote-launch-close");
 const settingsModal = document.querySelector(".settings-modal");
 const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
@@ -93,6 +96,7 @@ const settingsUploadsInput = document.querySelector(".settings-input--uploads");
 const settingsHideQrInput = document.querySelector(".settings-input--hide-qr");
 const settingsRemoteResultInput = document.querySelector(".settings-input--remote-result");
 const settingsRemoteCameraInput = document.querySelector(".settings-input--remote-camera");
+const settingsRemoteShortcutInput = document.querySelector(".settings-input--remote-shortcut");
 const settingsSoundEffectsInput = document.querySelector(".settings-input--sound-effects");
 const settingsBackgroundMusicInput = document.querySelector(".settings-input--background-music");
 const settingsDebateSparkInput = document.querySelector(".settings-input--debate-spark");
@@ -106,6 +110,8 @@ const settingsWatermarkFileInput = document.querySelector(".settings-input--wate
 const settingsWatermarkClear = document.querySelector(".settings-action--clear-watermark");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
+const remoteLaunchQr = document.querySelector(".remote-launch-qr");
+const remoteLaunchLink = document.querySelector(".remote-launch-link");
 const settingsSave = document.querySelector(".settings-action--save");
 const settingsClose = document.querySelector(".settings-action--close");
 const diagnosticsToggle = document.querySelector(".diagnostics-toggle");
@@ -271,6 +277,7 @@ let hidePrintEnabled = false;
 let hideQrEnabled = false;
 let remoteResultEnabled = true;
 let remoteCameraCaptureEnabled = false;
+let remoteShortcutEnabled = true;
 let soundEffectsEnabled = true;
 let backgroundMusicEnabled = false;
 let hideStatusEnabled = false;
@@ -873,15 +880,20 @@ async function updateRemoteInfo() {
   } catch (error) {
     // ignore fetch errors
   }
-  if (settingsRemoteQr) {
-    settingsRemoteQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
-      remoteUrl
-    )}`;
-  }
-  if (settingsRemoteLink) {
-    settingsRemoteLink.textContent = remoteUrl;
-    settingsRemoteLink.href = remoteUrl;
-  }
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+    remoteUrl
+  )}`;
+  [settingsRemoteQr, remoteLaunchQr].forEach((qr) => {
+    if (qr) {
+      qr.src = qrUrl;
+    }
+  });
+  [settingsRemoteLink, remoteLaunchLink].forEach((link) => {
+    if (link) {
+      link.textContent = remoteUrl;
+      link.href = remoteUrl;
+    }
+  });
 }
 
 
@@ -1581,6 +1593,10 @@ function loadPrinterConfig() {
     if (remoteCameraRaw !== null) {
       remoteCameraCaptureEnabled = remoteCameraRaw === "true";
     }
+    const remoteShortcutRaw = readStoredValue(storageKeys.remoteShortcutEnabled);
+    if (remoteShortcutRaw !== null) {
+      remoteShortcutEnabled = remoteShortcutRaw === "true";
+    }
     const sfxRaw = readStoredValue(storageKeys.soundEffectsEnabled);
     if (sfxRaw !== null) {
       soundEffectsEnabled = sfxRaw === "true";
@@ -1610,6 +1626,7 @@ function loadPrinterConfig() {
     hideQrEnabled = false;
     remoteResultEnabled = true;
     remoteCameraCaptureEnabled = false;
+    remoteShortcutEnabled = true;
     soundEffectsEnabled = true;
     backgroundMusicEnabled = false;
     debateSparkEnabled = true;
@@ -1646,6 +1663,10 @@ function loadPrinterConfig() {
   if (settingsRemoteCameraInput) {
     settingsRemoteCameraInput.checked = remoteCameraCaptureEnabled;
   }
+  if (settingsRemoteShortcutInput) {
+    settingsRemoteShortcutInput.checked = remoteShortcutEnabled;
+  }
+  applyRemoteShortcutVisibility();
   applyAudioToggles();
   if (settingsDebateSparkInput) {
     settingsDebateSparkInput.checked = debateSparkEnabled;
@@ -1750,6 +1771,10 @@ async function savePrinterConfig() {
     remoteCameraCaptureEnabled = settingsRemoteCameraInput.checked;
     writeStoredValue(storageKeys.remoteCameraCaptureEnabled, String(remoteCameraCaptureEnabled));
   }
+  if (settingsRemoteShortcutInput) {
+    remoteShortcutEnabled = settingsRemoteShortcutInput.checked;
+    writeStoredValue(storageKeys.remoteShortcutEnabled, String(remoteShortcutEnabled));
+  }
   if (settingsSoundEffectsInput) {
     soundEffectsEnabled = settingsSoundEffectsInput.checked;
     writeStoredValue(storageKeys.soundEffectsEnabled, String(soundEffectsEnabled));
@@ -1773,6 +1798,7 @@ async function savePrinterConfig() {
   applyUploadVisibility();
   applyDebateSparkVisibility();
   applyStatusVisibility();
+  applyRemoteShortcutVisibility();
   broadcastRemoteConfig();
   updateRemoteProgress(lastRemoteProgress);
   if (cameraChanged) {
@@ -1827,6 +1853,7 @@ async function openSettings() {
   if (!settingsModal) {
     return;
   }
+  closeRemoteLaunch();
   settingsModal.classList.add("settings-modal--open");
   if (settingsClose) {
     settingsClose.disabled = false;
@@ -1849,6 +1876,28 @@ function handlePrinterSelection() {
 
 function closeSettings() {
   settingsModal?.classList.remove("settings-modal--open");
+}
+
+function applyRemoteShortcutVisibility() {
+  if (!remoteToggle) {
+    return;
+  }
+  remoteToggle.classList.toggle("remote-toggle--hidden", !remoteShortcutEnabled);
+  if (!remoteShortcutEnabled) {
+    remoteLaunchModal?.classList.remove("remote-launch-modal--open");
+  }
+}
+
+async function openRemoteLaunch() {
+  if (!remoteShortcutEnabled || !remoteLaunchModal) {
+    return;
+  }
+  remoteLaunchModal.classList.add("remote-launch-modal--open");
+  await updateRemoteInfo();
+}
+
+function closeRemoteLaunch() {
+  remoteLaunchModal?.classList.remove("remote-launch-modal--open");
 }
 
 function openGallery() {
@@ -2496,6 +2545,10 @@ document.addEventListener("keydown", (event) => {
     closeTos();
     closedOverlay = true;
   }
+  if (remoteLaunchModal?.classList.contains("remote-launch-modal--open")) {
+    closeRemoteLaunch();
+    closedOverlay = true;
+  }
   if (!closedOverlay) {
     idleController.show();
   }
@@ -2528,10 +2581,19 @@ tosModal?.addEventListener("click", (event) => {
     closeTos();
   }
 });
+remoteLaunchModal?.addEventListener("click", (event) => {
+  if (event.target === remoteLaunchModal) {
+    closeRemoteLaunch();
+  }
+});
 tosToggle?.addEventListener("click", () => openTos());
+remoteToggle?.addEventListener("click", () => {
+  void openRemoteLaunch();
+});
 settingsToggle?.addEventListener("click", () => openSettings());
 diagnosticsToggle?.addEventListener("click", () => openDiagnostics());
 fullscreenToggle?.addEventListener("click", toggleFullscreen);
+remoteLaunchClose?.addEventListener("click", closeRemoteLaunch);
 settingsPrinterInput?.addEventListener("change", handlePrinterSelection);
 settingsMirrorInput?.addEventListener("change", () => {
   cameraMirrored = settingsMirrorInput.checked;
