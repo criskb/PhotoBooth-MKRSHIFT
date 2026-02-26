@@ -349,7 +349,7 @@ body.debate-fever::before {
   position: absolute;
   top: 0%;
   left: 50%;
-  transform: translate(-50%, -90%);
+  transform: translate(-50%, -50%);
   font-size: 1.8rem;
   pointer-events: none;
   user-select: none;
