@@ -365,7 +365,7 @@ body.debate-fever::before {
   width: 50%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(88, 214, 141, 0.9), rgba(95, 211, 255, 0.9));
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.9), rgba(var(--accent-rgb), 0.55));
   transition: width 0.35s ease;
 }
 
@@ -424,7 +424,7 @@ body.debate-fever::before {
 }
 
 .debate-spark__button--yes:hover {
-  border-color: rgba(88, 214, 141, 0.8);
+  border-color: rgba(var(--accent-rgb), 0.8);
 }
 
 .debate-spark__button--no:hover {
@@ -530,6 +530,7 @@ body.debate-fever::before {
   background: rgba(18, 22, 33, 0.75);
   color: var(--text-primary);
   font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -570,6 +571,7 @@ body.debate-fever::before {
   background: var(--brand-button-color);
   color: var(--brand-button-text-color);
   font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
@@ -620,6 +622,7 @@ body.debate-fever::before {
 }
 
 .progress-card {
+  position: relative;
   width: min(720px, 92vw);
   background: linear-gradient(150deg, rgba(10, 14, 22, 0.96), rgba(8, 11, 18, 0.88));
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -643,6 +646,7 @@ body.debate-fever::before {
   background: var(--brand-button-color);
   color: var(--brand-button-text-color);
   font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -751,6 +755,7 @@ body.debate-fever::before {
   background: var(--brand-button-color);
   color: var(--brand-button-text-color);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -1398,6 +1403,7 @@ body.debate-fever::before {
   background: rgba(18, 22, 33, 0.8);
   color: var(--text-primary);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -1926,6 +1932,7 @@ body.debate-fever::before {
   background: var(--brand-button-color);
   color: var(--brand-button-text-color);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -1983,6 +1990,7 @@ body.debate-fever::before {
   background: rgba(18, 22, 33, 0.8);
   color: var(--text-primary);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -2199,6 +2207,7 @@ body.debate-fever::before {
   background: var(--brand-button-color);
   color: var(--brand-button-text-color);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -2245,7 +2254,7 @@ body.debate-fever::before {
 }
 
 .gallery-upload-status[data-tone="success"] {
-  color: rgba(129, 233, 174, 0.95);
+  color: rgba(var(--accent-rgb), 0.95);
 }
 
 .is-upload-hidden .progress-action--upload,
@@ -2535,6 +2544,7 @@ body.debate-fever::before {
   background: rgba(18, 22, 33, 0.7);
   color: var(--text-primary);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -2544,8 +2554,8 @@ body.debate-fever::before {
 .style--active {
   border-color: var(--accent-success);
   color: var(--accent-success);
-  background: rgba(88, 214, 141, 0.18);
-  box-shadow: 0 8px 20px rgba(88, 214, 141, 0.32);
+  background: rgba(var(--accent-rgb), 0.18);
+  box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.32);
 }
 
 .style:hover,
@@ -2758,7 +2768,7 @@ body.debate-fever::before {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 10px 24px rgba(36, 178, 107, 0.3);
+  box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.3);
 }
 
 .remote-style-drawer__ok:disabled {
@@ -2789,8 +2799,8 @@ body.debate-fever::before {
 .remote-style--active {
   border-color: var(--accent-success);
   color: var(--accent-success);
-  background: rgba(88, 214, 141, 0.14);
-  box-shadow: 0 10px 20px rgba(36, 178, 107, 0.18);
+  background: rgba(var(--accent-rgb), 0.14);
+  box-shadow: 0 10px 20px rgba(var(--accent-rgb), 0.18);
 }
 
 .remote-style-status {
@@ -2883,9 +2893,9 @@ body.debate-fever::before {
 }
 
 .remote-timer--active {
-  border-color: rgba(88, 214, 141, 0.8);
+  border-color: rgba(var(--accent-rgb), 0.8);
   color: var(--accent-success);
-  background: rgba(88, 214, 141, 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
 }
 
 .remote-action {
