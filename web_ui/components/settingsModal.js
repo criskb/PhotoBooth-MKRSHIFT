@@ -123,8 +123,9 @@ export function renderSettingsModal() {
               Freeimage API Key
               <input
                 class="settings-input form-input settings-input--freeimage"
-                type="text"
+                type="password"
                 placeholder="Freeimage API Key"
+                autocomplete="off"
               />
             </label>
             <label class="settings-field settings-field--toggle">
@@ -235,6 +236,16 @@ export function renderSettingsModal() {
                   maxlength="24"
                 />
               </label>
+              <label class="settings-field settings-field--span-2">
+                Booth font
+                <select class="settings-input form-input settings-input--brand-font-family">
+                  <option value="matter">Matter / Segoe UI</option>
+                  <option value="inter">Inter</option>
+                  <option value="poppins">Poppins</option>
+                  <option value="montserrat">Montserrat</option>
+                  <option value="system">System Sans</option>
+                </select>
+              </label>
               <label class="settings-field">
                 Title color
                 <input
@@ -321,6 +332,30 @@ export function renderSettingsModal() {
                   class="settings-input form-input settings-input--color settings-input--brand-menu-bg-color"
                   type="color"
                   value="#080b12"
+                />
+              </label>
+              <label class="settings-field">
+                Settings quick-nav background
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-settings-nav-bg-color"
+                  type="color"
+                  value="#090c14"
+                />
+              </label>
+              <label class="settings-field">
+                Input background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-input-bg-color"
+                  type="color"
+                  value="#0c1018"
+                />
+              </label>
+              <label class="settings-field">
+                Input border color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-input-border-color"
+                  type="color"
+                  value="#f7f7fb"
                 />
               </label>
               <label class="settings-field">

@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  font-family: "Matter", "Segoe UI", sans-serif;
+  font-family: var(--app-font-family, "Matter", "Segoe UI", sans-serif);
   background:
     radial-gradient(circle at top, rgba(var(--ui-panel-tint-rgb), 0.22), transparent 45%),
     radial-gradient(circle at 20% 20%, rgba(var(--accent-warm-rgb), 0.15), transparent 40%),
@@ -29,6 +29,10 @@
   --menu-bg: rgba(8, 11, 18, 0.98);
   --card-bg-start: rgba(10, 14, 22, 0.98);
   --card-bg-end: rgba(8, 11, 18, 0.92);
+  --settings-nav-bg: rgba(9, 12, 20, 0.9);
+  --settings-input-bg: rgba(12, 16, 24, 0.88);
+  --settings-input-bg-hover: rgba(15, 20, 31, 0.92);
+  --settings-input-border: rgba(255, 255, 255, 0.18);
   --text-primary: #f7f7fb;
   --brand-title-color: #f7f7fb;
   --brand-accent-color: #58d36e;
@@ -253,7 +257,7 @@ body.debate-fever::before {
   padding: 0.85rem 1.35rem;
   background: linear-gradient(135deg, rgba(18, 22, 33, 0.85), rgba(12, 15, 24, 0.55));
   border-radius: 1.1rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--panel-border);
   backdrop-filter: blur(12px);
   box-shadow: var(--panel-glow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -755,6 +759,8 @@ body.debate-fever::before {
   width: 100%;
   height: 100%;
   border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(8, 11, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 58vh;
   object-fit: cover;
@@ -1690,8 +1696,8 @@ body.debate-fever::before {
   width: fit-content;
   max-width: 100%;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(180deg, rgba(9, 12, 20, 0.96), rgba(9, 12, 20, 0.84));
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(180deg, var(--settings-nav-bg), rgba(9, 12, 20, 0.84));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
 }
 
@@ -1791,13 +1797,13 @@ body.debate-fever::before {
   padding: 0.6rem 0.75rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(12, 16, 24, 0.88);
+  background: var(--settings-input-bg);
   color: var(--text-primary);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .settings-input:hover {
-  background: rgba(15, 20, 31, 0.92);
+  background: var(--settings-input-bg-hover);
 }
 
 .settings-input:focus {

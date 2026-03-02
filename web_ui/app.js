@@ -133,6 +133,10 @@ const settingsBrandProgressFlowStartColorInput = document.querySelector(".settin
 const settingsBrandProgressFlowEndColorInput = document.querySelector(".settings-input--brand-progress-flow-end-color");
 const settingsBrandCardBgStartColorInput = document.querySelector(".settings-input--brand-card-bg-start-color");
 const settingsBrandCardBgEndColorInput = document.querySelector(".settings-input--brand-card-bg-end-color");
+const settingsBrandFontFamilyInput = document.querySelector(".settings-input--brand-font-family");
+const settingsBrandSettingsNavBgColorInput = document.querySelector(".settings-input--brand-settings-nav-bg-color");
+const settingsBrandInputBgColorInput = document.querySelector(".settings-input--brand-input-bg-color");
+const settingsBrandInputBorderColorInput = document.querySelector(".settings-input--brand-input-border-color");
 const settingsBrandProfileSelect = document.querySelector(".settings-input--brand-profile-select");
 const settingsBrandProfileNameInput = document.querySelector(".settings-input--brand-profile-name");
 const settingsBrandProfileSave = document.querySelector(".settings-action--brand-profile-save");
@@ -323,6 +327,10 @@ const defaultBranding = {
   progressFlowEndColor: "#feaa3a",
   cardBgStartColor: "#0a0e16",
   cardBgEndColor: "#080b12",
+  fontFamily: "matter",
+  settingsNavBgColor: "#090c14",
+  inputBgColor: "#0c1018",
+  inputBorderColor: "#f7f7fb",
 };
 let branding = { ...defaultBranding };
 let brandProfiles = [];
@@ -579,6 +587,10 @@ function applyBranding() {
   branding.progressFlowEndColor = normalizeBrandColor(branding.progressFlowEndColor, defaultBranding.progressFlowEndColor);
   branding.cardBgStartColor = normalizeBrandColor(branding.cardBgStartColor, defaultBranding.cardBgStartColor);
   branding.cardBgEndColor = normalizeBrandColor(branding.cardBgEndColor, defaultBranding.cardBgEndColor);
+  branding.fontFamily = ["matter", "inter", "poppins", "montserrat", "system"].includes(branding.fontFamily) ? branding.fontFamily : defaultBranding.fontFamily;
+  branding.settingsNavBgColor = normalizeBrandColor(branding.settingsNavBgColor, defaultBranding.settingsNavBgColor);
+  branding.inputBgColor = normalizeBrandColor(branding.inputBgColor, defaultBranding.inputBgColor);
+  branding.inputBorderColor = normalizeBrandColor(branding.inputBorderColor, defaultBranding.inputBorderColor);
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -619,7 +631,19 @@ function applyBranding() {
   document.documentElement.style.setProperty("--panel-border", hexToRgbaString(branding.panelBorderColor, 0.32, "rgba(255, 255, 255, 0.32)"));
   document.documentElement.style.setProperty("--menu-bg", hexToRgbaString(branding.menuBgColor, 0.98, "rgba(8, 11, 18, 0.98)"));
   document.documentElement.style.setProperty("--card-bg-start", hexToRgbaString(branding.cardBgStartColor, 0.98, "rgba(10, 14, 22, 0.98)"));
-  document.documentElement.style.setProperty("--card-bg-end", hexToRgbaString(branding.cardBgEndColor, 0.92, "rgba(8, 11, 18, 0.92)"));
+    document.documentElement.style.setProperty("--card-bg-end", hexToRgbaString(branding.cardBgEndColor, 0.92, "rgba(8, 11, 18, 0.92)"));
+  const fontMap = {
+    matter: '"Matter", "Segoe UI", sans-serif',
+    inter: '"Inter", "Segoe UI", sans-serif',
+    poppins: '"Poppins", "Segoe UI", sans-serif',
+    montserrat: '"Montserrat", "Segoe UI", sans-serif',
+    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  };
+  document.documentElement.style.setProperty("--app-font-family", fontMap[branding.fontFamily] || fontMap.matter);
+  document.documentElement.style.setProperty("--settings-nav-bg", hexToRgbaString(branding.settingsNavBgColor, 0.9, "rgba(9, 12, 20, 0.9)"));
+  document.documentElement.style.setProperty("--settings-input-bg", hexToRgbaString(branding.inputBgColor, 0.88, "rgba(12, 16, 24, 0.88)"));
+  document.documentElement.style.setProperty("--settings-input-bg-hover", hexToRgbaString(branding.inputBgColor, 0.96, "rgba(15, 20, 31, 0.96)"));
+  document.documentElement.style.setProperty("--settings-input-border", hexToRgbaString(branding.inputBorderColor, 0.34, "rgba(255, 255, 255, 0.34)"));
 }
 
 function syncBrandingInputs() {
@@ -679,6 +703,18 @@ function syncBrandingInputs() {
   }
   if (settingsBrandCardBgEndColorInput) {
     settingsBrandCardBgEndColorInput.value = branding.cardBgEndColor;
+  }
+  if (settingsBrandFontFamilyInput) {
+    settingsBrandFontFamilyInput.value = branding.fontFamily;
+  }
+  if (settingsBrandSettingsNavBgColorInput) {
+    settingsBrandSettingsNavBgColorInput.value = branding.settingsNavBgColor;
+  }
+  if (settingsBrandInputBgColorInput) {
+    settingsBrandInputBgColorInput.value = branding.inputBgColor;
+  }
+  if (settingsBrandInputBorderColorInput) {
+    settingsBrandInputBorderColorInput.value = branding.inputBorderColor;
   }
 }
 
@@ -1912,6 +1948,22 @@ function loadPrinterConfig() {
     if (brandCardBgEndColorRaw) {
       branding.cardBgEndColor = brandCardBgEndColorRaw;
     }
+    const brandFontFamilyRaw = readStoredValue(storageKeys.brandFontFamily);
+    if (brandFontFamilyRaw) {
+      branding.fontFamily = brandFontFamilyRaw;
+    }
+    const brandSettingsNavBgColorRaw = readStoredValue(storageKeys.brandSettingsNavBgColor);
+    if (brandSettingsNavBgColorRaw) {
+      branding.settingsNavBgColor = brandSettingsNavBgColorRaw;
+    }
+    const brandInputBgColorRaw = readStoredValue(storageKeys.brandInputBgColor);
+    if (brandInputBgColorRaw) {
+      branding.inputBgColor = brandInputBgColorRaw;
+    }
+    const brandInputBorderColorRaw = readStoredValue(storageKeys.brandInputBorderColor);
+    if (brandInputBorderColorRaw) {
+      branding.inputBorderColor = brandInputBorderColorRaw;
+    }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
@@ -2077,6 +2129,10 @@ function getBrandingSnapshot() {
     progressFlowEndColor: branding.progressFlowEndColor,
     cardBgStartColor: branding.cardBgStartColor,
     cardBgEndColor: branding.cardBgEndColor,
+    fontFamily: branding.fontFamily,
+    settingsNavBgColor: branding.settingsNavBgColor,
+    inputBgColor: branding.inputBgColor,
+    inputBorderColor: branding.inputBorderColor,
   };
 }
 
@@ -2136,6 +2192,10 @@ function applyBrandProfile(profileName) {
   writeStoredValue(storageKeys.brandProgressFlowEndColor, branding.progressFlowEndColor);
   writeStoredValue(storageKeys.brandCardBgStartColor, branding.cardBgStartColor);
   writeStoredValue(storageKeys.brandCardBgEndColor, branding.cardBgEndColor);
+  writeStoredValue(storageKeys.brandFontFamily, branding.fontFamily);
+  writeStoredValue(storageKeys.brandSettingsNavBgColor, branding.settingsNavBgColor);
+  writeStoredValue(storageKeys.brandInputBgColor, branding.inputBgColor);
+  writeStoredValue(storageKeys.brandInputBorderColor, branding.inputBorderColor);
 }
 
 function loadUiPreferences() {
@@ -2216,6 +2276,18 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   if (settingsBrandCardBgEndColorInput) {
     branding.cardBgEndColor = settingsBrandCardBgEndColorInput.value;
   }
+  if (settingsBrandFontFamilyInput) {
+    branding.fontFamily = settingsBrandFontFamilyInput.value;
+  }
+  if (settingsBrandSettingsNavBgColorInput) {
+    branding.settingsNavBgColor = settingsBrandSettingsNavBgColorInput.value;
+  }
+  if (settingsBrandInputBgColorInput) {
+    branding.inputBgColor = settingsBrandInputBgColorInput.value;
+  }
+  if (settingsBrandInputBorderColorInput) {
+    branding.inputBorderColor = settingsBrandInputBorderColorInput.value;
+  }
 
   applyBranding();
   syncBrandingInputs();
@@ -2242,6 +2314,10 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   writeStoredValue(storageKeys.brandProgressFlowEndColor, branding.progressFlowEndColor);
   writeStoredValue(storageKeys.brandCardBgStartColor, branding.cardBgStartColor);
   writeStoredValue(storageKeys.brandCardBgEndColor, branding.cardBgEndColor);
+  writeStoredValue(storageKeys.brandFontFamily, branding.fontFamily);
+  writeStoredValue(storageKeys.brandSettingsNavBgColor, branding.settingsNavBgColor);
+  writeStoredValue(storageKeys.brandInputBgColor, branding.inputBgColor);
+  writeStoredValue(storageKeys.brandInputBorderColor, branding.inputBorderColor);
 }
 
 async function savePrinterConfig() {
@@ -3239,6 +3315,18 @@ settingsBrandCardBgStartColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsBrandCardBgEndColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandFontFamilyInput?.addEventListener("change", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandSettingsNavBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandInputBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandInputBorderColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
