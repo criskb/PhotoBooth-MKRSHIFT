@@ -600,7 +600,7 @@ function applyBranding() {
   branding.inputBorderColor = normalizeBrandColor(branding.inputBorderColor, defaultBranding.inputBorderColor);
   branding.quickNavButtonBgColor = normalizeBrandColor(branding.quickNavButtonBgColor, defaultBranding.quickNavButtonBgColor);
   branding.quickNavButtonTextColor = normalizeBrandColor(branding.quickNavButtonTextColor, defaultBranding.quickNavButtonTextColor);
-  branding.introBgAnimation = ["classic", "drift", "none", "portals"].includes(branding.introBgAnimation)
+  branding.introBgAnimation = ["classic", "drift", "none", "portals", "kaleido", "orbit", "strips"].includes(branding.introBgAnimation)
     ? branding.introBgAnimation
     : defaultBranding.introBgAnimation;
 
@@ -661,6 +661,9 @@ function applyBranding() {
   document.body.classList.toggle("intro-bg-drift", branding.introBgAnimation === "drift");
   document.body.classList.toggle("intro-bg-none", branding.introBgAnimation === "none");
   document.body.classList.toggle("intro-bg-portals", branding.introBgAnimation === "portals");
+  document.body.classList.toggle("intro-bg-kaleido", branding.introBgAnimation === "kaleido");
+  document.body.classList.toggle("intro-bg-orbit", branding.introBgAnimation === "orbit");
+  document.body.classList.toggle("intro-bg-strips", branding.introBgAnimation === "strips");
   window.dispatchEvent(new Event("idle-theme-changed"));
 }
 

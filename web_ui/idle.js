@@ -253,22 +253,39 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
     }
 
     const portalsMode = document.body.classList.contains("intro-bg-portals");
+    const kaleidoMode = document.body.classList.contains("intro-bg-kaleido");
+    const orbitMode = document.body.classList.contains("intro-bg-orbit");
+    const stripsMode = document.body.classList.contains("intro-bg-strips");
 
     const width = window.innerWidth || 1024;
     const height = window.innerHeight || 768;
     const laneCount = portalsMode
       ? 1
-      : Math.max(4, Math.min(7, Math.floor(height / 140)));
-    const portalsCardHeight = Math.max(280, height - 200);
+      : stripsMode
+        ? Math.max(4, Math.min(8, Math.floor(width / 220)))
+        : Math.max(4, Math.min(7, Math.floor(height / 140)));
+    const portalsCardHeight = Math.max(240, Math.min(height - 220, 520));
     const portalsCardSize = portalsCardHeight * (4 / 7);
-    const portalsGap = 124;
+    const portalsGap = 150;
     const portalsCenterSpacing = portalsCardSize + portalsGap;
     const cardsPerLane = portalsMode
       ? Math.max(4, Math.ceil((width + portalsCardSize * 1.5) / portalsCenterSpacing))
-      : Math.max(4, Math.ceil(width / 240));
+      : stripsMode
+        ? Math.max(5, Math.ceil((height + 420) / 230))
+        : kaleidoMode
+          ? Math.max(6, Math.ceil(width / 180))
+          : orbitMode
+            ? Math.max(10, Math.ceil(width / 110))
+            : Math.max(4, Math.ceil(width / 240));
     const cardCount = portalsMode
       ? Math.max(cardsPerLane, images.length)
-      : laneCount * cardsPerLane;
+      : kaleidoMode
+        ? Math.max(2, Math.min(images.length || 2, 12))
+        : orbitMode
+          ? Math.max(images.length, cardsPerLane)
+          : stripsMode
+            ? Math.max(images.length, cardsPerLane * laneCount)
+            : laneCount * cardsPerLane;
     const pool = shuffleArray(images);
     const fragment = document.createDocumentFragment();
     const laneGap = height / (laneCount + 1);
@@ -281,17 +298,33 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       const lane = i % laneCount;
       const laneY = portalsMode
         ? (height - portalsCardHeight) * 0.5
-        : laneGap * (lane + 1) + randomBetween(-20, 20);
-      const depth = portalsMode ? 1 : randomBetween(0.76, 1.24);
-      const size = portalsMode ? portalsCardSize : randomBetween(150, 250) * depth;
-      const rotation = portalsMode ? 0 : randomBetween(-8, 8);
-      const opacity = portalsMode ? 0.9 : Math.max(0.35, Math.min(0.9, 0.72 * depth));
-      const floatDuration = portalsMode ? 22 : Number(randomBetween(16, 26).toFixed(2));
+        : stripsMode
+          ? ((lane + 0.5) * width) / laneCount
+          : laneGap * (lane + 1) + randomBetween(-20, 20);
+      const depth = (portalsMode || kaleidoMode || orbitMode || stripsMode) ? 1 : randomBetween(0.76, 1.24);
+      const size = portalsMode
+        ? portalsCardSize
+        : kaleidoMode
+          ? Math.max(width, height) * 1.25
+          : orbitMode
+            ? randomBetween(150, 230)
+            : stripsMode
+              ? randomBetween(140, 190)
+              : randomBetween(150, 250) * depth;
+      const rotation = portalsMode ? 0 : kaleidoMode ? randomBetween(-8, 8) : orbitMode ? randomBetween(-10, 10) : 0;
+      const opacity = portalsMode ? 0.9 : kaleidoMode ? 1 : orbitMode ? 0.78 : stripsMode ? 0.82 : Math.max(0.35, Math.min(0.9, 0.72 * depth));
+      const floatDuration = portalsMode ? 22 : kaleidoMode ? Math.max(14, cardCount * 3.5) : orbitMode ? 26 : stripsMode ? 24 : Number(randomBetween(16, 26).toFixed(2));
       const floatDelay = portalsMode
         ? -((i / cardsPerLane) * floatDuration)
-        : Number(randomBetween(-24, 0).toFixed(2));
-      const drift = portalsMode ? "0" : randomBetween(-20, 20).toFixed(2);
-      const blur = portalsMode ? "0" : Math.max(0, (1 - depth) * 3.2).toFixed(2);
+        : kaleidoMode
+          ? -((i / cardCount) * floatDuration)
+          : orbitMode
+            ? -((i / cardCount) * floatDuration)
+            : stripsMode
+              ? -((Math.floor(i / laneCount) / cardsPerLane) * floatDuration)
+              : Number(randomBetween(-24, 0).toFixed(2));
+      const drift = (portalsMode || stripsMode) ? "0" : randomBetween(-20, 20).toFixed(2);
+      const blur = (portalsMode || kaleidoMode || orbitMode || stripsMode) ? "0" : Math.max(0, (1 - depth) * 3.2).toFixed(2);
 
       card.style.setProperty("--card-size", `${size.toFixed(2)}px`);
       card.style.setProperty("--lane-y", `${laneY.toFixed(2)}px`);
@@ -303,10 +336,29 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       card.style.setProperty("--drift", `${drift}px`);
       card.style.setProperty("--blur", `${blur}px`);
 
+      if (kaleidoMode) {
+        card.classList.add("idle-overlay__card--kaleido");
+        card.style.setProperty("--kaleido-duration", `${floatDuration.toFixed(2)}s`);
+        card.style.setProperty("--kaleido-delay", `${floatDelay.toFixed(2)}s`);
+        card.style.setProperty("--kaleido-rotation", `${rotation.toFixed(2)}deg`);
+      } else if (orbitMode) {
+        card.classList.add("idle-overlay__card--orbit");
+        const angle = (i / cardCount) * Math.PI * 2;
+        const radiusX = Math.max(220, width * 0.26);
+        const radiusY = Math.max(140, height * 0.2);
+        card.style.setProperty("--orbit-x", `${(Math.cos(angle) * radiusX).toFixed(2)}px`);
+        card.style.setProperty("--orbit-y", `${(Math.sin(angle) * radiusY).toFixed(2)}px`);
+      } else if (stripsMode) {
+        card.classList.add("idle-overlay__card--strips");
+        const row = Math.floor(i / laneCount);
+        card.style.setProperty("--strip-x", `${laneY.toFixed(2)}px`);
+        card.style.setProperty("--strip-start", `${(height + row * 220).toFixed(2)}px`);
+      }
+
       const img = document.createElement("img");
       img.src = image;
       img.alt = "";
-      img.loading = "lazy";
+      img.loading = portalsMode ? "eager" : "lazy";
       if (portalsMode) {
         const applyGlow = () => {
           samplePortalGlowRgb(image).then((rgb) => {

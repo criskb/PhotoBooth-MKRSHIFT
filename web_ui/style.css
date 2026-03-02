@@ -114,6 +114,44 @@ body.intro-bg-portals {
   }
 }
 
+
+body.intro-bg-kaleido {
+  background:
+    conic-gradient(from 120deg at 50% 50%, rgba(var(--accent-rgb), 0.12), rgba(var(--accent-warm-rgb), 0.08), rgba(var(--ui-panel-tint-rgb), 0.18), rgba(var(--accent-rgb), 0.12)),
+    radial-gradient(circle at top, var(--bg-deep-start) 0%, var(--bg-deep-mid) 55%, var(--bg-deep-end) 100%);
+  animation: introBgKaleido 18s linear infinite;
+}
+
+body.intro-bg-orbit {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(var(--accent-rgb), 0.2), transparent 44%),
+    radial-gradient(circle at 50% 50%, rgba(var(--accent-warm-rgb), 0.12), transparent 62%),
+    radial-gradient(circle at top, var(--bg-deep-start) 0%, var(--bg-deep-mid) 55%, var(--bg-deep-end) 100%);
+  animation: introBgOrbit 16s ease-in-out infinite alternate;
+}
+
+body.intro-bg-strips {
+  background:
+    linear-gradient(100deg, rgba(var(--accent-rgb), 0.08) 0%, transparent 25%, rgba(var(--accent-warm-rgb), 0.1) 55%, transparent 82%),
+    linear-gradient(180deg, #0a0f18 0%, #0b1018 50%, #070b12 100%);
+  animation: introBgStrips 12s linear infinite;
+}
+
+@keyframes introBgKaleido {
+  from { filter: hue-rotate(0deg); }
+  to { filter: hue-rotate(360deg); }
+}
+
+@keyframes introBgOrbit {
+  0% { background-position: 48% 48%, 52% 52%, 0% 0%; }
+  100% { background-position: 52% 52%, 48% 48%, 0% 0%; }
+}
+
+@keyframes introBgStrips {
+  0% { background-position: 0% 0%, 0% 0%; }
+  100% { background-position: 160% 0%, 0% 0%; }
+}
+
 body.debate-fever::before {
   content: "";
   position: fixed;
@@ -828,20 +866,6 @@ body.debate-fever::before {
   overflow: hidden;
   background: rgba(8, 11, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  max-height: 58vh;
-  object-fit: cover;
-}
-
-.progress__preview-stage {
-  display: none;
-  position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  max-height: 58vh;
-  border-radius: 1rem;
-  overflow: hidden;
-  background: rgba(8, 11, 18, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress__actions {
@@ -1133,7 +1157,10 @@ body.intro-bg-portals .idle-overlay__card {
   width: var(--card-size);
   aspect-ratio: 4 / 7;
   border-radius: 999px;
+  background: transparent;
   border: 1px solid rgba(var(--accent-rgb), 0.42);
+  backface-visibility: hidden;
+  transform: translateZ(0);
   box-shadow:
     0 0 0 1px rgba(var(--portal-glow-rgb, var(--accent-rgb)), 0.28) inset,
     0 0 30px rgba(var(--portal-glow-rgb, var(--accent-rgb)), 0.45),
@@ -1145,8 +1172,10 @@ body.intro-bg-portals .idle-overlay__card {
 
 body.intro-bg-portals .idle-overlay__card img {
   animation-name: idle-portals-pan;
-  transform: scale(1.12);
   filter: saturate(1.28) contrast(1.14);
+  backface-visibility: hidden;
+  transform: translateZ(0) scale(1.2);
+  will-change: transform;
 }
 
 @keyframes idle-portals-marquee {
@@ -1177,6 +1206,104 @@ body.intro-bg-portals .idle-overlay__card img {
   100% {
     transform: scale(1.12) translate3d(4%, -2%, 0);
   }
+}
+
+
+body.intro-bg-kaleido .idle-overlay__canvas {
+  mask-image: none;
+}
+
+body.intro-bg-kaleido .idle-overlay__card {
+  left: 50%;
+  top: 50%;
+  width: var(--card-size);
+  height: var(--card-size);
+  aspect-ratio: auto;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  animation-name: idle-kaleido-crossfade;
+  animation-duration: var(--kaleido-duration);
+  animation-delay: var(--kaleido-delay);
+  animation-timing-function: ease-in-out;
+}
+
+body.intro-bg-kaleido .idle-overlay__card img {
+  animation-name: idle-kaleido-pan;
+  animation-duration: var(--kaleido-duration);
+  transform: scale(1.05);
+  filter: saturate(1.25) contrast(1.1);
+}
+
+body.intro-bg-orbit .idle-overlay__card {
+  animation-name: idle-orbit-loop;
+  animation-timing-function: linear;
+  border-radius: 18px;
+}
+
+body.intro-bg-orbit .idle-overlay__card img {
+  animation-name: idle-orbit-pan;
+}
+
+body.intro-bg-strips .idle-overlay__card {
+  animation-name: idle-strip-rise;
+  border-radius: 22px;
+}
+
+body.intro-bg-strips .idle-overlay__card img {
+  animation-name: idle-strip-pan;
+}
+
+@keyframes idle-kaleido-crossfade {
+  0% {
+    transform: translate3d(-50%, -50%, 0) rotate(var(--kaleido-rotation)) scale(1.04);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.96;
+  }
+  38% {
+    opacity: 0.9;
+  }
+  52% {
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(calc(var(--kaleido-rotation) * -1)) scale(1.12);
+    opacity: 0;
+  }
+}
+
+@keyframes idle-kaleido-pan {
+  0% { transform: scale(1.05) translate3d(-2%, -1%, 0); }
+  50% { transform: scale(1.12) translate3d(1%, 1.5%, 0); }
+  100% { transform: scale(1.18) translate3d(2%, -1.5%, 0); }
+}
+
+@keyframes idle-orbit-loop {
+  0% { transform: translate3d(calc(50vw + var(--orbit-x)), calc(50vh + var(--orbit-y)), 0) scale(0.95); opacity: 0.35; }
+  50% { transform: translate3d(calc(50vw - var(--orbit-x)), calc(50vh - var(--orbit-y)), 0) scale(1.05); opacity: 0.92; }
+  100% { transform: translate3d(calc(50vw + var(--orbit-x)), calc(50vh + var(--orbit-y)), 0) scale(0.95); opacity: 0.35; }
+}
+
+@keyframes idle-orbit-pan {
+  0% { transform: scale(1.1) translate3d(-2%, -1%, 0); }
+  50% { transform: scale(1.16) translate3d(2%, 1%, 0); }
+  100% { transform: scale(1.1) translate3d(-2%, -1%, 0); }
+}
+
+@keyframes idle-strip-rise {
+  0% { transform: translate3d(var(--strip-x), var(--strip-start), 0) scale(0.94); opacity: 0; }
+  10% { opacity: var(--opacity); }
+  100% { transform: translate3d(var(--strip-x), -260px, 0) scale(1.02); opacity: 0; }
+}
+
+@keyframes idle-strip-pan {
+  0% { transform: scale(1.1) translate3d(0, 2%, 0); }
+  50% { transform: scale(1.16) translate3d(0, -2%, 0); }
+  100% { transform: scale(1.1) translate3d(0, 2%, 0); }
 }
 
 .idle-overlay__eyebrow {

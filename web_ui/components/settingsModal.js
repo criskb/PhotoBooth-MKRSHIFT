@@ -428,6 +428,9 @@ export function renderSettingsModal() {
                 <option value="classic">Classic gradient glow</option>
                 <option value="drift">Cinematic drift</option>
                 <option value="portals">Portals</option>
+                <option value="kaleido">Kaleido mosaic</option>
+                <option value="orbit">Orbit halo</option>
+                <option value="strips">Neon strips</option>
                 <option value="none">None (static)</option>
               </select>
             </label>
