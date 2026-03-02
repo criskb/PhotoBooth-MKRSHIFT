@@ -33,6 +33,7 @@ export const storageKeys = {
   brandCardBgEndColor: "brandCardBgEndColor",
   brandProgressFlowStartColor: "brandProgressFlowStartColor",
   brandProgressFlowEndColor: "brandProgressFlowEndColor",
+  brandProfiles: "brandProfiles",
   uploadEnabled: "uploadEnabled",
   hidePrintEnabled: "hidePrintEnabled",
   hideQrEnabled: "hideQrEnabled",

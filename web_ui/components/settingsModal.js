@@ -183,6 +183,21 @@ export function renderSettingsModal() {
           </div>
           <div class="settings-branding">
             <p class="settings-watermark__label">Booth branding</p>
+            <div class="settings-brand-profiles">
+              <label class="settings-field settings-field--span-2">
+                Saved brand profile
+                <select class="settings-input form-input settings-input--brand-profile-select"></select>
+              </label>
+              <label class="settings-field">
+                Profile name
+                <input class="settings-input form-input settings-input--brand-profile-name" type="text" value="" maxlength="32" placeholder="My Booth Theme" />
+              </label>
+              <div class="settings-brand-profiles__actions">
+                <button class="settings-action settings-action--brand-profile-save btn btn--secondary" type="button">Save profile</button>
+                <button class="settings-action settings-action--brand-profile-load btn btn--secondary" type="button">Load profile</button>
+                <button class="settings-action settings-action--brand-profile-delete btn btn--secondary" type="button">Delete profile</button>
+              </div>
+            </div>
             <div class="settings-grid settings-grid--two">
               <label class="settings-field settings-field--span-2">
                 Title text
@@ -293,12 +308,11 @@ export function renderSettingsModal() {
                 />
               </label>
               <label class="settings-field">
-                Panel border color (RGBA)
+                Panel border color
                 <input
-                  class="settings-input form-input settings-input--brand-panel-border-color"
-                  type="text"
-                  value="rgba(247, 247, 251, 0.14)"
-                  placeholder="rgba(247, 247, 251, 0.14)"
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-border-color"
+                  type="color"
+                  value="#f7f7fb"
                 />
               </label>
               <label class="settings-field">
