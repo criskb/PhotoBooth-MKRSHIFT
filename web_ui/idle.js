@@ -199,8 +199,10 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
     const laneCount = portalsMode
       ? 1
       : Math.max(4, Math.min(7, Math.floor(height / 140)));
+    const portalsCardSize = Math.max(840, Math.min(1320, height * 1.35));
+    const portalsSpacing = Math.max(260, portalsCardSize * 0.28);
     const cardsPerLane = portalsMode
-      ? Math.max(6, Math.ceil(width / 240) + 2)
+      ? Math.max(8, Math.ceil((width + portalsCardSize * 1.5) / portalsSpacing))
       : Math.max(4, Math.ceil(width / 240));
     const cardCount = laneCount * cardsPerLane;
     const pool = shuffleArray(images);
@@ -217,10 +219,10 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
         ? height * 0.5
         : laneGap * (lane + 1) + randomBetween(-20, 20);
       const depth = portalsMode ? 1 : randomBetween(0.76, 1.24);
-      const size = portalsMode ? Math.max(210, Math.min(330, height * 0.46)) : randomBetween(150, 250) * depth;
+      const size = portalsMode ? portalsCardSize : randomBetween(150, 250) * depth;
       const rotation = portalsMode ? 0 : randomBetween(-8, 8);
       const opacity = portalsMode ? 0.9 : Math.max(0.35, Math.min(0.9, 0.72 * depth));
-      const floatDuration = portalsMode ? 18 : Number(randomBetween(16, 26).toFixed(2));
+      const floatDuration = portalsMode ? 22 : Number(randomBetween(16, 26).toFixed(2));
       const floatDelay = portalsMode
         ? -((i / cardsPerLane) * floatDuration)
         : Number(randomBetween(-24, 0).toFixed(2));
