@@ -24,6 +24,9 @@
   --ui-panel-tint-rgb: 111, 120, 133;
   --progress-gradient-start-rgb: 88, 214, 141;
   --progress-gradient-end-rgb: 254, 170, 58;
+  --progress-flow-start-rgb: 95, 211, 255;
+  --progress-flow-end-rgb: 254, 170, 58;
+  --menu-bg: rgba(8, 11, 18, 0.98);
   --text-primary: #f7f7fb;
   --brand-title-color: #f7f7fb;
   --brand-accent-color: #58d36e;
@@ -558,7 +561,7 @@ body.debate-fever::before {
   bottom: calc(100% + 0.5rem);
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(8, 11, 18, 0.98);
+  background: var(--menu-bg);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 0.75rem;
   padding: 0.4rem;
@@ -725,9 +728,9 @@ body.debate-fever::before {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--accent) 18%,
-    var(--accent-warm) 50%,
-    var(--accent) 82%,
+    rgba(var(--progress-flow-start-rgb), 0.95) 18%,
+    rgba(var(--progress-flow-end-rgb), 0.95) 50%,
+    rgba(var(--progress-flow-start-rgb), 0.95) 82%,
     transparent 100%
   );
   background-size: 180% 100%;
@@ -3024,7 +3027,7 @@ body.debate-fever::before {
   right: 0;
   bottom: 0;
   z-index: 40;
-  background: rgba(8, 11, 18, 0.98);
+  background: var(--menu-bg);
   border-top-left-radius: 1.1rem;
   border-top-right-radius: 1.1rem;
   border: 1px solid rgba(255, 255, 255, 0.14);

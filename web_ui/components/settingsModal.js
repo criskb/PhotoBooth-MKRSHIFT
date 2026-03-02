@@ -284,6 +284,46 @@ export function renderSettingsModal() {
                   value="#feaa3a"
                 />
               </label>
+              <label class="settings-field">
+                Panel background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-bg-color"
+                  type="color"
+                  value="#0c101a"
+                />
+              </label>
+              <label class="settings-field">
+                Panel border color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-border-color"
+                  type="color"
+                  value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
+                Menu background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-menu-bg-color"
+                  type="color"
+                  value="#080b12"
+                />
+              </label>
+              <label class="settings-field">
+                Progress shimmer color A
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-flow-start-color"
+                  type="color"
+                  value="#5fd3ff"
+                />
+              </label>
+              <label class="settings-field">
+                Progress shimmer color B
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-flow-end-color"
+                  type="color"
+                  value="#feaa3a"
+                />
+              </label>
             </div>
           </div>
         </section>

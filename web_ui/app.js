@@ -126,6 +126,11 @@ const settingsBrandButtonTextColorInput = document.querySelector(".settings-inpu
 const settingsBrandPanelTintColorInput = document.querySelector(".settings-input--brand-panel-tint-color");
 const settingsBrandProgressStartColorInput = document.querySelector(".settings-input--brand-progress-start-color");
 const settingsBrandProgressEndColorInput = document.querySelector(".settings-input--brand-progress-end-color");
+const settingsBrandPanelBgColorInput = document.querySelector(".settings-input--brand-panel-bg-color");
+const settingsBrandPanelBorderColorInput = document.querySelector(".settings-input--brand-panel-border-color");
+const settingsBrandMenuBgColorInput = document.querySelector(".settings-input--brand-menu-bg-color");
+const settingsBrandProgressFlowStartColorInput = document.querySelector(".settings-input--brand-progress-flow-start-color");
+const settingsBrandProgressFlowEndColorInput = document.querySelector(".settings-input--brand-progress-flow-end-color");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const remoteLaunchQr = document.querySelector(".remote-launch-qr");
@@ -304,6 +309,11 @@ const defaultBranding = {
   panelTintColor: "#6f7885",
   progressStartColor: "#58d68d",
   progressEndColor: "#feaa3a",
+  panelBgColor: "#0c101a",
+  panelBorderColor: "#f7f7fb",
+  menuBgColor: "#080b12",
+  progressFlowStartColor: "#5fd3ff",
+  progressFlowEndColor: "#feaa3a",
 };
 let branding = { ...defaultBranding };
 let uploadEnabled = true;
@@ -512,6 +522,19 @@ function hexToRgbTriplet(value, fallback = "95, 211, 255") {
   return `${r}, ${g}, ${b}`;
 }
 
+function hexToRgbaString(value, alpha = 1, fallback = "rgba(12, 16, 26, 0.72)") {
+  const normalized = normalizeBrandColor(value, "");
+  if (!normalized) {
+    return fallback;
+  }
+  const hex = normalized.slice(1);
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  const a = Math.max(0, Math.min(1, Number(alpha) || 1));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
 function shadeHexColor(value, factor = 0.82, fallback = "#24b26b") {
   const normalized = normalizeBrandColor(value, "");
   if (!normalized) {
@@ -539,6 +562,11 @@ function applyBranding() {
   branding.panelTintColor = normalizeBrandColor(branding.panelTintColor, defaultBranding.panelTintColor);
   branding.progressStartColor = normalizeBrandColor(branding.progressStartColor, defaultBranding.progressStartColor);
   branding.progressEndColor = normalizeBrandColor(branding.progressEndColor, defaultBranding.progressEndColor);
+  branding.panelBgColor = normalizeBrandColor(branding.panelBgColor, defaultBranding.panelBgColor);
+  branding.panelBorderColor = normalizeBrandColor(branding.panelBorderColor, defaultBranding.panelBorderColor);
+  branding.menuBgColor = normalizeBrandColor(branding.menuBgColor, defaultBranding.menuBgColor);
+  branding.progressFlowStartColor = normalizeBrandColor(branding.progressFlowStartColor, defaultBranding.progressFlowStartColor);
+  branding.progressFlowEndColor = normalizeBrandColor(branding.progressFlowEndColor, defaultBranding.progressFlowEndColor);
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -557,6 +585,8 @@ function applyBranding() {
   const panelTintRgb = hexToRgbTriplet(branding.panelTintColor, "111, 120, 133");
   const progressStartRgb = hexToRgbTriplet(branding.progressStartColor, brandButtonRgb);
   const progressEndRgb = hexToRgbTriplet(branding.progressEndColor, "254, 170, 58");
+  const progressFlowStartRgb = hexToRgbTriplet(branding.progressFlowStartColor, brandButtonRgb);
+  const progressFlowEndRgb = hexToRgbTriplet(branding.progressFlowEndColor, "254, 170, 58");
   const brandButtonStrong = shadeHexColor(branding.buttonColor, 0.78, defaultBranding.buttonColor);
 
   document.documentElement.style.setProperty("--brand-title-color", branding.titleColor);
@@ -571,6 +601,11 @@ function applyBranding() {
   document.documentElement.style.setProperty("--ui-panel-tint-rgb", panelTintRgb);
   document.documentElement.style.setProperty("--progress-gradient-start-rgb", progressStartRgb);
   document.documentElement.style.setProperty("--progress-gradient-end-rgb", progressEndRgb);
+  document.documentElement.style.setProperty("--progress-flow-start-rgb", progressFlowStartRgb);
+  document.documentElement.style.setProperty("--progress-flow-end-rgb", progressFlowEndRgb);
+  document.documentElement.style.setProperty("--panel-bg", hexToRgbaString(branding.panelBgColor, 0.72, "rgba(12, 16, 26, 0.72)"));
+  document.documentElement.style.setProperty("--panel-border", hexToRgbaString(branding.panelBorderColor, 0.14, "rgba(255, 255, 255, 0.14)"));
+  document.documentElement.style.setProperty("--menu-bg", hexToRgbaString(branding.menuBgColor, 0.98, "rgba(8, 11, 18, 0.98)"));
 }
 
 function syncBrandingInputs() {
@@ -609,6 +644,21 @@ function syncBrandingInputs() {
   }
   if (settingsBrandProgressEndColorInput) {
     settingsBrandProgressEndColorInput.value = branding.progressEndColor;
+  }
+  if (settingsBrandPanelBgColorInput) {
+    settingsBrandPanelBgColorInput.value = branding.panelBgColor;
+  }
+  if (settingsBrandPanelBorderColorInput) {
+    settingsBrandPanelBorderColorInput.value = branding.panelBorderColor;
+  }
+  if (settingsBrandMenuBgColorInput) {
+    settingsBrandMenuBgColorInput.value = branding.menuBgColor;
+  }
+  if (settingsBrandProgressFlowStartColorInput) {
+    settingsBrandProgressFlowStartColorInput.value = branding.progressFlowStartColor;
+  }
+  if (settingsBrandProgressFlowEndColorInput) {
+    settingsBrandProgressFlowEndColorInput.value = branding.progressFlowEndColor;
   }
 }
 
@@ -1810,6 +1860,26 @@ function loadPrinterConfig() {
     if (brandProgressEndColorRaw) {
       branding.progressEndColor = brandProgressEndColorRaw;
     }
+    const brandPanelBgColorRaw = readStoredValue(storageKeys.brandPanelBgColor);
+    if (brandPanelBgColorRaw) {
+      branding.panelBgColor = brandPanelBgColorRaw;
+    }
+    const brandPanelBorderColorRaw = readStoredValue(storageKeys.brandPanelBorderColor);
+    if (brandPanelBorderColorRaw) {
+      branding.panelBorderColor = brandPanelBorderColorRaw;
+    }
+    const brandMenuBgColorRaw = readStoredValue(storageKeys.brandMenuBgColor);
+    if (brandMenuBgColorRaw) {
+      branding.menuBgColor = brandMenuBgColorRaw;
+    }
+    const brandProgressFlowStartColorRaw = readStoredValue(storageKeys.brandProgressFlowStartColor);
+    if (brandProgressFlowStartColorRaw) {
+      branding.progressFlowStartColor = brandProgressFlowStartColorRaw;
+    }
+    const brandProgressFlowEndColorRaw = readStoredValue(storageKeys.brandProgressFlowEndColor);
+    if (brandProgressFlowEndColorRaw) {
+      branding.progressFlowEndColor = brandProgressFlowEndColorRaw;
+    }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
@@ -2010,6 +2080,21 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   if (settingsBrandProgressEndColorInput) {
     branding.progressEndColor = settingsBrandProgressEndColorInput.value;
   }
+  if (settingsBrandPanelBgColorInput) {
+    branding.panelBgColor = settingsBrandPanelBgColorInput.value;
+  }
+  if (settingsBrandPanelBorderColorInput) {
+    branding.panelBorderColor = settingsBrandPanelBorderColorInput.value;
+  }
+  if (settingsBrandMenuBgColorInput) {
+    branding.menuBgColor = settingsBrandMenuBgColorInput.value;
+  }
+  if (settingsBrandProgressFlowStartColorInput) {
+    branding.progressFlowStartColor = settingsBrandProgressFlowStartColorInput.value;
+  }
+  if (settingsBrandProgressFlowEndColorInput) {
+    branding.progressFlowEndColor = settingsBrandProgressFlowEndColorInput.value;
+  }
 
   applyBranding();
   syncBrandingInputs();
@@ -2029,6 +2114,11 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   writeStoredValue(storageKeys.brandPanelTintColor, branding.panelTintColor);
   writeStoredValue(storageKeys.brandProgressStartColor, branding.progressStartColor);
   writeStoredValue(storageKeys.brandProgressEndColor, branding.progressEndColor);
+  writeStoredValue(storageKeys.brandPanelBgColor, branding.panelBgColor);
+  writeStoredValue(storageKeys.brandPanelBorderColor, branding.panelBorderColor);
+  writeStoredValue(storageKeys.brandMenuBgColor, branding.menuBgColor);
+  writeStoredValue(storageKeys.brandProgressFlowStartColor, branding.progressFlowStartColor);
+  writeStoredValue(storageKeys.brandProgressFlowEndColor, branding.progressFlowEndColor);
 }
 
 async function savePrinterConfig() {
@@ -2971,6 +3061,21 @@ settingsBrandProgressStartColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsBrandProgressEndColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandPanelBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandPanelBorderColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandMenuBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressFlowStartColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressFlowEndColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
