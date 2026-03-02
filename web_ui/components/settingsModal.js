@@ -34,6 +34,10 @@ export function renderSettingsModal() {
               <code>https://comfy.icu/api/v1/workflows/</code>. When using the collection URL, style button
               names must match hosted workflow names so the app can auto-pick the workflow ID.
             </p>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--comfy-hosted" type="checkbox" checked />
+              Enable hosted Comfy workflow API mode (comfy.icu / /api/v1/workflows)
+            </label>
             <label class="settings-field settings-field--span-2">
               ComfyUI API Key (for hosted services)
               <input
@@ -142,7 +146,7 @@ export function renderSettingsModal() {
           <h3 class="settings-section__title">Watermark</h3>
           <label class="settings-field settings-field--toggle">
             <input class="settings-input settings-input--watermark" type="checkbox" />
-            Add MKRSHIFT watermark on upload/print
+            add brand watermark on upload/print
           </label>
           <div class="settings-watermark">
             <p class="settings-watermark__label">Watermark preview</p>
@@ -207,6 +211,15 @@ export function renderSettingsModal() {
                   maxlength="24"
                 />
               </label>
+              <label class="settings-field settings-field--span-2">
+                Intro badge text
+                <input
+                  class="settings-input form-input settings-input--brand-intro-badge-text"
+                  type="text"
+                  value="MKRSHIFT"
+                  maxlength="24"
+                />
+              </label>
               <label class="settings-field">
                 Title color
                 <input
@@ -229,6 +242,103 @@ export function renderSettingsModal() {
                   class="settings-input form-input settings-input--color settings-input--brand-neutral-color"
                   type="color"
                   value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
+                Button color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-button-color"
+                  type="color"
+                  value="#58d68d"
+                />
+              </label>
+              <label class="settings-field">
+                Button text color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-button-text-color"
+                  type="color"
+                  value="#071b11"
+                />
+              </label>
+              <label class="settings-field">
+                Panel tint color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-tint-color"
+                  type="color"
+                  value="#6f7885"
+                />
+              </label>
+              <label class="settings-field">
+                Progress gradient start
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-start-color"
+                  type="color"
+                  value="#58d68d"
+                />
+              </label>
+              <label class="settings-field">
+                Progress gradient end
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-end-color"
+                  type="color"
+                  value="#feaa3a"
+                />
+              </label>
+              <label class="settings-field">
+                Panel background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-bg-color"
+                  type="color"
+                  value="#0c101a"
+                />
+              </label>
+              <label class="settings-field">
+                Panel border color (RGBA)
+                <input
+                  class="settings-input form-input settings-input--brand-panel-border-color"
+                  type="text"
+                  value="rgba(247, 247, 251, 0.14)"
+                  placeholder="rgba(247, 247, 251, 0.14)"
+                />
+              </label>
+              <label class="settings-field">
+                Menu background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-menu-bg-color"
+                  type="color"
+                  value="#080b12"
+                />
+              </label>
+              <label class="settings-field">
+                Card background start
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-card-bg-start-color"
+                  type="color"
+                  value="#0a0e16"
+                />
+              </label>
+              <label class="settings-field">
+                Card background end
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-card-bg-end-color"
+                  type="color"
+                  value="#080b12"
+                />
+              </label>
+              <label class="settings-field">
+                Progress shimmer color A
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-flow-start-color"
+                  type="color"
+                  value="#5fd3ff"
+                />
+              </label>
+              <label class="settings-field">
+                Progress shimmer color B
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-flow-end-color"
+                  type="color"
+                  value="#feaa3a"
                 />
               </label>
             </div>

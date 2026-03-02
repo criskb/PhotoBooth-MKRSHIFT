@@ -24,6 +24,7 @@ const comfyInputPath =
   process.env.COMFY_INPUT_PATH ?? path.join(rootDir, "ComfyUI", "input", "input.png");
 let comfyServerUrl = normalizeComfyServerUrl(process.env.COMFY_SERVER_URL) ?? "http://127.0.0.1:8188";
 let comfyApiKey = process.env.COMFY_API_KEY ?? "";
+let comfyHostedEnabled = String(process.env.COMFY_HOSTED_ENABLED || "true").toLowerCase() !== "false";
 const freeimageHostKey = process.env.FREEIMAGE_HOST_KEY ?? "";
 let comfyHistoryUrl = `${comfyServerUrl}/history`;
 let comfyProgressUrl = `${comfyServerUrl}/progress`;
@@ -846,8 +847,11 @@ async function fetchHostedRunStatus(serverUrl, promptId) {
   throw new Error(lastError ?? "Unable to fetch hosted run status");
 }
 
-async function resolveComfyServerUrlForStyle(baseServerUrl, styleName) {
+async function resolveComfyServerUrlForStyle(baseServerUrl, styleName, hostedEnabled = true) {
   const normalizedBaseUrl = normalizeComfyServerUrl(baseServerUrl) ?? baseServerUrl;
+  if (!hostedEnabled) {
+    return normalizedBaseUrl;
+  }
   const map = loadComfyWorkflowMap();
   if (map) {
     const wanted = normalizeStyleName(styleName);
@@ -1314,6 +1318,7 @@ const server = http.createServer((req, res) => {
         comfyServerUrl,
         websocketConnected: comfySocketReady,
         apiKeyConfigured: Boolean(comfyApiKey),
+        hostedEnabled: comfyHostedEnabled,
         uptimeSeconds: Math.floor(process.uptime()),
       })
     );
@@ -1383,6 +1388,8 @@ const server = http.createServer((req, res) => {
         const minCreditsOverride = Number(payload.comfyMinCredits);
         const acceleratorOverride =
           typeof payload.comfyAccelerator === "string" ? payload.comfyAccelerator.trim() : "";
+        const hostedEnabledOverride =
+          payload.comfyHostedEnabled === undefined ? null : Boolean(payload.comfyHostedEnabled);
         if (comfyOverride) {
           setComfyServerUrl(comfyOverride);
         }
@@ -1395,7 +1402,9 @@ const server = http.createServer((req, res) => {
           return;
         }
         try {
-          const effectiveComfyServerUrl = await resolveComfyServerUrlForStyle(comfyServerUrl, style);
+          const effectiveHostedEnabled = hostedEnabledOverride ?? comfyHostedEnabled;
+          comfyHostedEnabled = effectiveHostedEnabled;
+          const effectiveComfyServerUrl = await resolveComfyServerUrlForStyle(comfyServerUrl, style, effectiveHostedEnabled);
           const captureId = `capture-${Date.now()}-${crypto.randomUUID()}`;
           const safeId = safeFileName(captureId);
           const captureName = `${safeId}.png`;
@@ -1447,6 +1456,7 @@ const server = http.createServer((req, res) => {
                 ? Math.floor(minCreditsOverride)
                 : undefined,
             hostedAccelerator: acceleratorOverride || undefined,
+            useHostedComfy: effectiveHostedEnabled,
           });
           const resolvedPromptId = result?.prompt_id ?? promptId;
           if (result?.hostedWorkflowApi) {
@@ -1880,7 +1890,7 @@ const server = http.createServer((req, res) => {
         if (!link) {
           throw new Error("Missing upload link");
         }
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&color=000000&bgcolor=ffffff00&data=${encodeURIComponent(
           link
         )}`;
         res.writeHead(200, { "Content-Type": "application/json" });
