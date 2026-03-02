@@ -34,6 +34,10 @@ export function renderSettingsModal() {
               <code>https://comfy.icu/api/v1/workflows/</code>. When using the collection URL, style button
               names must match hosted workflow names so the app can auto-pick the workflow ID.
             </p>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--comfy-hosted" type="checkbox" checked />
+              Enable hosted Comfy workflow API mode (comfy.icu / /api/v1/workflows)
+            </label>
             <label class="settings-field settings-field--span-2">
               ComfyUI API Key (for hosted services)
               <input
@@ -119,8 +123,9 @@ export function renderSettingsModal() {
               Freeimage API Key
               <input
                 class="settings-input form-input settings-input--freeimage"
-                type="text"
+                type="password"
                 placeholder="Freeimage API Key"
+                autocomplete="off"
               />
             </label>
             <label class="settings-field settings-field--toggle">
@@ -142,7 +147,7 @@ export function renderSettingsModal() {
           <h3 class="settings-section__title">Watermark</h3>
           <label class="settings-field settings-field--toggle">
             <input class="settings-input settings-input--watermark" type="checkbox" />
-            Add MKRSHIFT watermark on upload/print
+            add brand watermark on upload/print
           </label>
           <div class="settings-watermark">
             <p class="settings-watermark__label">Watermark preview</p>
@@ -179,6 +184,21 @@ export function renderSettingsModal() {
           </div>
           <div class="settings-branding">
             <p class="settings-watermark__label">Booth branding</p>
+            <div class="settings-brand-profiles">
+              <label class="settings-field settings-field--span-2">
+                Saved brand profile
+                <select class="settings-input form-input settings-input--brand-profile-select"></select>
+              </label>
+              <label class="settings-field">
+                Profile name
+                <input class="settings-input form-input settings-input--brand-profile-name" type="text" value="" maxlength="32" placeholder="My Booth Theme" />
+              </label>
+              <div class="settings-brand-profiles__actions">
+                <button class="settings-action settings-action--brand-profile-save btn btn--secondary" type="button">Save profile</button>
+                <button class="settings-action settings-action--brand-profile-load btn btn--secondary" type="button">Load profile</button>
+                <button class="settings-action settings-action--brand-profile-delete btn btn--secondary" type="button">Delete profile</button>
+              </div>
+            </div>
             <div class="settings-grid settings-grid--two">
               <label class="settings-field settings-field--span-2">
                 Title text
@@ -207,6 +227,25 @@ export function renderSettingsModal() {
                   maxlength="24"
                 />
               </label>
+              <label class="settings-field settings-field--span-2">
+                Intro badge text
+                <input
+                  class="settings-input form-input settings-input--brand-intro-badge-text"
+                  type="text"
+                  value="MKRSHIFT"
+                  maxlength="24"
+                />
+              </label>
+              <label class="settings-field settings-field--span-2">
+                Booth font
+                <select class="settings-input form-input settings-input--brand-font-family">
+                  <option value="matter">Matter / Segoe UI</option>
+                  <option value="inter">Inter</option>
+                  <option value="poppins">Poppins</option>
+                  <option value="montserrat">Montserrat</option>
+                  <option value="system">System Sans</option>
+                </select>
+              </label>
               <label class="settings-field">
                 Title color
                 <input
@@ -231,6 +270,142 @@ export function renderSettingsModal() {
                   value="#f7f7fb"
                 />
               </label>
+              <label class="settings-field">
+                Button color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-button-color"
+                  type="color"
+                  value="#58d68d"
+                />
+              </label>
+              <label class="settings-field">
+                Button text color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-button-text-color"
+                  type="color"
+                  value="#071b11"
+                />
+              </label>
+              <label class="settings-field">
+                Panel tint color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-tint-color"
+                  type="color"
+                  value="#6f7885"
+                />
+              </label>
+              <label class="settings-field">
+                Progress gradient start
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-start-color"
+                  type="color"
+                  value="#58d68d"
+                />
+              </label>
+              <label class="settings-field">
+                Progress gradient end
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-end-color"
+                  type="color"
+                  value="#feaa3a"
+                />
+              </label>
+              <label class="settings-field">
+                Panel background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-bg-color"
+                  type="color"
+                  value="#0c101a"
+                />
+              </label>
+              <label class="settings-field">
+                Panel border color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-border-color"
+                  type="color"
+                  value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
+                Menu background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-menu-bg-color"
+                  type="color"
+                  value="#080b12"
+                />
+              </label>
+              <label class="settings-field">
+                Settings quick-nav background
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-settings-nav-bg-color"
+                  type="color"
+                  value="#090c14"
+                />
+              </label>
+              <label class="settings-field">
+                Quick-nav button color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-quick-nav-button-bg-color"
+                  type="color"
+                  value="#0d121d"
+                />
+              </label>
+              <label class="settings-field">
+                Quick-nav button text color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-quick-nav-button-text-color"
+                  type="color"
+                  value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
+                Input background color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-input-bg-color"
+                  type="color"
+                  value="#0c1018"
+                />
+              </label>
+              <label class="settings-field">
+                Input border color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-input-border-color"
+                  type="color"
+                  value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
+                Card background start
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-card-bg-start-color"
+                  type="color"
+                  value="#0a0e16"
+                />
+              </label>
+              <label class="settings-field">
+                Card background end
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-card-bg-end-color"
+                  type="color"
+                  value="#080b12"
+                />
+              </label>
+              <label class="settings-field">
+                Progress shimmer color A
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-flow-start-color"
+                  type="color"
+                  value="#5fd3ff"
+                />
+              </label>
+              <label class="settings-field">
+                Progress shimmer color B
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-flow-end-color"
+                  type="color"
+                  value="#feaa3a"
+                />
+              </label>
             </div>
           </div>
         </section>
@@ -246,6 +421,14 @@ export function renderSettingsModal() {
             <label class="settings-field settings-field--toggle settings-field--span-2">
               <input class="settings-input settings-input--hide-status" type="checkbox" />
               Hide Status widget (top-right) and shift layout
+            </label>
+            <label class="settings-field settings-field--span-2">
+              Intro background animation
+              <select class="settings-input form-input settings-input--brand-intro-bg-animation">
+                <option value="classic">Classic gradient glow</option>
+                <option value="drift">Cinematic drift</option>
+                <option value="none">None (static)</option>
+              </select>
             </label>
             <label class="settings-field settings-field--toggle settings-field--span-2">
               <input class="settings-input settings-input--diagnostics-shortcut" type="checkbox" />
