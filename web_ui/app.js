@@ -137,6 +137,9 @@ const settingsBrandFontFamilyInput = document.querySelector(".settings-input--br
 const settingsBrandSettingsNavBgColorInput = document.querySelector(".settings-input--brand-settings-nav-bg-color");
 const settingsBrandInputBgColorInput = document.querySelector(".settings-input--brand-input-bg-color");
 const settingsBrandInputBorderColorInput = document.querySelector(".settings-input--brand-input-border-color");
+const settingsBrandQuickNavButtonBgColorInput = document.querySelector(".settings-input--brand-quick-nav-button-bg-color");
+const settingsBrandQuickNavButtonTextColorInput = document.querySelector(".settings-input--brand-quick-nav-button-text-color");
+const settingsBrandIntroBgAnimationInput = document.querySelector(".settings-input--brand-intro-bg-animation");
 const settingsBrandProfileSelect = document.querySelector(".settings-input--brand-profile-select");
 const settingsBrandProfileNameInput = document.querySelector(".settings-input--brand-profile-name");
 const settingsBrandProfileSave = document.querySelector(".settings-action--brand-profile-save");
@@ -331,6 +334,9 @@ const defaultBranding = {
   settingsNavBgColor: "#090c14",
   inputBgColor: "#0c1018",
   inputBorderColor: "#f7f7fb",
+  quickNavButtonBgColor: "#0d121d",
+  quickNavButtonTextColor: "#f7f7fb",
+  introBgAnimation: "classic",
 };
 let branding = { ...defaultBranding };
 let brandProfiles = [];
@@ -591,6 +597,9 @@ function applyBranding() {
   branding.settingsNavBgColor = normalizeBrandColor(branding.settingsNavBgColor, defaultBranding.settingsNavBgColor);
   branding.inputBgColor = normalizeBrandColor(branding.inputBgColor, defaultBranding.inputBgColor);
   branding.inputBorderColor = normalizeBrandColor(branding.inputBorderColor, defaultBranding.inputBorderColor);
+  branding.quickNavButtonBgColor = normalizeBrandColor(branding.quickNavButtonBgColor, defaultBranding.quickNavButtonBgColor);
+  branding.quickNavButtonTextColor = normalizeBrandColor(branding.quickNavButtonTextColor, defaultBranding.quickNavButtonTextColor);
+  branding.introBgAnimation = ["classic", "drift", "none"].includes(branding.introBgAnimation) ? branding.introBgAnimation : defaultBranding.introBgAnimation;
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -644,6 +653,10 @@ function applyBranding() {
   document.documentElement.style.setProperty("--settings-input-bg", hexToRgbaString(branding.inputBgColor, 0.88, "rgba(12, 16, 24, 0.88)"));
   document.documentElement.style.setProperty("--settings-input-bg-hover", hexToRgbaString(branding.inputBgColor, 0.96, "rgba(15, 20, 31, 0.96)"));
   document.documentElement.style.setProperty("--settings-input-border", hexToRgbaString(branding.inputBorderColor, 0.34, "rgba(255, 255, 255, 0.34)"));
+  document.documentElement.style.setProperty("--settings-nav-button-bg", hexToRgbaString(branding.quickNavButtonBgColor, 0.75, "rgba(13, 18, 29, 0.75)"));
+  document.documentElement.style.setProperty("--settings-nav-button-text", branding.quickNavButtonTextColor);
+  document.body.classList.toggle("intro-bg-drift", branding.introBgAnimation === "drift");
+  document.body.classList.toggle("intro-bg-none", branding.introBgAnimation === "none");
 }
 
 function syncBrandingInputs() {
@@ -715,6 +728,15 @@ function syncBrandingInputs() {
   }
   if (settingsBrandInputBorderColorInput) {
     settingsBrandInputBorderColorInput.value = branding.inputBorderColor;
+  }
+  if (settingsBrandQuickNavButtonBgColorInput) {
+    settingsBrandQuickNavButtonBgColorInput.value = branding.quickNavButtonBgColor;
+  }
+  if (settingsBrandQuickNavButtonTextColorInput) {
+    settingsBrandQuickNavButtonTextColorInput.value = branding.quickNavButtonTextColor;
+  }
+  if (settingsBrandIntroBgAnimationInput) {
+    settingsBrandIntroBgAnimationInput.value = branding.introBgAnimation;
   }
 }
 
@@ -1964,6 +1986,18 @@ function loadPrinterConfig() {
     if (brandInputBorderColorRaw) {
       branding.inputBorderColor = brandInputBorderColorRaw;
     }
+    const brandQuickNavButtonBgColorRaw = readStoredValue(storageKeys.brandQuickNavButtonBgColor);
+    if (brandQuickNavButtonBgColorRaw) {
+      branding.quickNavButtonBgColor = brandQuickNavButtonBgColorRaw;
+    }
+    const brandQuickNavButtonTextColorRaw = readStoredValue(storageKeys.brandQuickNavButtonTextColor);
+    if (brandQuickNavButtonTextColorRaw) {
+      branding.quickNavButtonTextColor = brandQuickNavButtonTextColorRaw;
+    }
+    const brandIntroBgAnimationRaw = readStoredValue(storageKeys.brandIntroBgAnimation);
+    if (brandIntroBgAnimationRaw) {
+      branding.introBgAnimation = brandIntroBgAnimationRaw;
+    }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
@@ -2133,6 +2167,9 @@ function getBrandingSnapshot() {
     settingsNavBgColor: branding.settingsNavBgColor,
     inputBgColor: branding.inputBgColor,
     inputBorderColor: branding.inputBorderColor,
+    quickNavButtonBgColor: branding.quickNavButtonBgColor,
+    quickNavButtonTextColor: branding.quickNavButtonTextColor,
+    introBgAnimation: branding.introBgAnimation,
   };
 }
 
@@ -2196,6 +2233,9 @@ function applyBrandProfile(profileName) {
   writeStoredValue(storageKeys.brandSettingsNavBgColor, branding.settingsNavBgColor);
   writeStoredValue(storageKeys.brandInputBgColor, branding.inputBgColor);
   writeStoredValue(storageKeys.brandInputBorderColor, branding.inputBorderColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonBgColor, branding.quickNavButtonBgColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonTextColor, branding.quickNavButtonTextColor);
+  writeStoredValue(storageKeys.brandIntroBgAnimation, branding.introBgAnimation);
 }
 
 function loadUiPreferences() {
@@ -2288,6 +2328,15 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   if (settingsBrandInputBorderColorInput) {
     branding.inputBorderColor = settingsBrandInputBorderColorInput.value;
   }
+  if (settingsBrandQuickNavButtonBgColorInput) {
+    branding.quickNavButtonBgColor = settingsBrandQuickNavButtonBgColorInput.value;
+  }
+  if (settingsBrandQuickNavButtonTextColorInput) {
+    branding.quickNavButtonTextColor = settingsBrandQuickNavButtonTextColorInput.value;
+  }
+  if (settingsBrandIntroBgAnimationInput) {
+    branding.introBgAnimation = settingsBrandIntroBgAnimationInput.value;
+  }
 
   applyBranding();
   syncBrandingInputs();
@@ -2318,6 +2367,9 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   writeStoredValue(storageKeys.brandSettingsNavBgColor, branding.settingsNavBgColor);
   writeStoredValue(storageKeys.brandInputBgColor, branding.inputBgColor);
   writeStoredValue(storageKeys.brandInputBorderColor, branding.inputBorderColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonBgColor, branding.quickNavButtonBgColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonTextColor, branding.quickNavButtonTextColor);
+  writeStoredValue(storageKeys.brandIntroBgAnimation, branding.introBgAnimation);
 }
 
 async function savePrinterConfig() {
@@ -3327,6 +3379,15 @@ settingsBrandInputBgColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsBrandInputBorderColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandQuickNavButtonBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandQuickNavButtonTextColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandIntroBgAnimationInput?.addEventListener("change", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);

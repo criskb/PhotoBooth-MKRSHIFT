@@ -33,6 +33,8 @@
   --settings-input-bg: rgba(12, 16, 24, 0.88);
   --settings-input-bg-hover: rgba(15, 20, 31, 0.92);
   --settings-input-border: rgba(255, 255, 255, 0.18);
+  --settings-nav-button-bg: rgba(13, 18, 29, 0.75);
+  --settings-nav-button-text: #f7f7fb;
   --text-primary: #f7f7fb;
   --brand-title-color: #f7f7fb;
   --brand-accent-color: #58d36e;
@@ -75,6 +77,24 @@ button:focus-visible {
   overflow: hidden;
 }
 
+
+body.intro-bg-drift {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(var(--accent-rgb), 0.16), transparent 42%),
+    radial-gradient(circle at 82% 22%, rgba(var(--accent-warm-rgb), 0.2), transparent 46%),
+    radial-gradient(circle at 50% 86%, rgba(var(--ui-panel-tint-rgb), 0.18), transparent 48%),
+    radial-gradient(circle at top, var(--bg-deep-start) 0%, var(--bg-deep-mid) 55%, var(--bg-deep-end) 100%);
+  animation: introBgDrift 16s ease-in-out infinite alternate;
+}
+
+@keyframes introBgDrift {
+  0% { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%; }
+  100% { background-position: 6% 4%, 95% 8%, 52% 96%, 0% 0%; }
+}
+
+body.intro-bg-none {
+  background: radial-gradient(circle at top, var(--bg-deep-start) 0%, var(--bg-deep-mid) 55%, var(--bg-deep-end) 100%);
+}
 
 body.debate-fever::before {
   content: "";
@@ -499,7 +519,7 @@ body.debate-fever::before {
   padding: 0.45rem 0.55rem;
   overflow: visible;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--settings-input-border);
   background: rgba(7, 10, 18, 0.64);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(10px);
@@ -758,6 +778,20 @@ body.debate-fever::before {
   display: none;
   width: 100%;
   height: 100%;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(8, 11, 18, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 58vh;
+  object-fit: cover;
+}
+
+.progress__preview-stage {
+  display: none;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 58vh;
   border-radius: 1rem;
   overflow: hidden;
   background: rgba(8, 11, 18, 0.8);
@@ -1174,7 +1208,7 @@ body.debate-fever::before {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  color: rgba(247, 247, 251, 0.82);
+  color: rgba(247, 247, 251, 0.68);
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1705,12 +1739,12 @@ body.debate-fever::before {
   padding: 0.35rem 0.68rem;
   border-radius: 999px;
   border: 1px solid var(--panel-border);
-  color: rgba(247, 247, 251, 0.82);
+  color: var(--settings-nav-button-text);
   text-decoration: none;
   font-size: 0.72rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  background: rgba(13, 18, 29, 0.75);
+  background: var(--settings-nav-button-bg);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -1796,7 +1830,7 @@ body.debate-fever::before {
 .form-input {
   padding: 0.6rem 0.75rem;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--settings-input-border);
   background: var(--settings-input-bg);
   color: var(--text-primary);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;

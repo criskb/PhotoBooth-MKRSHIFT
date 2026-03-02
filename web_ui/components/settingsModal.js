@@ -343,6 +343,22 @@ export function renderSettingsModal() {
                 />
               </label>
               <label class="settings-field">
+                Quick-nav button color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-quick-nav-button-bg-color"
+                  type="color"
+                  value="#0d121d"
+                />
+              </label>
+              <label class="settings-field">
+                Quick-nav button text color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-quick-nav-button-text-color"
+                  type="color"
+                  value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
                 Input background color
                 <input
                   class="settings-input form-input settings-input--color settings-input--brand-input-bg-color"
@@ -405,6 +421,14 @@ export function renderSettingsModal() {
             <label class="settings-field settings-field--toggle settings-field--span-2">
               <input class="settings-input settings-input--hide-status" type="checkbox" />
               Hide Status widget (top-right) and shift layout
+            </label>
+            <label class="settings-field settings-field--span-2">
+              Intro background animation
+              <select class="settings-input form-input settings-input--brand-intro-bg-animation">
+                <option value="classic">Classic gradient glow</option>
+                <option value="drift">Cinematic drift</option>
+                <option value="none">None (static)</option>
+              </select>
             </label>
             <label class="settings-field settings-field--toggle settings-field--span-2">
               <input class="settings-input settings-input--diagnostics-shortcut" type="checkbox" />
