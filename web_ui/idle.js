@@ -14,6 +14,66 @@ function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+const portalGlowCache = new Map();
+
+function samplePortalGlowRgb(imageSrc) {
+  if (!imageSrc) {
+    return Promise.resolve(null);
+  }
+  if (portalGlowCache.has(imageSrc)) {
+    return portalGlowCache.get(imageSrc);
+  }
+
+  const samplePromise = new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) {
+          resolve(null);
+          return;
+        }
+        const sampleSize = 16;
+        canvas.width = sampleSize;
+        canvas.height = sampleSize;
+        context.drawImage(img, 0, 0, sampleSize, sampleSize);
+        const data = context.getImageData(0, 0, sampleSize, sampleSize).data;
+        let red = 0;
+        let green = 0;
+        let blue = 0;
+        let count = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const alpha = data[i + 3];
+          if (alpha < 30) {
+            continue;
+          }
+          red += data[i];
+          green += data[i + 1];
+          blue += data[i + 2];
+          count += 1;
+        }
+
+        if (!count) {
+          resolve(null);
+          return;
+        }
+        resolve(`${Math.round(red / count)}, ${Math.round(green / count)}, ${Math.round(blue / count)}`);
+      } catch (_error) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = imageSrc;
+  });
+
+  portalGlowCache.set(imageSrc, samplePromise);
+  return samplePromise;
+}
+
 export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   const overlay = document.querySelector(".idle-overlay");
   const canvas = document.querySelector(".idle-overlay__canvas");
@@ -192,11 +252,23 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       return;
     }
 
+    const portalsMode = document.body.classList.contains("intro-bg-portals");
+
     const width = window.innerWidth || 1024;
     const height = window.innerHeight || 768;
-    const laneCount = Math.max(4, Math.min(7, Math.floor(height / 140)));
-    const cardsPerLane = Math.max(4, Math.ceil(width / 240));
-    const cardCount = laneCount * cardsPerLane;
+    const laneCount = portalsMode
+      ? 1
+      : Math.max(4, Math.min(7, Math.floor(height / 140)));
+    const portalsCardHeight = Math.max(280, height - 200);
+    const portalsCardSize = portalsCardHeight * (4 / 7);
+    const portalsGap = 124;
+    const portalsCenterSpacing = portalsCardSize + portalsGap;
+    const cardsPerLane = portalsMode
+      ? Math.max(4, Math.ceil((width + portalsCardSize * 1.5) / portalsCenterSpacing))
+      : Math.max(4, Math.ceil(width / 240));
+    const cardCount = portalsMode
+      ? Math.max(cardsPerLane, images.length)
+      : laneCount * cardsPerLane;
     const pool = shuffleArray(images);
     const fragment = document.createDocumentFragment();
     const laneGap = height / (laneCount + 1);
@@ -207,23 +279,27 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       card.className = "idle-overlay__card";
 
       const lane = i % laneCount;
-      const laneY = laneGap * (lane + 1) + randomBetween(-20, 20);
-      const depth = randomBetween(0.76, 1.24);
-      const size = randomBetween(150, 250) * depth;
-      const rotation = randomBetween(-8, 8);
-      const opacity = Math.max(0.35, Math.min(0.9, 0.72 * depth));
-      const floatDuration = randomBetween(16, 26).toFixed(2);
-      const floatDelay = randomBetween(-24, 0).toFixed(2);
-      const drift = randomBetween(-20, 20).toFixed(2);
-      const blur = Math.max(0, (1 - depth) * 3.2).toFixed(2);
+      const laneY = portalsMode
+        ? (height - portalsCardHeight) * 0.5
+        : laneGap * (lane + 1) + randomBetween(-20, 20);
+      const depth = portalsMode ? 1 : randomBetween(0.76, 1.24);
+      const size = portalsMode ? portalsCardSize : randomBetween(150, 250) * depth;
+      const rotation = portalsMode ? 0 : randomBetween(-8, 8);
+      const opacity = portalsMode ? 0.9 : Math.max(0.35, Math.min(0.9, 0.72 * depth));
+      const floatDuration = portalsMode ? 22 : Number(randomBetween(16, 26).toFixed(2));
+      const floatDelay = portalsMode
+        ? -((i / cardsPerLane) * floatDuration)
+        : Number(randomBetween(-24, 0).toFixed(2));
+      const drift = portalsMode ? "0" : randomBetween(-20, 20).toFixed(2);
+      const blur = portalsMode ? "0" : Math.max(0, (1 - depth) * 3.2).toFixed(2);
 
       card.style.setProperty("--card-size", `${size.toFixed(2)}px`);
       card.style.setProperty("--lane-y", `${laneY.toFixed(2)}px`);
       card.style.setProperty("--scale", depth.toFixed(2));
       card.style.setProperty("--rotation", `${rotation.toFixed(2)}deg`);
       card.style.setProperty("--opacity", opacity.toFixed(2));
-      card.style.setProperty("--float-duration", `${floatDuration}s`);
-      card.style.setProperty("--float-delay", `${floatDelay}s`);
+      card.style.setProperty("--float-duration", `${Number(floatDuration).toFixed(2)}s`);
+      card.style.setProperty("--float-delay", `${Number(floatDelay).toFixed(2)}s`);
       card.style.setProperty("--drift", `${drift}px`);
       card.style.setProperty("--blur", `${blur}px`);
 
@@ -231,6 +307,20 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       img.src = image;
       img.alt = "";
       img.loading = "lazy";
+      if (portalsMode) {
+        const applyGlow = () => {
+          samplePortalGlowRgb(image).then((rgb) => {
+            if (rgb) {
+              card.style.setProperty("--portal-glow-rgb", rgb);
+            }
+          });
+        };
+        if (img.complete) {
+          applyGlow();
+        } else {
+          img.addEventListener("load", applyGlow, { once: true });
+        }
+      }
       card.appendChild(img);
       fragment.appendChild(card);
     }
@@ -270,6 +360,7 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   };
 
   window.addEventListener("resize", handleResize);
+  window.addEventListener("idle-theme-changed", buildCanvas);
 
   const pause = () => {
     paused = true;
