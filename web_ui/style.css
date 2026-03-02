@@ -1,8 +1,8 @@
 :root {
   color-scheme: dark;
-  font-family: "Matter", "Segoe UI", sans-serif;
+  font-family: var(--app-font-family, "Matter", "Segoe UI", sans-serif);
   background:
-    radial-gradient(circle at top, rgba(88, 211, 255, 0.22), transparent 45%),
+    radial-gradient(circle at top, rgba(var(--ui-panel-tint-rgb), 0.22), transparent 45%),
     radial-gradient(circle at 20% 20%, rgba(var(--accent-warm-rgb), 0.15), transparent 40%),
     radial-gradient(circle at top, var(--bg-deep-start) 0%, var(--bg-deep-mid) 55%, var(--bg-deep-end) 100%);
   color: var(--text-primary);
@@ -20,10 +20,25 @@
   --accent-warm: #feaa3a;
   --accent-warm-rgb: 254, 170, 58;
   --accent-danger: #ff5a5f;
+  --accent-danger-rgb: 255, 90, 95;
+  --ui-panel-tint-rgb: 111, 120, 133;
+  --progress-gradient-start-rgb: 88, 214, 141;
+  --progress-gradient-end-rgb: 254, 170, 58;
+  --progress-flow-start-rgb: 95, 211, 255;
+  --progress-flow-end-rgb: 254, 170, 58;
+  --menu-bg: rgba(8, 11, 18, 0.98);
+  --card-bg-start: rgba(10, 14, 22, 0.98);
+  --card-bg-end: rgba(8, 11, 18, 0.92);
+  --settings-nav-bg: rgba(9, 12, 20, 0.9);
+  --settings-input-bg: rgba(12, 16, 24, 0.88);
+  --settings-input-bg-hover: rgba(15, 20, 31, 0.92);
+  --settings-input-border: rgba(255, 255, 255, 0.18);
   --text-primary: #f7f7fb;
   --brand-title-color: #f7f7fb;
   --brand-accent-color: #58d36e;
   --brand-neutral-color: #f7f7fb;
+  --brand-button-color: #58d68d;
+  --brand-button-text-color: #071b11;
   --text-accent-soft: #9adfff;
   --focus-ring: #8bd3ff;
   --accent-success: #58d68d;
@@ -132,9 +147,15 @@ body.debate-fever::before {
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+  border-color: rgba(var(--accent-danger-rgb), 0.6);
 }
 
-.tos-toggle:hover,
+.tos-toggle:hover {
+  border-color: rgba(var(--accent-danger-rgb), 0.85);
+  box-shadow: 0 14px 34px rgba(var(--accent-danger-rgb), 0.35);
+  transform: translateY(-2px);
+}
+
 .remote-toggle:hover,
 .settings-toggle:hover,
 .fullscreen-toggle:hover,
@@ -236,7 +257,7 @@ body.debate-fever::before {
   padding: 0.85rem 1.35rem;
   background: linear-gradient(135deg, rgba(18, 22, 33, 0.85), rgba(12, 15, 24, 0.55));
   border-radius: 1.1rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--panel-border);
   backdrop-filter: blur(12px);
   box-shadow: var(--panel-glow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -363,7 +384,7 @@ body.debate-fever::before {
   width: 50%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(88, 214, 141, 0.9), rgba(95, 211, 255, 0.9));
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.9), rgba(var(--accent-rgb), 0.55));
   transition: width 0.35s ease;
 }
 
@@ -422,7 +443,7 @@ body.debate-fever::before {
 }
 
 .debate-spark__button--yes:hover {
-  border-color: rgba(88, 214, 141, 0.8);
+  border-color: rgba(var(--accent-rgb), 0.8);
 }
 
 .debate-spark__button--no:hover {
@@ -528,6 +549,7 @@ body.debate-fever::before {
   background: rgba(18, 22, 33, 0.75);
   color: var(--text-primary);
   font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -545,7 +567,7 @@ body.debate-fever::before {
   bottom: calc(100% + 0.5rem);
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(8, 11, 18, 0.98);
+  background: var(--menu-bg);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 0.75rem;
   padding: 0.4rem;
@@ -565,9 +587,10 @@ body.debate-fever::before {
   padding: 0.45rem 0.75rem;
   border-radius: 0.6rem;
   border: 1px solid transparent;
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
@@ -618,15 +641,18 @@ body.debate-fever::before {
 }
 
 .progress-card {
+  position: relative;
   width: min(720px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.96), rgba(8, 11, 18, 0.88));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
   padding: 2.5rem 1.75rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   box-shadow: 0 28px 65px rgba(0, 0, 0, 0.55);
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+  outline-offset: -1px;
 }
 
 
@@ -637,17 +663,19 @@ body.debate-fever::before {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  border: 1px solid rgba(var(--accent-danger-rgb), 0.55);
+  background: rgba(var(--accent-danger-rgb), 0.14);
+  color: #ffd6d8;
   font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .progress-close:hover {
-  border-color: rgba(255, 129, 129, 0.7);
-  box-shadow: 0 10px 25px rgba(255, 129, 129, 0.2);
+  border-color: rgba(var(--accent-danger-rgb), 0.9);
+  background: rgba(var(--accent-danger-rgb), 0.22);
+  box-shadow: 0 12px 28px rgba(var(--accent-danger-rgb), 0.34);
   transform: rotate(-4deg);
 }
 
@@ -694,8 +722,8 @@ body.debate-fever::before {
   overflow: hidden;
   background: linear-gradient(
     90deg,
-    rgba(var(--accent-rgb), 0.7),
-    rgba(var(--accent-warm-rgb), 0.7)
+    rgba(var(--progress-gradient-start-rgb), 0.74),
+    rgba(var(--progress-gradient-end-rgb), 0.74)
   );
   transition: width 0.25s ease;
 }
@@ -708,9 +736,9 @@ body.debate-fever::before {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--accent) 18%,
-    var(--accent-warm) 50%,
-    var(--accent) 82%,
+    rgba(var(--progress-flow-start-rgb), 0.95) 18%,
+    rgba(var(--progress-flow-end-rgb), 0.95) 50%,
+    rgba(var(--progress-flow-start-rgb), 0.95) 82%,
     transparent 100%
   );
   background-size: 180% 100%;
@@ -729,26 +757,41 @@ body.debate-fever::before {
 .progress__preview {
   display: none;
   width: 100%;
+  height: 100%;
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  max-height: 55vh;
-  object-fit: contain;
+  max-height: 58vh;
+  object-fit: cover;
+}
+
+.progress__preview-stage {
+  display: none;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 58vh;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(8, 11, 18, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress__actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  width: 100%;
 }
 
 .progress-action {
+  width: 100%;
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -762,30 +805,42 @@ body.debate-fever::before {
 }
 
 .progress-action:disabled {
-  opacity: 0.4;
+  opacity: 1;
   cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(140, 147, 158, 0.32);
+  color: rgba(229, 232, 239, 0.6);
+  box-shadow: none;
 }
 
 .progress__qr {
   display: none;
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.7rem;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.35rem;
   flex-direction: column;
+  padding: 0.45rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
 }
 
 .progress__qr-label {
-  font-size: 0.8rem;
+  font-size: 0.58rem;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: rgba(247, 247, 251, 0.7);
+  letter-spacing: 0.1em;
+  color: rgba(20, 24, 32, 0.9);
 }
 
 .progress__qr-image {
-  width: 160px;
-  height: 160px;
-  border-radius: 0;
+  width: 84px;
+  height: 84px;
+  border-radius: 0.35rem;
   border: none;
-  background: transparent;
+  background: #fff;
 }
 
 @media (max-width: 540px) {
@@ -796,8 +851,7 @@ body.debate-fever::before {
       "meta close"
       "bar bar"
       "preview preview"
-      "actions actions"
-      "qr qr";
+      "actions actions";
     row-gap: 1rem;
     column-gap: 0.75rem;
   }
@@ -822,13 +876,15 @@ body.debate-fever::before {
     grid-area: preview;
   }
 
+  .progress__preview-stage {
+    grid-area: preview;
+  }
+
   .progress__actions {
+    grid-template-columns: 1fr;
     grid-area: actions;
   }
 
-  .progress__qr {
-    grid-area: qr;
-  }
 }
 
 .countdown-overlay {
@@ -1266,6 +1322,7 @@ body.debate-fever::before {
   display: none;
   align-items: center;
   justify-content: center;
+  padding: 1.15rem;
   background: rgba(3, 5, 9, 0.7);
   z-index: 4;
 }
@@ -1300,15 +1357,18 @@ body.debate-fever::before {
 
 .diagnostics-card {
   width: min(520px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   box-shadow: 0 26px 65px rgba(0, 0, 0, 0.55);
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+  outline-offset: -1px;
   scrollbar-width: thin;
+  scrollbar-gutter: stable both-edges;
   scrollbar-color: rgba(var(--accent-rgb), 0.48) rgba(10, 14, 22, 0.45);
 }
 
@@ -1396,6 +1456,7 @@ body.debate-fever::before {
   background: rgba(18, 22, 33, 0.8);
   color: var(--text-primary);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -1411,14 +1472,16 @@ body.debate-fever::before {
 
 .tos-card {
   width: min(520px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   box-shadow: 0 26px 65px rgba(0, 0, 0, 0.55);
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+  outline-offset: -1px;
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--accent-rgb), 0.48) rgba(10, 14, 22, 0.45);
 }
@@ -1499,8 +1562,8 @@ body.debate-fever::before {
 
 .remote-launch-card {
   width: min(460px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
+  border: 1px solid var(--panel-border);
   border-radius: 1.2rem;
   padding: 1.15rem;
   display: flex;
@@ -1538,10 +1601,11 @@ body.debate-fever::before {
   width: 220px;
   height: 220px;
   align-self: center;
-  border-radius: 1rem;
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  background: rgba(12, 16, 24, 0.8);
-  padding: 0.4rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.7rem;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
 }
 
 .remote-launch-url {
@@ -1561,33 +1625,42 @@ body.debate-fever::before {
 }
 
 .settings-card {
-  width: min(860px, 94vw);
-  max-height: min(90vh, 760px);
+  width: min(880px, 95vw);
+  max-height: min(92vh, 800px);
   overflow-y: auto;
   overflow-x: hidden;
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
-  padding: 1.25rem 1.25rem 1.4rem;
+  padding: 1.35rem 1.65rem 1.55rem 1.3rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   box-shadow: 0 26px 65px rgba(0, 0, 0, 0.55);
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+  outline-offset: -1px;
   scrollbar-width: thin;
+  scrollbar-gutter: stable both-edges;
   scrollbar-color: rgba(var(--accent-rgb), 0.48) rgba(10, 14, 22, 0.45);
 }
 
 .settings-card::-webkit-scrollbar {
-  width: 10px;
+  width: 14px;
 }
 
 .settings-card::-webkit-scrollbar-thumb {
   background: rgba(var(--accent-rgb), 0.45);
+  border: 3px solid transparent;
+  background-clip: content-box;
   border-radius: 999px;
 }
 
 .settings-card::-webkit-scrollbar-track {
   background: rgba(10, 14, 22, 0.35);
+  border: 4px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+  margin-block: 0.45rem;
 }
 
 .settings-card h2 {
@@ -1612,17 +1685,24 @@ body.debate-fever::before {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: center;
   position: sticky;
-  top: -0.25rem;
-  z-index: 1;
-  padding: 0.2rem 0 0.45rem;
-  background: linear-gradient(180deg, rgba(9, 12, 20, 0.95), rgba(9, 12, 20, 0.78));
+  top: 0;
+  z-index: 6;
+  padding: 0.5rem 0.55rem;
+  margin: 0 auto 0.35rem;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(180deg, var(--settings-nav-bg), rgba(9, 12, 20, 0.84));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
 }
 
 .settings-nav__link {
   padding: 0.35rem 0.68rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--panel-border);
   color: rgba(247, 247, 251, 0.82);
   text-decoration: none;
   font-size: 0.72rem;
@@ -1715,13 +1795,13 @@ body.debate-fever::before {
   padding: 0.6rem 0.75rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(12, 16, 24, 0.88);
+  background: var(--settings-input-bg);
   color: var(--text-primary);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .settings-input:hover {
-  background: rgba(15, 20, 31, 0.92);
+  background: var(--settings-input-bg-hover);
 }
 
 .settings-input:focus {
@@ -1827,8 +1907,17 @@ body.debate-fever::before {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
+  border-color: rgba(var(--accent-danger-rgb), 0.55);
+  background: rgba(var(--accent-danger-rgb), 0.14);
+  color: #ffd6d8;
   font-size: 0.95rem;
   line-height: 1;
+}
+
+.settings-action--clear-watermark:hover:not(:disabled) {
+  border-color: rgba(var(--accent-danger-rgb), 0.9);
+  background: rgba(var(--accent-danger-rgb), 0.22);
+  box-shadow: 0 12px 28px rgba(var(--accent-danger-rgb), 0.34);
 }
 
 .settings-action--clear-watermark:disabled {
@@ -1870,6 +1959,11 @@ body.debate-fever::before {
   width: 180px;
   height: 180px;
   align-self: center;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.6rem;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
 }
 
 .settings-remote__url {
@@ -1888,6 +1982,25 @@ body.debate-fever::before {
   text-align: center;
 }
 
+
+.settings-brand-profiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.settings-brand-profiles__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.45rem;
+}
+
+.settings-brand-profiles__actions .settings-action {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.68rem;
+}
 .settings-about {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.95rem;
@@ -1921,9 +2034,10 @@ body.debate-fever::before {
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -1951,15 +2065,17 @@ body.debate-fever::before {
 }
 
 .gallery-card {
-  width: min(1100px, 95vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  width: min(1040px, 94vw);
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
+  border: 1px solid var(--panel-border);
   border-radius: 1.6rem;
-  padding: var(--space-lg);
+  padding: 1.1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.6);
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+  outline-offset: -1px;
 }
 
 .gallery-header {
@@ -1975,28 +2091,31 @@ body.debate-fever::before {
 }
 
 .gallery-close {
-  padding: 0.6rem 1.4rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  border: 1px solid rgba(var(--accent-danger-rgb), 0.55);
+  background: rgba(var(--accent-danger-rgb), 0.14);
+  color: #ffd6d8;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .gallery-close:hover {
-  border-color: rgba(var(--accent-rgb), 0.6);
-  box-shadow: 0 12px 28px rgba(var(--accent-rgb), 0.2);
+  border-color: rgba(var(--accent-danger-rgb), 0.9);
+  background: rgba(var(--accent-danger-rgb), 0.22);
+  box-shadow: 0 12px 28px rgba(var(--accent-danger-rgb), 0.34);
   transform: translateY(-1px);
 }
 
 .gallery-body {
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr;
-  gap: 1.5rem;
+  gap: 1rem;
   min-height: 0;
 }
 
@@ -2045,11 +2164,27 @@ body.debate-fever::before {
   border-color: rgba(var(--accent-rgb), 0.7);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
 }
-.gallery-clear {
+.gallery-clear,
+.gallery-refresh {
   align-self: flex-start;
-  padding: 0.45rem 0.7rem;
-  font-size: 0.7rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
+  font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gallery-clear:hover,
+.gallery-refresh:hover {
+  border-color: rgba(var(--accent-rgb), 0.6);
+  box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.2);
+  transform: translateY(-1px);
 }
 
 .gallery-summary {
@@ -2094,8 +2229,8 @@ body.debate-fever::before {
 }
 
 .gallery-item--active {
-  border-color: var(--accent);
-  box-shadow: 0 8px 20px rgba(var(--accent-glow-rgb), 0.35);
+  border-color: rgba(var(--accent-rgb), 0.95);
+  box-shadow: 0 6px 14px rgba(var(--accent-glow-rgb), 0.22);
 }
 
 .gallery-item--active::after {
@@ -2151,7 +2286,7 @@ body.debate-fever::before {
 .gallery-detail {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
   min-height: 0;
 }
 
@@ -2185,8 +2320,7 @@ body.debate-fever::before {
   justify-content: center;
   gap: 0.75rem;
   flex-wrap: wrap;
-  margin-top: auto;
-  padding-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .gallery-action {
@@ -2194,9 +2328,10 @@ body.debate-fever::before {
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -2210,8 +2345,11 @@ body.debate-fever::before {
 }
 
 .gallery-action:disabled {
-  opacity: 0.4;
+  opacity: 1;
   cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(140, 147, 158, 0.32);
+  color: rgba(229, 232, 239, 0.6);
   box-shadow: none;
 }
 
@@ -2243,7 +2381,7 @@ body.debate-fever::before {
 }
 
 .gallery-upload-status[data-tone="success"] {
-  color: rgba(129, 233, 174, 0.95);
+  color: rgba(var(--accent-rgb), 0.95);
 }
 
 .is-upload-hidden .progress-action--upload,
@@ -2256,21 +2394,28 @@ body.debate-fever::before {
   align-items: center;
   gap: 0.75rem;
   flex-direction: column;
+  align-self: center;
+  margin-top: 0.25rem;
+  padding: 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
 }
 
 .gallery-qr-label {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(247, 247, 251, 0.7);
+  color: rgba(20, 24, 32, 0.9);
 }
 
 .gallery-qr-image {
   width: 160px;
   height: 160px;
-  border-radius: 0;
+  border-radius: 0.45rem;
   border: none;
-  background: transparent;
+  background: #fff;
 }
 
 .gallery-pair {
@@ -2295,8 +2440,8 @@ body.debate-fever::before {
 
 .gallery-image {
   width: 100%;
-  aspect-ratio: 9 / 16;
-  object-fit: contain;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(12, 15, 22, 0.8);
@@ -2326,13 +2471,13 @@ body.debate-fever::before {
   padding: 0.95rem 2.2rem;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(135deg, var(--accent-success), var(--accent-success-strong));
-  color: var(--accent-contrast);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-weight: 700;
   font-size: 0.9rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 12px 30px rgba(36, 178, 107, 0.35);
+  box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.28);
   cursor: pointer;
 }
 
@@ -2347,7 +2492,7 @@ body.debate-fever::before {
   overflow: visible;
   border-radius: 1.4rem;
   background: linear-gradient(140deg, rgba(12, 16, 26, 0.82), rgba(9, 12, 19, 0.72));
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--panel-border);
   backdrop-filter: blur(10px);
   box-shadow: var(--panel-glow);
   display: flex;
@@ -2399,13 +2544,17 @@ body.debate-fever::before {
 }
 
 .styles-scroll {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 2rem;
   height: 2rem;
+  padding: 0;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(18, 22, 33, 0.72);
   color: rgba(247, 247, 251, 0.95);
-  font-size: 1.15rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
@@ -2533,6 +2682,7 @@ body.debate-fever::before {
   background: rgba(18, 22, 33, 0.7);
   color: var(--text-primary);
   font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   cursor: pointer;
@@ -2542,8 +2692,8 @@ body.debate-fever::before {
 .style--active {
   border-color: var(--accent-success);
   color: var(--accent-success);
-  background: rgba(88, 214, 141, 0.18);
-  box-shadow: 0 8px 20px rgba(88, 214, 141, 0.32);
+  background: rgba(var(--accent-rgb), 0.18);
+  box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.32);
 }
 
 .style:hover,
@@ -2736,12 +2886,18 @@ body.debate-fever::before {
 }
 
 .remote-style-drawer__close {
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(var(--accent-danger-rgb), 0.55);
   border-radius: 0.6rem;
-  background: rgba(18, 22, 33, 0.75);
-  color: var(--text-primary);
+  background: rgba(var(--accent-danger-rgb), 0.14);
+  color: #ffd6d8;
   width: 2rem;
   height: 2rem;
+}
+
+.remote-style-drawer__close:hover {
+  border-color: rgba(var(--accent-danger-rgb), 0.9);
+  background: rgba(var(--accent-danger-rgb), 0.22);
+  box-shadow: 0 10px 22px rgba(var(--accent-danger-rgb), 0.34);
 }
 
 .remote-style-drawer__ok {
@@ -2756,7 +2912,7 @@ body.debate-fever::before {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 10px 24px rgba(36, 178, 107, 0.3);
+  box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.3);
 }
 
 .remote-style-drawer__ok:disabled {
@@ -2787,8 +2943,8 @@ body.debate-fever::before {
 .remote-style--active {
   border-color: var(--accent-success);
   color: var(--accent-success);
-  background: rgba(88, 214, 141, 0.14);
-  box-shadow: 0 10px 20px rgba(36, 178, 107, 0.18);
+  background: rgba(var(--accent-rgb), 0.14);
+  box-shadow: 0 10px 20px rgba(var(--accent-rgb), 0.18);
 }
 
 .remote-style-status {
@@ -2854,8 +3010,8 @@ body.debate-fever::before {
   overflow: hidden;
   background: linear-gradient(
     90deg,
-    rgba(var(--accent-rgb), 0.7),
-    rgba(var(--accent-warm-rgb), 0.7)
+    rgba(var(--progress-gradient-start-rgb), 0.74),
+    rgba(var(--progress-gradient-end-rgb), 0.74)
   );
   transition: width 0.25s ease;
 }
@@ -2881,9 +3037,9 @@ body.debate-fever::before {
 }
 
 .remote-timer--active {
-  border-color: rgba(88, 214, 141, 0.8);
+  border-color: rgba(var(--accent-rgb), 0.8);
   color: var(--accent-success);
-  background: rgba(88, 214, 141, 0.14);
+  background: rgba(var(--accent-rgb), 0.14);
 }
 
 .remote-action {
@@ -2891,13 +3047,13 @@ body.debate-fever::before {
   padding: 0.82rem 1.1rem;
   border-radius: 0.85rem;
   border: none;
-  background: linear-gradient(135deg, var(--accent-success), var(--accent-success-strong));
-  color: var(--accent-contrast);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-weight: 800;
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 12px 30px rgba(36, 178, 107, 0.35);
+  box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.28);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -2984,7 +3140,7 @@ body.debate-fever::before {
   right: 0;
   bottom: 0;
   z-index: 40;
-  background: rgba(8, 11, 18, 0.98);
+  background: var(--menu-bg);
   border-top-left-radius: 1.1rem;
   border-top-right-radius: 1.1rem;
   border: 1px solid rgba(255, 255, 255, 0.14);
