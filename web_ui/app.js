@@ -46,6 +46,7 @@ const statusConnection = document.querySelector(".status__connection");
 const brandTitleLabel = document.querySelector(".brand__title");
 const brandSubtitleAccentLabel = document.querySelector(".brand__subtitle-accent");
 const brandSubtitleNeutralLabel = document.querySelector(".brand__subtitle-neutral");
+const idleOverlayEyebrowAccentLabel = document.querySelector(".idle-overlay__eyebrow-accent");
 const debateSpark = document.querySelector(".debate-spark");
 const debatePromptLabel = document.querySelector(".debate-spark__prompt");
 const debateStreakLabel = document.querySelector(".debate-spark__streak");
@@ -85,6 +86,7 @@ const settingsComfyInput = document.querySelector(".settings-input--comfy");
 const settingsComfyKeyInput = document.querySelector(".settings-input--comfy-key");
 const settingsComfyMinCreditsInput = document.querySelector(".settings-input--comfy-min-credits");
 const settingsComfyAcceleratorInput = document.querySelector(".settings-input--comfy-accelerator");
+const settingsComfyHostedInput = document.querySelector(".settings-input--comfy-hosted");
 const settingsOrientationInput = document.querySelector(".settings-input--orientation");
 const settingsCameraInput = document.querySelector(".settings-input--camera");
 const settingsMirrorInput = document.querySelector(".settings-input--mirror");
@@ -115,9 +117,34 @@ const settingsWatermarkClear = document.querySelector(".settings-action--clear-w
 const settingsBrandTitleInput = document.querySelector(".settings-input--brand-title");
 const settingsBrandAccentTextInput = document.querySelector(".settings-input--brand-accent-text");
 const settingsBrandNeutralTextInput = document.querySelector(".settings-input--brand-neutral-text");
+const settingsBrandIntroBadgeTextInput = document.querySelector(".settings-input--brand-intro-badge-text");
 const settingsBrandTitleColorInput = document.querySelector(".settings-input--brand-title-color");
 const settingsBrandAccentColorInput = document.querySelector(".settings-input--brand-accent-color");
 const settingsBrandNeutralColorInput = document.querySelector(".settings-input--brand-neutral-color");
+const settingsBrandButtonColorInput = document.querySelector(".settings-input--brand-button-color");
+const settingsBrandButtonTextColorInput = document.querySelector(".settings-input--brand-button-text-color");
+const settingsBrandPanelTintColorInput = document.querySelector(".settings-input--brand-panel-tint-color");
+const settingsBrandProgressStartColorInput = document.querySelector(".settings-input--brand-progress-start-color");
+const settingsBrandProgressEndColorInput = document.querySelector(".settings-input--brand-progress-end-color");
+const settingsBrandPanelBgColorInput = document.querySelector(".settings-input--brand-panel-bg-color");
+const settingsBrandPanelBorderColorInput = document.querySelector(".settings-input--brand-panel-border-color");
+const settingsBrandMenuBgColorInput = document.querySelector(".settings-input--brand-menu-bg-color");
+const settingsBrandProgressFlowStartColorInput = document.querySelector(".settings-input--brand-progress-flow-start-color");
+const settingsBrandProgressFlowEndColorInput = document.querySelector(".settings-input--brand-progress-flow-end-color");
+const settingsBrandCardBgStartColorInput = document.querySelector(".settings-input--brand-card-bg-start-color");
+const settingsBrandCardBgEndColorInput = document.querySelector(".settings-input--brand-card-bg-end-color");
+const settingsBrandFontFamilyInput = document.querySelector(".settings-input--brand-font-family");
+const settingsBrandSettingsNavBgColorInput = document.querySelector(".settings-input--brand-settings-nav-bg-color");
+const settingsBrandInputBgColorInput = document.querySelector(".settings-input--brand-input-bg-color");
+const settingsBrandInputBorderColorInput = document.querySelector(".settings-input--brand-input-border-color");
+const settingsBrandQuickNavButtonBgColorInput = document.querySelector(".settings-input--brand-quick-nav-button-bg-color");
+const settingsBrandQuickNavButtonTextColorInput = document.querySelector(".settings-input--brand-quick-nav-button-text-color");
+const settingsBrandIntroBgAnimationInput = document.querySelector(".settings-input--brand-intro-bg-animation");
+const settingsBrandProfileSelect = document.querySelector(".settings-input--brand-profile-select");
+const settingsBrandProfileNameInput = document.querySelector(".settings-input--brand-profile-name");
+const settingsBrandProfileSave = document.querySelector(".settings-action--brand-profile-save");
+const settingsBrandProfileLoad = document.querySelector(".settings-action--brand-profile-load");
+const settingsBrandProfileDelete = document.querySelector(".settings-action--brand-profile-delete");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const remoteLaunchQr = document.querySelector(".remote-launch-qr");
@@ -165,6 +192,7 @@ let lastShake = 0;
 let motionPermissionGranted = false;
 let currentPromptId = null;
 let progressPoller = null;
+let progressLastUpdateAt = 0;
 let outputReady = false;
 let lastOutputUrl = null;
 let lastCapturedImageData = null;
@@ -173,6 +201,7 @@ let freeimageApiKey = "";
 let comfyApiKey = "";
 let comfyMinCredits = 2500;
 let comfyAccelerator = "L4";
+let comfyHostedEnabled = true;
 let selectedGalleryUrl = "";
 let galleryItems = [];
 let galleryFilterText = "";
@@ -286,11 +315,32 @@ const defaultBranding = {
   titleText: "AI PHOTOBOOTH",
   accentText: "MKR",
   neutralText: "Shift",
+  introBadgeText: "MKRSHIFT",
   titleColor: "#f7f7fb",
   accentColor: "#58d36e",
   neutralColor: "#f7f7fb",
+  buttonColor: "#58d68d",
+  buttonTextColor: "#071b11",
+  panelTintColor: "#6f7885",
+  progressStartColor: "#58d68d",
+  progressEndColor: "#feaa3a",
+  panelBgColor: "#0c101a",
+  panelBorderColor: "#f7f7fb",
+  menuBgColor: "#080b12",
+  progressFlowStartColor: "#5fd3ff",
+  progressFlowEndColor: "#feaa3a",
+  cardBgStartColor: "#0a0e16",
+  cardBgEndColor: "#080b12",
+  fontFamily: "matter",
+  settingsNavBgColor: "#090c14",
+  inputBgColor: "#0c1018",
+  inputBorderColor: "#f7f7fb",
+  quickNavButtonBgColor: "#0d121d",
+  quickNavButtonTextColor: "#f7f7fb",
+  introBgAnimation: "classic",
 };
 let branding = { ...defaultBranding };
+let brandProfiles = [];
 let uploadEnabled = true;
 let hidePrintEnabled = false;
 let hideQrEnabled = false;
@@ -485,13 +535,74 @@ function normalizeBrandColor(value, fallback) {
   return fallback;
 }
 
+function hexToRgbTriplet(value, fallback = "95, 211, 255") {
+  const normalized = normalizeBrandColor(value, "");
+  if (!normalized) {
+    return fallback;
+  }
+  const hex = normalized.slice(1);
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
+function hexToRgbaString(value, alpha = 1, fallback = "rgba(12, 16, 26, 0.72)") {
+  const normalized = normalizeBrandColor(value, "");
+  if (!normalized) {
+    return fallback;
+  }
+  const hex = normalized.slice(1);
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  const a = Math.max(0, Math.min(1, Number(alpha) || 1));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function shadeHexColor(value, factor = 0.82, fallback = "#24b26b") {
+  const normalized = normalizeBrandColor(value, "");
+  if (!normalized) {
+    return fallback;
+  }
+  const hex = normalized.slice(1);
+  const clamp = (channel) => Math.max(0, Math.min(255, Math.round(channel * factor)));
+  const r = clamp(Number.parseInt(hex.slice(0, 2), 16));
+  const g = clamp(Number.parseInt(hex.slice(2, 4), 16));
+  const b = clamp(Number.parseInt(hex.slice(4, 6), 16));
+  const toHex = (channel) => channel.toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 function applyBranding() {
   branding.titleText = normalizeBrandText(branding.titleText, defaultBranding.titleText, 48);
   branding.accentText = normalizeBrandText(branding.accentText, defaultBranding.accentText, 24);
   branding.neutralText = normalizeBrandText(branding.neutralText, defaultBranding.neutralText, 24);
+  branding.introBadgeText = normalizeBrandText(branding.introBadgeText, defaultBranding.introBadgeText, 24);
   branding.titleColor = normalizeBrandColor(branding.titleColor, defaultBranding.titleColor);
   branding.accentColor = normalizeBrandColor(branding.accentColor, defaultBranding.accentColor);
   branding.neutralColor = normalizeBrandColor(branding.neutralColor, defaultBranding.neutralColor);
+  branding.buttonColor = normalizeBrandColor(branding.buttonColor, defaultBranding.buttonColor);
+  branding.buttonTextColor = normalizeBrandColor(branding.buttonTextColor, defaultBranding.buttonTextColor);
+  branding.panelTintColor = normalizeBrandColor(branding.panelTintColor, defaultBranding.panelTintColor);
+  branding.progressStartColor = normalizeBrandColor(branding.progressStartColor, defaultBranding.progressStartColor);
+  branding.progressEndColor = normalizeBrandColor(branding.progressEndColor, defaultBranding.progressEndColor);
+  branding.panelBgColor = normalizeBrandColor(branding.panelBgColor, defaultBranding.panelBgColor);
+  branding.panelBorderColor = normalizeBrandColor(branding.panelBorderColor, defaultBranding.panelBorderColor);
+  branding.menuBgColor = normalizeBrandColor(branding.menuBgColor, defaultBranding.menuBgColor);
+  branding.progressFlowStartColor = normalizeBrandColor(branding.progressFlowStartColor, defaultBranding.progressFlowStartColor);
+  branding.progressFlowEndColor = normalizeBrandColor(branding.progressFlowEndColor, defaultBranding.progressFlowEndColor);
+  branding.cardBgStartColor = normalizeBrandColor(branding.cardBgStartColor, defaultBranding.cardBgStartColor);
+  branding.cardBgEndColor = normalizeBrandColor(branding.cardBgEndColor, defaultBranding.cardBgEndColor);
+  branding.fontFamily = ["matter", "inter", "poppins", "montserrat", "system"].includes(branding.fontFamily) ? branding.fontFamily : defaultBranding.fontFamily;
+  branding.settingsNavBgColor = normalizeBrandColor(branding.settingsNavBgColor, defaultBranding.settingsNavBgColor);
+  branding.inputBgColor = normalizeBrandColor(branding.inputBgColor, defaultBranding.inputBgColor);
+  branding.inputBorderColor = normalizeBrandColor(branding.inputBorderColor, defaultBranding.inputBorderColor);
+  branding.quickNavButtonBgColor = normalizeBrandColor(branding.quickNavButtonBgColor, defaultBranding.quickNavButtonBgColor);
+  branding.quickNavButtonTextColor = normalizeBrandColor(branding.quickNavButtonTextColor, defaultBranding.quickNavButtonTextColor);
+  branding.introBgAnimation = ["classic", "drift", "none", "portals"].includes(branding.introBgAnimation)
+    ? branding.introBgAnimation
+    : defaultBranding.introBgAnimation;
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -502,10 +613,55 @@ function applyBranding() {
   if (brandSubtitleNeutralLabel) {
     brandSubtitleNeutralLabel.textContent = branding.neutralText;
   }
+  if (idleOverlayEyebrowAccentLabel) {
+    idleOverlayEyebrowAccentLabel.textContent = branding.introBadgeText;
+  }
+
+  const brandButtonRgb = hexToRgbTriplet(branding.buttonColor);
+  const panelTintRgb = hexToRgbTriplet(branding.panelTintColor, "111, 120, 133");
+  const progressStartRgb = hexToRgbTriplet(branding.progressStartColor, brandButtonRgb);
+  const progressEndRgb = hexToRgbTriplet(branding.progressEndColor, "254, 170, 58");
+  const progressFlowStartRgb = hexToRgbTriplet(branding.progressFlowStartColor, brandButtonRgb);
+  const progressFlowEndRgb = hexToRgbTriplet(branding.progressFlowEndColor, "254, 170, 58");
+  const brandButtonStrong = shadeHexColor(branding.buttonColor, 0.78, defaultBranding.buttonColor);
 
   document.documentElement.style.setProperty("--brand-title-color", branding.titleColor);
   document.documentElement.style.setProperty("--brand-accent-color", branding.accentColor);
   document.documentElement.style.setProperty("--brand-neutral-color", branding.neutralColor);
+  document.documentElement.style.setProperty("--brand-button-color", branding.buttonColor);
+  document.documentElement.style.setProperty("--brand-button-text-color", branding.buttonTextColor);
+  document.documentElement.style.setProperty("--accent-rgb", brandButtonRgb);
+  document.documentElement.style.setProperty("--accent-glow-rgb", brandButtonRgb);
+  document.documentElement.style.setProperty("--accent-success", branding.buttonColor);
+  document.documentElement.style.setProperty("--accent-success-strong", brandButtonStrong);
+  document.documentElement.style.setProperty("--ui-panel-tint-rgb", panelTintRgb);
+  document.documentElement.style.setProperty("--progress-gradient-start-rgb", progressStartRgb);
+  document.documentElement.style.setProperty("--progress-gradient-end-rgb", progressEndRgb);
+  document.documentElement.style.setProperty("--progress-flow-start-rgb", progressFlowStartRgb);
+  document.documentElement.style.setProperty("--progress-flow-end-rgb", progressFlowEndRgb);
+  document.documentElement.style.setProperty("--panel-bg", hexToRgbaString(branding.panelBgColor, 0.72, "rgba(12, 16, 26, 0.72)"));
+  document.documentElement.style.setProperty("--panel-border", hexToRgbaString(branding.panelBorderColor, 0.32, "rgba(255, 255, 255, 0.32)"));
+  document.documentElement.style.setProperty("--menu-bg", hexToRgbaString(branding.menuBgColor, 0.98, "rgba(8, 11, 18, 0.98)"));
+  document.documentElement.style.setProperty("--card-bg-start", hexToRgbaString(branding.cardBgStartColor, 0.98, "rgba(10, 14, 22, 0.98)"));
+    document.documentElement.style.setProperty("--card-bg-end", hexToRgbaString(branding.cardBgEndColor, 0.92, "rgba(8, 11, 18, 0.92)"));
+  const fontMap = {
+    matter: '"Matter", "Segoe UI", sans-serif',
+    inter: '"Inter", "Segoe UI", sans-serif',
+    poppins: '"Poppins", "Segoe UI", sans-serif',
+    montserrat: '"Montserrat", "Segoe UI", sans-serif',
+    system: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  };
+  document.documentElement.style.setProperty("--app-font-family", fontMap[branding.fontFamily] || fontMap.matter);
+  document.documentElement.style.setProperty("--settings-nav-bg", hexToRgbaString(branding.settingsNavBgColor, 0.9, "rgba(9, 12, 20, 0.9)"));
+  document.documentElement.style.setProperty("--settings-input-bg", hexToRgbaString(branding.inputBgColor, 0.88, "rgba(12, 16, 24, 0.88)"));
+  document.documentElement.style.setProperty("--settings-input-bg-hover", hexToRgbaString(branding.inputBgColor, 0.96, "rgba(15, 20, 31, 0.96)"));
+  document.documentElement.style.setProperty("--settings-input-border", hexToRgbaString(branding.inputBorderColor, 0.34, "rgba(255, 255, 255, 0.34)"));
+  document.documentElement.style.setProperty("--settings-nav-button-bg", hexToRgbaString(branding.quickNavButtonBgColor, 0.75, "rgba(13, 18, 29, 0.75)"));
+  document.documentElement.style.setProperty("--settings-nav-button-text", branding.quickNavButtonTextColor);
+  document.body.classList.toggle("intro-bg-drift", branding.introBgAnimation === "drift");
+  document.body.classList.toggle("intro-bg-none", branding.introBgAnimation === "none");
+  document.body.classList.toggle("intro-bg-portals", branding.introBgAnimation === "portals");
+  window.dispatchEvent(new Event("idle-theme-changed"));
 }
 
 function syncBrandingInputs() {
@@ -518,6 +674,9 @@ function syncBrandingInputs() {
   if (settingsBrandNeutralTextInput) {
     settingsBrandNeutralTextInput.value = branding.neutralText;
   }
+  if (settingsBrandIntroBadgeTextInput) {
+    settingsBrandIntroBadgeTextInput.value = branding.introBadgeText;
+  }
   if (settingsBrandTitleColorInput) {
     settingsBrandTitleColorInput.value = branding.titleColor;
   }
@@ -526,6 +685,63 @@ function syncBrandingInputs() {
   }
   if (settingsBrandNeutralColorInput) {
     settingsBrandNeutralColorInput.value = branding.neutralColor;
+  }
+  if (settingsBrandButtonColorInput) {
+    settingsBrandButtonColorInput.value = branding.buttonColor;
+  }
+  if (settingsBrandButtonTextColorInput) {
+    settingsBrandButtonTextColorInput.value = branding.buttonTextColor;
+  }
+  if (settingsBrandPanelTintColorInput) {
+    settingsBrandPanelTintColorInput.value = branding.panelTintColor;
+  }
+  if (settingsBrandProgressStartColorInput) {
+    settingsBrandProgressStartColorInput.value = branding.progressStartColor;
+  }
+  if (settingsBrandProgressEndColorInput) {
+    settingsBrandProgressEndColorInput.value = branding.progressEndColor;
+  }
+  if (settingsBrandPanelBgColorInput) {
+    settingsBrandPanelBgColorInput.value = branding.panelBgColor;
+  }
+  if (settingsBrandPanelBorderColorInput) {
+    settingsBrandPanelBorderColorInput.value = branding.panelBorderColor;
+  }
+  if (settingsBrandMenuBgColorInput) {
+    settingsBrandMenuBgColorInput.value = branding.menuBgColor;
+  }
+  if (settingsBrandProgressFlowStartColorInput) {
+    settingsBrandProgressFlowStartColorInput.value = branding.progressFlowStartColor;
+  }
+  if (settingsBrandProgressFlowEndColorInput) {
+    settingsBrandProgressFlowEndColorInput.value = branding.progressFlowEndColor;
+  }
+  if (settingsBrandCardBgStartColorInput) {
+    settingsBrandCardBgStartColorInput.value = branding.cardBgStartColor;
+  }
+  if (settingsBrandCardBgEndColorInput) {
+    settingsBrandCardBgEndColorInput.value = branding.cardBgEndColor;
+  }
+  if (settingsBrandFontFamilyInput) {
+    settingsBrandFontFamilyInput.value = branding.fontFamily;
+  }
+  if (settingsBrandSettingsNavBgColorInput) {
+    settingsBrandSettingsNavBgColorInput.value = branding.settingsNavBgColor;
+  }
+  if (settingsBrandInputBgColorInput) {
+    settingsBrandInputBgColorInput.value = branding.inputBgColor;
+  }
+  if (settingsBrandInputBorderColorInput) {
+    settingsBrandInputBorderColorInput.value = branding.inputBorderColor;
+  }
+  if (settingsBrandQuickNavButtonBgColorInput) {
+    settingsBrandQuickNavButtonBgColorInput.value = branding.quickNavButtonBgColor;
+  }
+  if (settingsBrandQuickNavButtonTextColorInput) {
+    settingsBrandQuickNavButtonTextColorInput.value = branding.quickNavButtonTextColor;
+  }
+  if (settingsBrandIntroBgAnimationInput) {
+    settingsBrandIntroBgAnimationInput.value = branding.introBgAnimation;
   }
 }
 
@@ -965,7 +1181,7 @@ async function updateRemoteInfo() {
   } catch (error) {
     // ignore fetch errors
   }
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&color=000000&bgcolor=ffffff00&data=${encodeURIComponent(
     remoteUrl
   )}`;
   [settingsRemoteQr, remoteLaunchQr].forEach((qr) => {
@@ -1197,6 +1413,10 @@ async function queueSelfieWithImage(imageData, source = "tap") {
     element.style.width = "0%";
   });
   progressPreviews.forEach((element) => {
+    const stage = element.closest(".progress__preview-stage");
+    if (stage) {
+      stage.style.display = "none";
+    }
     element.src = "";
     element.style.display = "none";
   });
@@ -1227,6 +1447,7 @@ async function queueSelfieWithImage(imageData, source = "tap") {
         freeimageApiKey: freeimageApiKey || "",
         comfyMinCredits,
         comfyAccelerator,
+        comfyHostedEnabled,
       }),
     });
     if (!response.ok) {
@@ -1502,20 +1723,25 @@ function startProgressPolling() {
   progressFills.forEach((element) => {
     element.style.width = "0%";
   });
+  progressLastUpdateAt = Date.now();
   progressPoller = setInterval(async () => {
     try {
       const headers = comfyApiKey ? { "x-comfy-api-key": comfyApiKey } : {};
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 8000);
       const response = await fetch(
         `/api/progress?promptId=${encodeURIComponent(
           currentPromptId
         )}&comfyServerUrl=${encodeURIComponent(comfyServerUrl)}`,
-        { headers }
+        { headers, signal: controller.signal }
       );
+      window.clearTimeout(timeoutId);
       if (!response.ok) {
         throw new Error("Progress unavailable");
       }
       const data = await response.json();
       updateProgress(data);
+      progressLastUpdateAt = Date.now();
       if (data.complete && progressPreviewManager.isReady(data.outputUrl)) {
         clearInterval(progressPoller);
         progressPoller = null;
@@ -1536,20 +1762,27 @@ function startProgressPolling() {
         });
       }
     } catch (error) {
-      progressLabels.forEach((element) => {
-        element.textContent = HOSTED_COMFY_WAITING_LABEL;
-      });
-      progressPreviewManager.clear();
+      const staleForMs = Date.now() - progressLastUpdateAt;
+      const isStale = staleForMs > 20000;
+      if (staleForMs > 20000) {
+        progressLabels.forEach((element) => {
+          element.textContent = "Reconnecting…";
+        });
+      } else {
+        progressLabels.forEach((element) => {
+          element.textContent = HOSTED_COMFY_WAITING_LABEL;
+        });
+      }
       progressValues.forEach((element) => {
-        element.textContent = "90%";
+        element.textContent = isStale ? "—" : "90%";
       });
       progressFills.forEach((element) => {
-        element.style.width = "90%";
+        element.style.width = isStale ? "0%" : "90%";
       });
       updateRemoteProgress({
-        status: "waiting",
-        label: HOSTED_COMFY_WAITING_LABEL,
-        percent: 90,
+        status: isStale ? "reconnecting" : "waiting",
+        label: isStale ? "Reconnecting…" : HOSTED_COMFY_WAITING_LABEL,
+        percent: isStale ? 0 : 90,
         complete: false,
       });
     }
@@ -1602,6 +1835,22 @@ function setBusy(isBusy) {
   updateRemoteProgress(lastRemoteProgress);
 }
 
+function stripHostedWorkflowPath(value) {
+  const normalized = normalizeComfyInput(value);
+  if (!normalized) {
+    return value;
+  }
+  try {
+    const url = new URL(normalized);
+    if (/\/api\/v1\/workflows(\/|$)/i.test(url.pathname)) {
+      return url.origin;
+    }
+  } catch (error) {
+    return normalized;
+  }
+  return normalized;
+}
+
 function loadPrinterConfig() {
   try {
     const storedPrinterConfig = readStoredJson(storageKeys.printerConfig, null);
@@ -1633,6 +1882,10 @@ function loadPrinterConfig() {
     const comfyAcceleratorRaw = readStoredValue(storageKeys.comfyAccelerator);
     if (comfyAcceleratorRaw) {
       comfyAccelerator = comfyAcceleratorRaw;
+    }
+    const comfyHostedEnabledRaw = readStoredValue(storageKeys.comfyHostedEnabled);
+    if (comfyHostedEnabledRaw !== null) {
+      comfyHostedEnabled = comfyHostedEnabledRaw === "true";
     }
     const orientationRaw = readStoredValue(storageKeys.cameraOrientation);
     if (orientationRaw) {
@@ -1670,6 +1923,10 @@ function loadPrinterConfig() {
     if (brandNeutralTextRaw) {
       branding.neutralText = brandNeutralTextRaw;
     }
+    const brandIntroBadgeTextRaw = readStoredValue(storageKeys.brandIntroBadgeText);
+    if (brandIntroBadgeTextRaw) {
+      branding.introBadgeText = brandIntroBadgeTextRaw;
+    }
     const brandTitleColorRaw = readStoredValue(storageKeys.brandTitleColor);
     if (brandTitleColorRaw) {
       branding.titleColor = brandTitleColorRaw;
@@ -1681,6 +1938,82 @@ function loadPrinterConfig() {
     const brandNeutralColorRaw = readStoredValue(storageKeys.brandNeutralColor);
     if (brandNeutralColorRaw) {
       branding.neutralColor = brandNeutralColorRaw;
+    }
+    const brandButtonColorRaw = readStoredValue(storageKeys.brandButtonColor);
+    if (brandButtonColorRaw) {
+      branding.buttonColor = brandButtonColorRaw;
+    }
+    const brandButtonTextColorRaw = readStoredValue(storageKeys.brandButtonTextColor);
+    if (brandButtonTextColorRaw) {
+      branding.buttonTextColor = brandButtonTextColorRaw;
+    }
+    const brandPanelTintColorRaw = readStoredValue(storageKeys.brandPanelTintColor);
+    if (brandPanelTintColorRaw) {
+      branding.panelTintColor = brandPanelTintColorRaw;
+    }
+    const brandProgressStartColorRaw = readStoredValue(storageKeys.brandProgressStartColor);
+    if (brandProgressStartColorRaw) {
+      branding.progressStartColor = brandProgressStartColorRaw;
+    }
+    const brandProgressEndColorRaw = readStoredValue(storageKeys.brandProgressEndColor);
+    if (brandProgressEndColorRaw) {
+      branding.progressEndColor = brandProgressEndColorRaw;
+    }
+    const brandPanelBgColorRaw = readStoredValue(storageKeys.brandPanelBgColor);
+    if (brandPanelBgColorRaw) {
+      branding.panelBgColor = brandPanelBgColorRaw;
+    }
+    const brandPanelBorderColorRaw = readStoredValue(storageKeys.brandPanelBorderColor);
+    if (brandPanelBorderColorRaw) {
+      branding.panelBorderColor = brandPanelBorderColorRaw;
+    }
+    const brandMenuBgColorRaw = readStoredValue(storageKeys.brandMenuBgColor);
+    if (brandMenuBgColorRaw) {
+      branding.menuBgColor = brandMenuBgColorRaw;
+    }
+    const brandProgressFlowStartColorRaw = readStoredValue(storageKeys.brandProgressFlowStartColor);
+    if (brandProgressFlowStartColorRaw) {
+      branding.progressFlowStartColor = brandProgressFlowStartColorRaw;
+    }
+    const brandProgressFlowEndColorRaw = readStoredValue(storageKeys.brandProgressFlowEndColor);
+    if (brandProgressFlowEndColorRaw) {
+      branding.progressFlowEndColor = brandProgressFlowEndColorRaw;
+    }
+    const brandCardBgStartColorRaw = readStoredValue(storageKeys.brandCardBgStartColor);
+    if (brandCardBgStartColorRaw) {
+      branding.cardBgStartColor = brandCardBgStartColorRaw;
+    }
+    const brandCardBgEndColorRaw = readStoredValue(storageKeys.brandCardBgEndColor);
+    if (brandCardBgEndColorRaw) {
+      branding.cardBgEndColor = brandCardBgEndColorRaw;
+    }
+    const brandFontFamilyRaw = readStoredValue(storageKeys.brandFontFamily);
+    if (brandFontFamilyRaw) {
+      branding.fontFamily = brandFontFamilyRaw;
+    }
+    const brandSettingsNavBgColorRaw = readStoredValue(storageKeys.brandSettingsNavBgColor);
+    if (brandSettingsNavBgColorRaw) {
+      branding.settingsNavBgColor = brandSettingsNavBgColorRaw;
+    }
+    const brandInputBgColorRaw = readStoredValue(storageKeys.brandInputBgColor);
+    if (brandInputBgColorRaw) {
+      branding.inputBgColor = brandInputBgColorRaw;
+    }
+    const brandInputBorderColorRaw = readStoredValue(storageKeys.brandInputBorderColor);
+    if (brandInputBorderColorRaw) {
+      branding.inputBorderColor = brandInputBorderColorRaw;
+    }
+    const brandQuickNavButtonBgColorRaw = readStoredValue(storageKeys.brandQuickNavButtonBgColor);
+    if (brandQuickNavButtonBgColorRaw) {
+      branding.quickNavButtonBgColor = brandQuickNavButtonBgColorRaw;
+    }
+    const brandQuickNavButtonTextColorRaw = readStoredValue(storageKeys.brandQuickNavButtonTextColor);
+    if (brandQuickNavButtonTextColorRaw) {
+      branding.quickNavButtonTextColor = brandQuickNavButtonTextColorRaw;
+    }
+    const brandIntroBgAnimationRaw = readStoredValue(storageKeys.brandIntroBgAnimation);
+    if (brandIntroBgAnimationRaw) {
+      branding.introBgAnimation = brandIntroBgAnimationRaw;
     }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
@@ -1731,6 +2064,7 @@ function loadPrinterConfig() {
     freeimageApiKey = "";
     comfyApiKey = "";
     comfyServerUrl = defaultComfyServerUrl;
+    comfyHostedEnabled = true;
     cameraOrientation = 0;
     cameraMirrored = false;
     cameraDeviceId = "";
@@ -1751,6 +2085,9 @@ function loadPrinterConfig() {
     backgroundMusicEnabled = false;
     debateSparkEnabled = true;
   }
+  if (!comfyHostedEnabled) {
+    comfyServerUrl = stripHostedWorkflowPath(comfyServerUrl) || defaultComfyServerUrl;
+  }
   settingsComfyInput.value = comfyServerUrl || defaultComfyServerUrl;
   settingsComfyKeyInput.value = comfyApiKey || "";
   if (settingsComfyMinCreditsInput) {
@@ -1758,6 +2095,9 @@ function loadPrinterConfig() {
   }
   if (settingsComfyAcceleratorInput) {
     settingsComfyAcceleratorInput.value = comfyAccelerator;
+  }
+  if (settingsComfyHostedInput) {
+    settingsComfyHostedInput.checked = comfyHostedEnabled;
   }
   settingsOrientationInput.value = String(cameraOrientation || 0);
   if (settingsCameraInput) {
@@ -1804,6 +2144,7 @@ function loadPrinterConfig() {
     settingsWatermarkTextInput.value = watermarkText || "MKRShift";
   }
   syncBrandingInputs();
+  loadBrandProfiles();
   if (settingsWatermarkClear) {
     settingsWatermarkClear.disabled = !watermarkCustomDataUrl;
   }
@@ -1816,6 +2157,102 @@ function loadPrinterConfig() {
   applyDebateSparkVisibility();
   printerController.loadPrinters(printerConfig.name);
   void ensureBackgroundMusic();
+}
+
+function getBrandingSnapshot() {
+  return {
+    titleText: branding.titleText,
+    accentText: branding.accentText,
+    neutralText: branding.neutralText,
+    introBadgeText: branding.introBadgeText,
+    titleColor: branding.titleColor,
+    accentColor: branding.accentColor,
+    neutralColor: branding.neutralColor,
+    buttonColor: branding.buttonColor,
+    buttonTextColor: branding.buttonTextColor,
+    panelTintColor: branding.panelTintColor,
+    progressStartColor: branding.progressStartColor,
+    progressEndColor: branding.progressEndColor,
+    panelBgColor: branding.panelBgColor,
+    panelBorderColor: branding.panelBorderColor,
+    menuBgColor: branding.menuBgColor,
+    progressFlowStartColor: branding.progressFlowStartColor,
+    progressFlowEndColor: branding.progressFlowEndColor,
+    cardBgStartColor: branding.cardBgStartColor,
+    cardBgEndColor: branding.cardBgEndColor,
+    fontFamily: branding.fontFamily,
+    settingsNavBgColor: branding.settingsNavBgColor,
+    inputBgColor: branding.inputBgColor,
+    inputBorderColor: branding.inputBorderColor,
+    quickNavButtonBgColor: branding.quickNavButtonBgColor,
+    quickNavButtonTextColor: branding.quickNavButtonTextColor,
+    introBgAnimation: branding.introBgAnimation,
+  };
+}
+
+function renderBrandProfileOptions() {
+  if (!settingsBrandProfileSelect) {
+    return;
+  }
+  const current = settingsBrandProfileSelect.value;
+  settingsBrandProfileSelect.innerHTML = '<option value="">Select profile…</option>';
+  brandProfiles.forEach((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.name;
+    option.textContent = profile.name;
+    settingsBrandProfileSelect.appendChild(option);
+  });
+  if (current && brandProfiles.some((profile) => profile.name === current)) {
+    settingsBrandProfileSelect.value = current;
+  }
+}
+
+function persistBrandProfiles() {
+  writeStoredJson(storageKeys.brandProfiles, brandProfiles);
+}
+
+function loadBrandProfiles() {
+  const stored = readStoredJson(storageKeys.brandProfiles, []);
+  brandProfiles = Array.isArray(stored)
+    ? stored.filter((profile) => profile && typeof profile.name === "string" && profile.values)
+    : [];
+  renderBrandProfileOptions();
+}
+
+function applyBrandProfile(profileName) {
+  const profile = brandProfiles.find((entry) => entry.name === profileName);
+  if (!profile || !profile.values) {
+    return;
+  }
+  branding = { ...branding, ...profile.values };
+  applyBranding();
+  syncBrandingInputs();
+  writeStoredValue(storageKeys.brandTitleText, branding.titleText);
+  writeStoredValue(storageKeys.brandAccentText, branding.accentText);
+  writeStoredValue(storageKeys.brandNeutralText, branding.neutralText);
+  writeStoredValue(storageKeys.brandIntroBadgeText, branding.introBadgeText);
+  writeStoredValue(storageKeys.brandTitleColor, branding.titleColor);
+  writeStoredValue(storageKeys.brandAccentColor, branding.accentColor);
+  writeStoredValue(storageKeys.brandNeutralColor, branding.neutralColor);
+  writeStoredValue(storageKeys.brandButtonColor, branding.buttonColor);
+  writeStoredValue(storageKeys.brandButtonTextColor, branding.buttonTextColor);
+  writeStoredValue(storageKeys.brandPanelTintColor, branding.panelTintColor);
+  writeStoredValue(storageKeys.brandProgressStartColor, branding.progressStartColor);
+  writeStoredValue(storageKeys.brandProgressEndColor, branding.progressEndColor);
+  writeStoredValue(storageKeys.brandPanelBgColor, branding.panelBgColor);
+  writeStoredValue(storageKeys.brandPanelBorderColor, branding.panelBorderColor);
+  writeStoredValue(storageKeys.brandMenuBgColor, branding.menuBgColor);
+  writeStoredValue(storageKeys.brandProgressFlowStartColor, branding.progressFlowStartColor);
+  writeStoredValue(storageKeys.brandProgressFlowEndColor, branding.progressFlowEndColor);
+  writeStoredValue(storageKeys.brandCardBgStartColor, branding.cardBgStartColor);
+  writeStoredValue(storageKeys.brandCardBgEndColor, branding.cardBgEndColor);
+  writeStoredValue(storageKeys.brandFontFamily, branding.fontFamily);
+  writeStoredValue(storageKeys.brandSettingsNavBgColor, branding.settingsNavBgColor);
+  writeStoredValue(storageKeys.brandInputBgColor, branding.inputBgColor);
+  writeStoredValue(storageKeys.brandInputBorderColor, branding.inputBorderColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonBgColor, branding.quickNavButtonBgColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonTextColor, branding.quickNavButtonTextColor);
+  writeStoredValue(storageKeys.brandIntroBgAnimation, branding.introBgAnimation);
 }
 
 function loadUiPreferences() {
@@ -1848,6 +2285,9 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   if (settingsBrandNeutralTextInput) {
     branding.neutralText = settingsBrandNeutralTextInput.value;
   }
+  if (settingsBrandIntroBadgeTextInput) {
+    branding.introBadgeText = settingsBrandIntroBadgeTextInput.value;
+  }
   if (settingsBrandTitleColorInput) {
     branding.titleColor = settingsBrandTitleColorInput.value;
   }
@@ -1856,6 +2296,63 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   }
   if (settingsBrandNeutralColorInput) {
     branding.neutralColor = settingsBrandNeutralColorInput.value;
+  }
+  if (settingsBrandButtonColorInput) {
+    branding.buttonColor = settingsBrandButtonColorInput.value;
+  }
+  if (settingsBrandButtonTextColorInput) {
+    branding.buttonTextColor = settingsBrandButtonTextColorInput.value;
+  }
+  if (settingsBrandPanelTintColorInput) {
+    branding.panelTintColor = settingsBrandPanelTintColorInput.value;
+  }
+  if (settingsBrandProgressStartColorInput) {
+    branding.progressStartColor = settingsBrandProgressStartColorInput.value;
+  }
+  if (settingsBrandProgressEndColorInput) {
+    branding.progressEndColor = settingsBrandProgressEndColorInput.value;
+  }
+  if (settingsBrandPanelBgColorInput) {
+    branding.panelBgColor = settingsBrandPanelBgColorInput.value;
+  }
+  if (settingsBrandPanelBorderColorInput) {
+    branding.panelBorderColor = settingsBrandPanelBorderColorInput.value;
+  }
+  if (settingsBrandMenuBgColorInput) {
+    branding.menuBgColor = settingsBrandMenuBgColorInput.value;
+  }
+  if (settingsBrandProgressFlowStartColorInput) {
+    branding.progressFlowStartColor = settingsBrandProgressFlowStartColorInput.value;
+  }
+  if (settingsBrandProgressFlowEndColorInput) {
+    branding.progressFlowEndColor = settingsBrandProgressFlowEndColorInput.value;
+  }
+  if (settingsBrandCardBgStartColorInput) {
+    branding.cardBgStartColor = settingsBrandCardBgStartColorInput.value;
+  }
+  if (settingsBrandCardBgEndColorInput) {
+    branding.cardBgEndColor = settingsBrandCardBgEndColorInput.value;
+  }
+  if (settingsBrandFontFamilyInput) {
+    branding.fontFamily = settingsBrandFontFamilyInput.value;
+  }
+  if (settingsBrandSettingsNavBgColorInput) {
+    branding.settingsNavBgColor = settingsBrandSettingsNavBgColorInput.value;
+  }
+  if (settingsBrandInputBgColorInput) {
+    branding.inputBgColor = settingsBrandInputBgColorInput.value;
+  }
+  if (settingsBrandInputBorderColorInput) {
+    branding.inputBorderColor = settingsBrandInputBorderColorInput.value;
+  }
+  if (settingsBrandQuickNavButtonBgColorInput) {
+    branding.quickNavButtonBgColor = settingsBrandQuickNavButtonBgColorInput.value;
+  }
+  if (settingsBrandQuickNavButtonTextColorInput) {
+    branding.quickNavButtonTextColor = settingsBrandQuickNavButtonTextColorInput.value;
+  }
+  if (settingsBrandIntroBgAnimationInput) {
+    branding.introBgAnimation = settingsBrandIntroBgAnimationInput.value;
   }
 
   applyBranding();
@@ -1867,9 +2364,29 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   writeStoredValue(storageKeys.brandTitleText, branding.titleText);
   writeStoredValue(storageKeys.brandAccentText, branding.accentText);
   writeStoredValue(storageKeys.brandNeutralText, branding.neutralText);
+  writeStoredValue(storageKeys.brandIntroBadgeText, branding.introBadgeText);
   writeStoredValue(storageKeys.brandTitleColor, branding.titleColor);
   writeStoredValue(storageKeys.brandAccentColor, branding.accentColor);
   writeStoredValue(storageKeys.brandNeutralColor, branding.neutralColor);
+  writeStoredValue(storageKeys.brandButtonColor, branding.buttonColor);
+  writeStoredValue(storageKeys.brandButtonTextColor, branding.buttonTextColor);
+  writeStoredValue(storageKeys.brandPanelTintColor, branding.panelTintColor);
+  writeStoredValue(storageKeys.brandProgressStartColor, branding.progressStartColor);
+  writeStoredValue(storageKeys.brandProgressEndColor, branding.progressEndColor);
+  writeStoredValue(storageKeys.brandPanelBgColor, branding.panelBgColor);
+  writeStoredValue(storageKeys.brandPanelBorderColor, branding.panelBorderColor);
+  writeStoredValue(storageKeys.brandMenuBgColor, branding.menuBgColor);
+  writeStoredValue(storageKeys.brandProgressFlowStartColor, branding.progressFlowStartColor);
+  writeStoredValue(storageKeys.brandProgressFlowEndColor, branding.progressFlowEndColor);
+  writeStoredValue(storageKeys.brandCardBgStartColor, branding.cardBgStartColor);
+  writeStoredValue(storageKeys.brandCardBgEndColor, branding.cardBgEndColor);
+  writeStoredValue(storageKeys.brandFontFamily, branding.fontFamily);
+  writeStoredValue(storageKeys.brandSettingsNavBgColor, branding.settingsNavBgColor);
+  writeStoredValue(storageKeys.brandInputBgColor, branding.inputBgColor);
+  writeStoredValue(storageKeys.brandInputBorderColor, branding.inputBorderColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonBgColor, branding.quickNavButtonBgColor);
+  writeStoredValue(storageKeys.brandQuickNavButtonTextColor, branding.quickNavButtonTextColor);
+  writeStoredValue(storageKeys.brandIntroBgAnimation, branding.introBgAnimation);
 }
 
 async function savePrinterConfig() {
@@ -1893,8 +2410,13 @@ async function savePrinterConfig() {
     comfyAccelerator = settingsComfyAcceleratorInput.value || "L4";
     writeStoredValue(storageKeys.comfyAccelerator, comfyAccelerator);
   }
+  if (settingsComfyHostedInput) {
+    comfyHostedEnabled = settingsComfyHostedInput.checked;
+    writeStoredValue(storageKeys.comfyHostedEnabled, String(comfyHostedEnabled));
+  }
   const normalizedComfy = normalizeComfyInput(settingsComfyInput.value);
-  comfyServerUrl = normalizedComfy || defaultComfyServerUrl;
+  const sanitizedComfy = comfyHostedEnabled ? normalizedComfy : stripHostedWorkflowPath(normalizedComfy);
+  comfyServerUrl = sanitizedComfy || defaultComfyServerUrl;
   writeStoredValue(storageKeys.comfyServerUrl, comfyServerUrl);
   cameraOrientation = Number(settingsOrientationInput.value) || 0;
   writeStoredValue(storageKeys.cameraOrientation, String(cameraOrientation));
@@ -2782,6 +3304,9 @@ settingsBrandAccentTextInput?.addEventListener("input", () => {
 settingsBrandNeutralTextInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
+settingsBrandIntroBadgeTextInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
 settingsBrandTitleColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
@@ -2789,6 +3314,97 @@ settingsBrandAccentColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsBrandNeutralColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandButtonColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandButtonTextColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandPanelTintColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressStartColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressEndColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandPanelBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandPanelBorderColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProfileSave?.addEventListener("click", () => {
+  const profileName = String(settingsBrandProfileNameInput?.value || "").trim();
+  if (!profileName) {
+    return;
+  }
+  const existingIndex = brandProfiles.findIndex((profile) => profile.name === profileName);
+  const payload = { name: profileName, values: getBrandingSnapshot() };
+  if (existingIndex >= 0) {
+    brandProfiles[existingIndex] = payload;
+  } else {
+    brandProfiles.push(payload);
+  }
+  persistBrandProfiles();
+  renderBrandProfileOptions();
+  if (settingsBrandProfileSelect) {
+    settingsBrandProfileSelect.value = profileName;
+  }
+});
+settingsBrandProfileLoad?.addEventListener("click", () => {
+  const selected = settingsBrandProfileSelect?.value;
+  if (!selected) {
+    return;
+  }
+  applyBrandProfile(selected);
+});
+settingsBrandProfileDelete?.addEventListener("click", () => {
+  const selected = settingsBrandProfileSelect?.value;
+  if (!selected) {
+    return;
+  }
+  brandProfiles = brandProfiles.filter((profile) => profile.name !== selected);
+  persistBrandProfiles();
+  renderBrandProfileOptions();
+});
+settingsBrandMenuBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressFlowStartColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressFlowEndColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandCardBgStartColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandCardBgEndColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandFontFamilyInput?.addEventListener("change", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandSettingsNavBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandInputBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandInputBorderColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandQuickNavButtonBgColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandQuickNavButtonTextColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandIntroBgAnimationInput?.addEventListener("change", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
