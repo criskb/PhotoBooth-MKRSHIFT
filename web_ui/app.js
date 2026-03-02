@@ -123,6 +123,9 @@ const settingsBrandAccentColorInput = document.querySelector(".settings-input--b
 const settingsBrandNeutralColorInput = document.querySelector(".settings-input--brand-neutral-color");
 const settingsBrandButtonColorInput = document.querySelector(".settings-input--brand-button-color");
 const settingsBrandButtonTextColorInput = document.querySelector(".settings-input--brand-button-text-color");
+const settingsBrandPanelTintColorInput = document.querySelector(".settings-input--brand-panel-tint-color");
+const settingsBrandProgressStartColorInput = document.querySelector(".settings-input--brand-progress-start-color");
+const settingsBrandProgressEndColorInput = document.querySelector(".settings-input--brand-progress-end-color");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const remoteLaunchQr = document.querySelector(".remote-launch-qr");
@@ -298,6 +301,9 @@ const defaultBranding = {
   neutralColor: "#f7f7fb",
   buttonColor: "#58d68d",
   buttonTextColor: "#071b11",
+  panelTintColor: "#6f7885",
+  progressStartColor: "#58d68d",
+  progressEndColor: "#feaa3a",
 };
 let branding = { ...defaultBranding };
 let uploadEnabled = true;
@@ -530,6 +536,9 @@ function applyBranding() {
   branding.neutralColor = normalizeBrandColor(branding.neutralColor, defaultBranding.neutralColor);
   branding.buttonColor = normalizeBrandColor(branding.buttonColor, defaultBranding.buttonColor);
   branding.buttonTextColor = normalizeBrandColor(branding.buttonTextColor, defaultBranding.buttonTextColor);
+  branding.panelTintColor = normalizeBrandColor(branding.panelTintColor, defaultBranding.panelTintColor);
+  branding.progressStartColor = normalizeBrandColor(branding.progressStartColor, defaultBranding.progressStartColor);
+  branding.progressEndColor = normalizeBrandColor(branding.progressEndColor, defaultBranding.progressEndColor);
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -545,6 +554,9 @@ function applyBranding() {
   }
 
   const brandButtonRgb = hexToRgbTriplet(branding.buttonColor);
+  const panelTintRgb = hexToRgbTriplet(branding.panelTintColor, "111, 120, 133");
+  const progressStartRgb = hexToRgbTriplet(branding.progressStartColor, brandButtonRgb);
+  const progressEndRgb = hexToRgbTriplet(branding.progressEndColor, "254, 170, 58");
   const brandButtonStrong = shadeHexColor(branding.buttonColor, 0.78, defaultBranding.buttonColor);
 
   document.documentElement.style.setProperty("--brand-title-color", branding.titleColor);
@@ -556,6 +568,9 @@ function applyBranding() {
   document.documentElement.style.setProperty("--accent-glow-rgb", brandButtonRgb);
   document.documentElement.style.setProperty("--accent-success", branding.buttonColor);
   document.documentElement.style.setProperty("--accent-success-strong", brandButtonStrong);
+  document.documentElement.style.setProperty("--ui-panel-tint-rgb", panelTintRgb);
+  document.documentElement.style.setProperty("--progress-gradient-start-rgb", progressStartRgb);
+  document.documentElement.style.setProperty("--progress-gradient-end-rgb", progressEndRgb);
 }
 
 function syncBrandingInputs() {
@@ -585,6 +600,15 @@ function syncBrandingInputs() {
   }
   if (settingsBrandButtonTextColorInput) {
     settingsBrandButtonTextColorInput.value = branding.buttonTextColor;
+  }
+  if (settingsBrandPanelTintColorInput) {
+    settingsBrandPanelTintColorInput.value = branding.panelTintColor;
+  }
+  if (settingsBrandProgressStartColorInput) {
+    settingsBrandProgressStartColorInput.value = branding.progressStartColor;
+  }
+  if (settingsBrandProgressEndColorInput) {
+    settingsBrandProgressEndColorInput.value = branding.progressEndColor;
   }
 }
 
@@ -1774,6 +1798,18 @@ function loadPrinterConfig() {
     if (brandButtonTextColorRaw) {
       branding.buttonTextColor = brandButtonTextColorRaw;
     }
+    const brandPanelTintColorRaw = readStoredValue(storageKeys.brandPanelTintColor);
+    if (brandPanelTintColorRaw) {
+      branding.panelTintColor = brandPanelTintColorRaw;
+    }
+    const brandProgressStartColorRaw = readStoredValue(storageKeys.brandProgressStartColor);
+    if (brandProgressStartColorRaw) {
+      branding.progressStartColor = brandProgressStartColorRaw;
+    }
+    const brandProgressEndColorRaw = readStoredValue(storageKeys.brandProgressEndColor);
+    if (brandProgressEndColorRaw) {
+      branding.progressEndColor = brandProgressEndColorRaw;
+    }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
@@ -1965,6 +2001,15 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   if (settingsBrandButtonTextColorInput) {
     branding.buttonTextColor = settingsBrandButtonTextColorInput.value;
   }
+  if (settingsBrandPanelTintColorInput) {
+    branding.panelTintColor = settingsBrandPanelTintColorInput.value;
+  }
+  if (settingsBrandProgressStartColorInput) {
+    branding.progressStartColor = settingsBrandProgressStartColorInput.value;
+  }
+  if (settingsBrandProgressEndColorInput) {
+    branding.progressEndColor = settingsBrandProgressEndColorInput.value;
+  }
 
   applyBranding();
   syncBrandingInputs();
@@ -1981,6 +2026,9 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   writeStoredValue(storageKeys.brandNeutralColor, branding.neutralColor);
   writeStoredValue(storageKeys.brandButtonColor, branding.buttonColor);
   writeStoredValue(storageKeys.brandButtonTextColor, branding.buttonTextColor);
+  writeStoredValue(storageKeys.brandPanelTintColor, branding.panelTintColor);
+  writeStoredValue(storageKeys.brandProgressStartColor, branding.progressStartColor);
+  writeStoredValue(storageKeys.brandProgressEndColor, branding.progressEndColor);
 }
 
 async function savePrinterConfig() {
@@ -2914,6 +2962,15 @@ settingsBrandButtonColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsBrandButtonTextColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandPanelTintColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressStartColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandProgressEndColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);

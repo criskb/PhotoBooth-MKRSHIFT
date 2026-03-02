@@ -260,6 +260,30 @@ export function renderSettingsModal() {
                   value="#071b11"
                 />
               </label>
+              <label class="settings-field">
+                Panel tint color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-panel-tint-color"
+                  type="color"
+                  value="#6f7885"
+                />
+              </label>
+              <label class="settings-field">
+                Progress gradient start
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-start-color"
+                  type="color"
+                  value="#58d68d"
+                />
+              </label>
+              <label class="settings-field">
+                Progress gradient end
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-progress-end-color"
+                  type="color"
+                  value="#feaa3a"
+                />
+              </label>
             </div>
           </div>
         </section>
