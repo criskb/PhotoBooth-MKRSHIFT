@@ -1112,7 +1112,7 @@ async function updateRemoteInfo() {
   } catch (error) {
     // ignore fetch errors
   }
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&color=58d68d&bgcolor=ffffff00&data=${encodeURIComponent(
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&color=000000&bgcolor=ffffff00&data=${encodeURIComponent(
     remoteUrl
   )}`;
   [settingsRemoteQr, remoteLaunchQr].forEach((qr) => {
