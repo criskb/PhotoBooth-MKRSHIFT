@@ -24,6 +24,8 @@
   --brand-title-color: #f7f7fb;
   --brand-accent-color: #58d36e;
   --brand-neutral-color: #f7f7fb;
+  --brand-button-color: #58d68d;
+  --brand-button-text-color: #071b11;
   --text-accent-soft: #9adfff;
   --focus-ring: #8bd3ff;
   --accent-success: #58d68d;
@@ -565,8 +567,8 @@ body.debate-fever::before {
   padding: 0.45rem 0.75rem;
   border-radius: 0.6rem;
   border: 1px solid transparent;
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -638,8 +640,8 @@ body.debate-fever::before {
   height: 2.25rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.9rem;
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -746,8 +748,8 @@ body.debate-fever::before {
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -1921,8 +1923,8 @@ body.debate-fever::before {
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -2194,8 +2196,8 @@ body.debate-fever::before {
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(18, 22, 33, 0.8);
-  color: var(--text-primary);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -2326,13 +2328,13 @@ body.debate-fever::before {
   padding: 0.95rem 2.2rem;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(135deg, var(--accent-success), var(--accent-success-strong));
-  color: var(--accent-contrast);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-weight: 700;
   font-size: 0.9rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 12px 30px rgba(36, 178, 107, 0.35);
+  box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.28);
   cursor: pointer;
 }
 
@@ -2891,13 +2893,13 @@ body.debate-fever::before {
   padding: 0.82rem 1.1rem;
   border-radius: 0.85rem;
   border: none;
-  background: linear-gradient(135deg, var(--accent-success), var(--accent-success-strong));
-  color: var(--accent-contrast);
+  background: var(--brand-button-color);
+  color: var(--brand-button-text-color);
   font-weight: 800;
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  box-shadow: 0 12px 30px rgba(36, 178, 107, 0.35);
+  box-shadow: 0 12px 30px rgba(var(--accent-rgb), 0.28);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
