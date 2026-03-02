@@ -661,6 +661,7 @@ function applyBranding() {
   document.body.classList.toggle("intro-bg-drift", branding.introBgAnimation === "drift");
   document.body.classList.toggle("intro-bg-none", branding.introBgAnimation === "none");
   document.body.classList.toggle("intro-bg-portals", branding.introBgAnimation === "portals");
+  window.dispatchEvent(new Event("idle-theme-changed"));
 }
 
 function syncBrandingInputs() {

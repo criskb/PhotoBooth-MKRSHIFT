@@ -814,6 +814,20 @@ body.debate-fever::before {
   overflow: hidden;
   background: rgba(8, 11, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 58vh;
+  object-fit: cover;
+}
+
+.progress__preview-stage {
+  display: none;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 58vh;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(8, 11, 18, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress__actions {
@@ -1102,8 +1116,8 @@ body.intro-bg-portals .idle-overlay__canvas {
 }
 
 body.intro-bg-portals .idle-overlay__card {
-  width: clamp(280px, 24vw, 420px);
-  aspect-ratio: 16 / 6;
+  width: clamp(170px, 14vw, 230px);
+  aspect-ratio: 4 / 7;
   border-radius: 999px;
   border: 1px solid rgba(var(--accent-rgb), 0.42);
   box-shadow:
@@ -1111,7 +1125,7 @@ body.intro-bg-portals .idle-overlay__card {
     0 0 26px rgba(var(--accent-rgb), 0.32),
     0 20px 42px rgba(0, 0, 0, 0.45);
   animation-name: idle-portals-marquee;
-  animation-duration: calc(var(--float-duration) * 0.72);
+  animation-duration: calc(var(--float-duration) * 0.66);
   filter: none;
 }
 
@@ -1130,7 +1144,7 @@ body.intro-bg-portals .idle-overlay__card img {
     opacity: calc(var(--opacity) * 0.9);
   }
   50% {
-    transform: translate3d(50vw, calc(var(--lane-y) + var(--drift) * 0.35), 0) scale(calc(var(--scale) * 1.04));
+    transform: translate3d(50vw, var(--lane-y), 0) scale(calc(var(--scale) * 1.03));
     opacity: var(--opacity);
   }
   100% {
