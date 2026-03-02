@@ -160,7 +160,7 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--watermark" type="checkbox" />
-          Add MKRSHIFT watermark on upload/print
+          add brand watermark on upload/print
         </label>
         <div class="settings-watermark">
           <p class="settings-watermark__label">Watermark preview</p>
@@ -235,7 +235,7 @@ function renderGalleryModal() {
       <div class="gallery-card">
         <div class="gallery-header">
           <h2 id="gallery-title">Gallery</h2>
-          <button class="gallery-close btn btn--secondary" aria-label="Close gallery">Close</button>
+          <button class="gallery-close btn btn--secondary" aria-label="Close gallery">✕</button>
         </div>
         <div class="gallery-body">
           <div class="gallery-list"></div>
