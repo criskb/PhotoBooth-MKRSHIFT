@@ -1256,6 +1256,67 @@ body.intro-bg-strips .idle-overlay__card img {
   animation-name: idle-strip-pan;
 }
 
+body.intro-bg-portals .idle-overlay__copy {
+  background: linear-gradient(145deg, rgba(6, 10, 24, 0.78), rgba(13, 9, 27, 0.54));
+  border-color: rgba(var(--accent-rgb), 0.34);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.48), 0 0 38px rgba(var(--accent-rgb), 0.18);
+}
+
+body.intro-bg-portals .idle-overlay__title {
+  letter-spacing: 0.24em;
+}
+
+body.intro-bg-portals .idle-overlay__cta {
+  background: rgba(14, 17, 40, 0.62);
+  border-color: rgba(var(--accent-rgb), 0.56);
+}
+
+body.intro-bg-kaleido .idle-overlay__copy {
+  background: linear-gradient(155deg, rgba(16, 7, 31, 0.74), rgba(4, 20, 30, 0.52));
+  border-color: rgba(var(--accent-rgb), 0.3);
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.42), 0 0 58px rgba(123, 91, 255, 0.2);
+}
+
+body.intro-bg-kaleido .idle-overlay__title {
+  letter-spacing: 0.28em;
+  font-size: clamp(1.62rem, 2.45vw, 2.5rem);
+}
+
+body.intro-bg-kaleido .idle-overlay__steps-track {
+  background: linear-gradient(180deg, rgba(123, 91, 255, 0.76), rgba(89, 213, 255, 0));
+}
+
+body.intro-bg-orbit .idle-overlay__copy {
+  background: linear-gradient(150deg, rgba(6, 14, 25, 0.78), rgba(5, 26, 22, 0.48));
+  border-color: rgba(87, 237, 188, 0.3);
+  box-shadow: 0 24px 52px rgba(0, 0, 0, 0.45), 0 0 45px rgba(87, 237, 188, 0.16);
+}
+
+body.intro-bg-orbit .idle-overlay__title {
+  letter-spacing: 0.16em;
+}
+
+body.intro-bg-orbit .idle-overlay__step-index {
+  color: #57edbc;
+  border-color: rgba(87, 237, 188, 0.45);
+}
+
+body.intro-bg-strips .idle-overlay__copy {
+  background: linear-gradient(135deg, rgba(25, 9, 8, 0.74), rgba(22, 13, 5, 0.48));
+  border-color: rgba(255, 156, 95, 0.34);
+  box-shadow: 0 24px 52px rgba(0, 0, 0, 0.44), 0 0 42px rgba(255, 156, 95, 0.14);
+}
+
+body.intro-bg-strips .idle-overlay__title {
+  letter-spacing: 0.18em;
+  text-shadow: 0 12px 30px rgba(40, 8, 0, 0.55);
+}
+
+body.intro-bg-strips .idle-overlay__cta-dot {
+  background: #ff9c5f;
+  box-shadow: 0 0 0 0 rgba(255, 156, 95, 0.65);
+}
+
 @keyframes idle-kaleido-crossfade {
   0% {
     transform: translate3d(-50%, -50%, 0) rotate(var(--kaleido-rotation)) scale(1.04);
