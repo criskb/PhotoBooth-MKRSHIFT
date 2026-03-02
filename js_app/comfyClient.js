@@ -46,6 +46,78 @@ function applyPromptOverrides(workflow, stylePrompt, inputImage) {
   return updated;
 }
 
+function normalizeModelToken(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\\/g, "/")
+    .split("/")
+    .pop()
+    .replace(/\.safetensors$/i, "")
+    .replace(/[-_]?fp\d+[a-z0-9_-]*/gi, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function pickClosestModelName(receivedValue, allowedValues) {
+  if (!Array.isArray(allowedValues) || allowedValues.length === 0) {
+    return null;
+  }
+  if (allowedValues.includes(receivedValue)) {
+    return receivedValue;
+  }
+  const wanted = normalizeModelToken(receivedValue);
+  if (!wanted) {
+    return null;
+  }
+  const exact = allowedValues.find((candidate) => normalizeModelToken(candidate) === wanted);
+  if (exact) {
+    return exact;
+  }
+  const fuzzy = allowedValues.find((candidate) => {
+    const token = normalizeModelToken(candidate);
+    return token.includes(wanted) || wanted.includes(token);
+  });
+  return fuzzy ?? null;
+}
+
+function applyLocalValidationAutoFix(prompt, responsePayload) {
+  const nodeErrors = responsePayload?.node_errors;
+  if (!nodeErrors || typeof nodeErrors !== "object" || !prompt || typeof prompt !== "object") {
+    return false;
+  }
+  let changed = false;
+  Object.entries(nodeErrors).forEach(([nodeId, info]) => {
+    const promptNode = prompt?.[nodeId];
+    if (!promptNode || typeof promptNode !== "object") {
+      return;
+    }
+    const errors = Array.isArray(info?.errors) ? info.errors : [];
+    errors.forEach((err) => {
+      if (String(err?.type || "") !== "value_not_in_list") {
+        return;
+      }
+      const inputName = err?.extra_info?.input_name;
+      const receivedValue = err?.extra_info?.received_value;
+      const inputConfig = err?.extra_info?.input_config;
+      const allowedValues = Array.isArray(inputConfig?.[0]) ? inputConfig[0] : null;
+      if (!inputName || !Array.isArray(allowedValues) || !allowedValues.length) {
+        return;
+      }
+      const replacement = pickClosestModelName(receivedValue, allowedValues);
+      if (!replacement) {
+        return;
+      }
+      const inputs = promptNode.inputs && typeof promptNode.inputs === "object" ? promptNode.inputs : {};
+      if (inputs[inputName] === replacement) {
+        return;
+      }
+      inputs[inputName] = replacement;
+      promptNode.inputs = inputs;
+      changed = true;
+    });
+  });
+  return changed;
+}
+
 function assertApiWorkflowShape(workflowJson, styleName) {
   if (workflowJson && typeof workflowJson === "object" && Array.isArray(workflowJson.nodes)) {
     throw new Error(
@@ -437,39 +509,67 @@ export async function sendWorkflow({
   let result = null;
   let lastError = null;
   let retriedAfterHostedUpload = false;
+  let retriedAfterLocalFix = false;
   for (let index = 0; index < endpointCandidates.length; index += 1) {
     const suffix = endpointCandidates[index];
     const endpoint = suffix ? `${normalizedServerUrl}${suffix}` : normalizedServerUrl;
-    const requestBody = JSON.stringify(requestPayload);
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "Content-Type": "application/json",
-        ...buildComfyHeaders(apiKey),
-      },
-      body: requestBody,
-    });
-    if (response.ok) {
-      result = await response.json();
-      break;
-    }
-    const message = await response.text();
-    if (
-      hostedWorkflowApi &&
-      response.status === 413 &&
-      !retriedAfterHostedUpload &&
-      inputImageBuffer
-    ) {
+
+    while (true) {
+      const requestBody = JSON.stringify(requestPayload);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+          ...buildComfyHeaders(apiKey),
+        },
+        body: requestBody,
+      });
+      if (response.ok) {
+        result = await response.json();
+        break;
+      }
+
+      let payload = null;
+      let message = "";
+      try {
+        payload = await response.json();
+        message = JSON.stringify(payload);
+      } catch (error) {
+        message = await response.text().catch(() => "");
+      }
+
+      if (
+        !hostedWorkflowApi &&
+        response.status === 400 &&
+        !retriedAfterLocalFix &&
+        applyLocalValidationAutoFix(requestPayload.prompt, payload)
+      ) {
+        retriedAfterLocalFix = true;
+        continue;
+      }
+
+      if (
+        hostedWorkflowApi &&
+        response.status === 413 &&
+        !retriedAfterHostedUpload &&
+        inputImageBuffer
+      ) {
+        lastError = `POST ${endpoint} -> ${response.status} ${message}`;
+        break;
+      }
       lastError = `POST ${endpoint} -> ${response.status} ${message}`;
+      if (/insufficient|credit|token|quota|payment|required/i.test(message)) {
+        lastError = `${lastError}. Hosted balance appears exhausted; run was refused.`;
+        break;
+      }
+      if (response.status !== 404 && response.status !== 405) {
+        break;
+      }
       break;
     }
-    lastError = `POST ${endpoint} -> ${response.status} ${message}`;
-    if (/insufficient|credit|token|quota|payment|required/i.test(message)) {
-      lastError = `${lastError}. Hosted balance appears exhausted; run was refused.`;
-      break;
-    }
-    if (response.status !== 404 && response.status !== 405) {
+
+    if (result) {
       break;
     }
   }
