@@ -6,6 +6,10 @@ export function createProgressPreviewManager(previewElements) {
 
   function show(url) {
     previewElements.forEach((element) => {
+      const stage = element.closest(".progress__preview-stage");
+      if (stage) {
+        stage.style.display = "block";
+      }
       element.src = url;
       element.style.display = "block";
     });
@@ -13,6 +17,10 @@ export function createProgressPreviewManager(previewElements) {
 
   function clear() {
     previewElements.forEach((element) => {
+      const stage = element.closest(".progress__preview-stage");
+      if (stage) {
+        stage.style.display = "none";
+      }
       element.src = "";
       element.style.display = "none";
     });

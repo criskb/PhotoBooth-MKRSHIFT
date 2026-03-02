@@ -192,10 +192,19 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       return;
     }
 
+    const portalsMode = document.body.classList.contains("intro-bg-portals");
+
     const width = window.innerWidth || 1024;
     const height = window.innerHeight || 768;
-    const laneCount = Math.max(4, Math.min(7, Math.floor(height / 140)));
-    const cardsPerLane = Math.max(4, Math.ceil(width / 240));
+    const laneCount = portalsMode
+      ? 1
+      : Math.max(4, Math.min(7, Math.floor(height / 140)));
+    const portalsCardHeight = Math.max(280, height - 200);
+    const portalsCardSize = portalsCardHeight * (4 / 7);
+    const portalsSpacing = Math.max(180, portalsCardSize * 0.56);
+    const cardsPerLane = portalsMode
+      ? Math.max(8, Math.ceil((width + portalsCardSize * 1.5) / portalsSpacing))
+      : Math.max(4, Math.ceil(width / 240));
     const cardCount = laneCount * cardsPerLane;
     const pool = shuffleArray(images);
     const fragment = document.createDocumentFragment();
@@ -207,23 +216,27 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       card.className = "idle-overlay__card";
 
       const lane = i % laneCount;
-      const laneY = laneGap * (lane + 1) + randomBetween(-20, 20);
-      const depth = randomBetween(0.76, 1.24);
-      const size = randomBetween(150, 250) * depth;
-      const rotation = randomBetween(-8, 8);
-      const opacity = Math.max(0.35, Math.min(0.9, 0.72 * depth));
-      const floatDuration = randomBetween(16, 26).toFixed(2);
-      const floatDelay = randomBetween(-24, 0).toFixed(2);
-      const drift = randomBetween(-20, 20).toFixed(2);
-      const blur = Math.max(0, (1 - depth) * 3.2).toFixed(2);
+      const laneY = portalsMode
+        ? (height - portalsCardHeight) * 0.5
+        : laneGap * (lane + 1) + randomBetween(-20, 20);
+      const depth = portalsMode ? 1 : randomBetween(0.76, 1.24);
+      const size = portalsMode ? portalsCardSize : randomBetween(150, 250) * depth;
+      const rotation = portalsMode ? 0 : randomBetween(-8, 8);
+      const opacity = portalsMode ? 0.9 : Math.max(0.35, Math.min(0.9, 0.72 * depth));
+      const floatDuration = portalsMode ? 22 : Number(randomBetween(16, 26).toFixed(2));
+      const floatDelay = portalsMode
+        ? -((i / cardsPerLane) * floatDuration)
+        : Number(randomBetween(-24, 0).toFixed(2));
+      const drift = portalsMode ? "0" : randomBetween(-20, 20).toFixed(2);
+      const blur = portalsMode ? "0" : Math.max(0, (1 - depth) * 3.2).toFixed(2);
 
       card.style.setProperty("--card-size", `${size.toFixed(2)}px`);
       card.style.setProperty("--lane-y", `${laneY.toFixed(2)}px`);
       card.style.setProperty("--scale", depth.toFixed(2));
       card.style.setProperty("--rotation", `${rotation.toFixed(2)}deg`);
       card.style.setProperty("--opacity", opacity.toFixed(2));
-      card.style.setProperty("--float-duration", `${floatDuration}s`);
-      card.style.setProperty("--float-delay", `${floatDelay}s`);
+      card.style.setProperty("--float-duration", `${Number(floatDuration).toFixed(2)}s`);
+      card.style.setProperty("--float-delay", `${Number(floatDelay).toFixed(2)}s`);
       card.style.setProperty("--drift", `${drift}px`);
       card.style.setProperty("--blur", `${blur}px`);
 
@@ -270,6 +283,7 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   };
 
   window.addEventListener("resize", handleResize);
+  window.addEventListener("idle-theme-changed", buildCanvas);
 
   const pause = () => {
     paused = true;
