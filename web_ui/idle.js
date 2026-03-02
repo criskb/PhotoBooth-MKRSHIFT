@@ -14,6 +14,66 @@ function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+const portalGlowCache = new Map();
+
+function samplePortalGlowRgb(imageSrc) {
+  if (!imageSrc) {
+    return Promise.resolve(null);
+  }
+  if (portalGlowCache.has(imageSrc)) {
+    return portalGlowCache.get(imageSrc);
+  }
+
+  const samplePromise = new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) {
+          resolve(null);
+          return;
+        }
+        const sampleSize = 16;
+        canvas.width = sampleSize;
+        canvas.height = sampleSize;
+        context.drawImage(img, 0, 0, sampleSize, sampleSize);
+        const data = context.getImageData(0, 0, sampleSize, sampleSize).data;
+        let red = 0;
+        let green = 0;
+        let blue = 0;
+        let count = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const alpha = data[i + 3];
+          if (alpha < 30) {
+            continue;
+          }
+          red += data[i];
+          green += data[i + 1];
+          blue += data[i + 2];
+          count += 1;
+        }
+
+        if (!count) {
+          resolve(null);
+          return;
+        }
+        resolve(`${Math.round(red / count)}, ${Math.round(green / count)}, ${Math.round(blue / count)}`);
+      } catch (_error) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = imageSrc;
+  });
+
+  portalGlowCache.set(imageSrc, samplePromise);
+  return samplePromise;
+}
+
 export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
   const overlay = document.querySelector(".idle-overlay");
   const canvas = document.querySelector(".idle-overlay__canvas");
@@ -201,11 +261,14 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       : Math.max(4, Math.min(7, Math.floor(height / 140)));
     const portalsCardHeight = Math.max(280, height - 200);
     const portalsCardSize = portalsCardHeight * (4 / 7);
-    const portalsSpacing = Math.max(180, portalsCardSize * 0.56);
+    const portalsGap = 124;
+    const portalsCenterSpacing = portalsCardSize + portalsGap;
     const cardsPerLane = portalsMode
-      ? Math.max(8, Math.ceil((width + portalsCardSize * 1.5) / portalsSpacing))
+      ? Math.max(4, Math.ceil((width + portalsCardSize * 1.5) / portalsCenterSpacing))
       : Math.max(4, Math.ceil(width / 240));
-    const cardCount = laneCount * cardsPerLane;
+    const cardCount = portalsMode
+      ? Math.max(cardsPerLane, images.length)
+      : laneCount * cardsPerLane;
     const pool = shuffleArray(images);
     const fragment = document.createDocumentFragment();
     const laneGap = height / (laneCount + 1);
@@ -244,6 +307,20 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
       img.src = image;
       img.alt = "";
       img.loading = "lazy";
+      if (portalsMode) {
+        const applyGlow = () => {
+          samplePortalGlowRgb(image).then((rgb) => {
+            if (rgb) {
+              card.style.setProperty("--portal-glow-rgb", rgb);
+            }
+          });
+        };
+        if (img.complete) {
+          applyGlow();
+        } else {
+          img.addEventListener("load", applyGlow, { once: true });
+        }
+      }
       card.appendChild(img);
       fragment.appendChild(card);
     }

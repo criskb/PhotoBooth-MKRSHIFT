@@ -828,6 +828,20 @@ body.debate-fever::before {
   overflow: hidden;
   background: rgba(8, 11, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 58vh;
+  object-fit: cover;
+}
+
+.progress__preview-stage {
+  display: none;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 58vh;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(8, 11, 18, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress__actions {
@@ -1121,8 +1135,8 @@ body.intro-bg-portals .idle-overlay__card {
   border-radius: 999px;
   border: 1px solid rgba(var(--accent-rgb), 0.42);
   box-shadow:
-    0 0 0 1px rgba(var(--accent-rgb), 0.22) inset,
-    0 0 26px rgba(var(--accent-rgb), 0.32),
+    0 0 0 1px rgba(var(--portal-glow-rgb, var(--accent-rgb)), 0.28) inset,
+    0 0 30px rgba(var(--portal-glow-rgb, var(--accent-rgb)), 0.45),
     0 20px 42px rgba(0, 0, 0, 0.45);
   animation-name: idle-portals-marquee;
   animation-duration: var(--float-duration);
