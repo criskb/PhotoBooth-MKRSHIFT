@@ -1344,6 +1344,10 @@ async function queueSelfieWithImage(imageData, source = "tap") {
     element.style.width = "0%";
   });
   progressPreviews.forEach((element) => {
+    const stage = element.closest(".progress__preview-stage");
+    if (stage) {
+      stage.style.display = "none";
+    }
     element.src = "";
     element.style.display = "none";
   });
