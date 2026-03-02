@@ -309,6 +309,22 @@ export function renderSettingsModal() {
                 />
               </label>
               <label class="settings-field">
+                Card background start
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-card-bg-start-color"
+                  type="color"
+                  value="#0a0e16"
+                />
+              </label>
+              <label class="settings-field">
+                Card background end
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-card-bg-end-color"
+                  type="color"
+                  value="#080b12"
+                />
+              </label>
+              <label class="settings-field">
                 Progress shimmer color A
                 <input
                   class="settings-input form-input settings-input--color settings-input--brand-progress-flow-start-color"

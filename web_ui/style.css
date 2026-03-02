@@ -27,6 +27,8 @@
   --progress-flow-start-rgb: 95, 211, 255;
   --progress-flow-end-rgb: 254, 170, 58;
   --menu-bg: rgba(8, 11, 18, 0.98);
+  --card-bg-start: rgba(10, 14, 22, 0.98);
+  --card-bg-end: rgba(8, 11, 18, 0.92);
   --text-primary: #f7f7fb;
   --brand-title-color: #f7f7fb;
   --brand-accent-color: #58d36e;
@@ -637,7 +639,7 @@ body.debate-fever::before {
 .progress-card {
   position: relative;
   width: min(720px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.96), rgba(8, 11, 18, 0.88));
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.4rem;
   padding: 2.5rem 1.75rem 2rem;
@@ -1321,7 +1323,7 @@ body.debate-fever::before {
 
 .diagnostics-card {
   width: min(520px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.4rem;
   padding: 1.5rem;
@@ -1433,7 +1435,7 @@ body.debate-fever::before {
 
 .tos-card {
   width: min(520px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.4rem;
   padding: 1.5rem;
@@ -1521,7 +1523,7 @@ body.debate-fever::before {
 
 .remote-launch-card {
   width: min(460px, 92vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.2rem;
   padding: 1.15rem;
@@ -1587,7 +1589,7 @@ body.debate-fever::before {
   max-height: min(90vh, 760px);
   overflow-y: auto;
   overflow-x: hidden;
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.4rem;
   padding: 1.25rem 1.25rem 1.4rem;
@@ -1984,7 +1986,7 @@ body.debate-fever::before {
 
 .gallery-card {
   width: min(1100px, 95vw);
-  background: linear-gradient(150deg, rgba(10, 14, 22, 0.98), rgba(8, 11, 18, 0.92));
+  background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 1.6rem;
   padding: var(--space-lg);

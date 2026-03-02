@@ -29,6 +29,8 @@ export const storageKeys = {
   brandPanelBgColor: "brandPanelBgColor",
   brandPanelBorderColor: "brandPanelBorderColor",
   brandMenuBgColor: "brandMenuBgColor",
+  brandCardBgStartColor: "brandCardBgStartColor",
+  brandCardBgEndColor: "brandCardBgEndColor",
   brandProgressFlowStartColor: "brandProgressFlowStartColor",
   brandProgressFlowEndColor: "brandProgressFlowEndColor",
   uploadEnabled: "uploadEnabled",

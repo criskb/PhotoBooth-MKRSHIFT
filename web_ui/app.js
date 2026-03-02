@@ -131,6 +131,8 @@ const settingsBrandPanelBorderColorInput = document.querySelector(".settings-inp
 const settingsBrandMenuBgColorInput = document.querySelector(".settings-input--brand-menu-bg-color");
 const settingsBrandProgressFlowStartColorInput = document.querySelector(".settings-input--brand-progress-flow-start-color");
 const settingsBrandProgressFlowEndColorInput = document.querySelector(".settings-input--brand-progress-flow-end-color");
+const settingsBrandCardBgStartColorInput = document.querySelector(".settings-input--brand-card-bg-start-color");
+const settingsBrandCardBgEndColorInput = document.querySelector(".settings-input--brand-card-bg-end-color");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const remoteLaunchQr = document.querySelector(".remote-launch-qr");
@@ -314,6 +316,8 @@ const defaultBranding = {
   menuBgColor: "#080b12",
   progressFlowStartColor: "#5fd3ff",
   progressFlowEndColor: "#feaa3a",
+  cardBgStartColor: "#0a0e16",
+  cardBgEndColor: "#080b12",
 };
 let branding = { ...defaultBranding };
 let uploadEnabled = true;
@@ -567,6 +571,8 @@ function applyBranding() {
   branding.menuBgColor = normalizeBrandColor(branding.menuBgColor, defaultBranding.menuBgColor);
   branding.progressFlowStartColor = normalizeBrandColor(branding.progressFlowStartColor, defaultBranding.progressFlowStartColor);
   branding.progressFlowEndColor = normalizeBrandColor(branding.progressFlowEndColor, defaultBranding.progressFlowEndColor);
+  branding.cardBgStartColor = normalizeBrandColor(branding.cardBgStartColor, defaultBranding.cardBgStartColor);
+  branding.cardBgEndColor = normalizeBrandColor(branding.cardBgEndColor, defaultBranding.cardBgEndColor);
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -606,6 +612,8 @@ function applyBranding() {
   document.documentElement.style.setProperty("--panel-bg", hexToRgbaString(branding.panelBgColor, 0.72, "rgba(12, 16, 26, 0.72)"));
   document.documentElement.style.setProperty("--panel-border", hexToRgbaString(branding.panelBorderColor, 0.14, "rgba(255, 255, 255, 0.14)"));
   document.documentElement.style.setProperty("--menu-bg", hexToRgbaString(branding.menuBgColor, 0.98, "rgba(8, 11, 18, 0.98)"));
+  document.documentElement.style.setProperty("--card-bg-start", hexToRgbaString(branding.cardBgStartColor, 0.98, "rgba(10, 14, 22, 0.98)"));
+  document.documentElement.style.setProperty("--card-bg-end", hexToRgbaString(branding.cardBgEndColor, 0.92, "rgba(8, 11, 18, 0.92)"));
 }
 
 function syncBrandingInputs() {
@@ -659,6 +667,12 @@ function syncBrandingInputs() {
   }
   if (settingsBrandProgressFlowEndColorInput) {
     settingsBrandProgressFlowEndColorInput.value = branding.progressFlowEndColor;
+  }
+  if (settingsBrandCardBgStartColorInput) {
+    settingsBrandCardBgStartColorInput.value = branding.cardBgStartColor;
+  }
+  if (settingsBrandCardBgEndColorInput) {
+    settingsBrandCardBgEndColorInput.value = branding.cardBgEndColor;
   }
 }
 
@@ -1880,6 +1894,14 @@ function loadPrinterConfig() {
     if (brandProgressFlowEndColorRaw) {
       branding.progressFlowEndColor = brandProgressFlowEndColorRaw;
     }
+    const brandCardBgStartColorRaw = readStoredValue(storageKeys.brandCardBgStartColor);
+    if (brandCardBgStartColorRaw) {
+      branding.cardBgStartColor = brandCardBgStartColorRaw;
+    }
+    const brandCardBgEndColorRaw = readStoredValue(storageKeys.brandCardBgEndColor);
+    if (brandCardBgEndColorRaw) {
+      branding.cardBgEndColor = brandCardBgEndColorRaw;
+    }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
       uploadEnabled = uploadRaw === "true";
@@ -2095,6 +2117,12 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   if (settingsBrandProgressFlowEndColorInput) {
     branding.progressFlowEndColor = settingsBrandProgressFlowEndColorInput.value;
   }
+  if (settingsBrandCardBgStartColorInput) {
+    branding.cardBgStartColor = settingsBrandCardBgStartColorInput.value;
+  }
+  if (settingsBrandCardBgEndColorInput) {
+    branding.cardBgEndColor = settingsBrandCardBgEndColorInput.value;
+  }
 
   applyBranding();
   syncBrandingInputs();
@@ -2119,6 +2147,8 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   writeStoredValue(storageKeys.brandMenuBgColor, branding.menuBgColor);
   writeStoredValue(storageKeys.brandProgressFlowStartColor, branding.progressFlowStartColor);
   writeStoredValue(storageKeys.brandProgressFlowEndColor, branding.progressFlowEndColor);
+  writeStoredValue(storageKeys.brandCardBgStartColor, branding.cardBgStartColor);
+  writeStoredValue(storageKeys.brandCardBgEndColor, branding.cardBgEndColor);
 }
 
 async function savePrinterConfig() {
@@ -3076,6 +3106,12 @@ settingsBrandProgressFlowStartColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsBrandProgressFlowEndColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandCardBgStartColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandCardBgEndColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);
