@@ -353,9 +353,10 @@ export async function sendWorkflow({
   apiKey,
   minHostedCredits,
   hostedAccelerator,
+  useHostedComfy = true,
 }) {
   const normalizedServerUrl = normalizeComfyBaseUrl(serverUrl);
-  const hostedWorkflowApi = isHostedWorkflowApiUrl(normalizedServerUrl);
+  const hostedWorkflowApi = Boolean(useHostedComfy) && isHostedWorkflowApiUrl(normalizedServerUrl);
   const workflow = loadWorkflowJson(workflowDir, styleName);
   assertApiWorkflowShape(workflow, styleName);
   const hostedWorkflowId = hostedWorkflowApi ? extractHostedWorkflowId(normalizedServerUrl) : null;

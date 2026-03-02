@@ -34,6 +34,10 @@ export function renderSettingsModal() {
               <code>https://comfy.icu/api/v1/workflows/</code>. When using the collection URL, style button
               names must match hosted workflow names so the app can auto-pick the workflow ID.
             </p>
+            <label class="settings-field settings-field--toggle settings-field--span-2">
+              <input class="settings-input settings-input--comfy-hosted" type="checkbox" checked />
+              Enable hosted Comfy workflow API mode (comfy.icu / /api/v1/workflows)
+            </label>
             <label class="settings-field settings-field--span-2">
               ComfyUI API Key (for hosted services)
               <input

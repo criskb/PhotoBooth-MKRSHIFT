@@ -7,6 +7,7 @@ export const storageKeys = {
   comfyServerUrl: "comfyServerUrl",
   comfyMinCredits: "comfyMinCredits",
   comfyAccelerator: "comfyAccelerator",
+  comfyHostedEnabled: "comfyHostedEnabled",
   cameraOrientation: "cameraOrientation",
   cameraMirrored: "cameraMirrored",
   cameraDeviceId: "cameraDeviceId",
