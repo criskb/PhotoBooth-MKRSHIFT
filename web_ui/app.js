@@ -46,6 +46,7 @@ const statusConnection = document.querySelector(".status__connection");
 const brandTitleLabel = document.querySelector(".brand__title");
 const brandSubtitleAccentLabel = document.querySelector(".brand__subtitle-accent");
 const brandSubtitleNeutralLabel = document.querySelector(".brand__subtitle-neutral");
+const idleOverlayEyebrowAccentLabel = document.querySelector(".idle-overlay__eyebrow-accent");
 const debateSpark = document.querySelector(".debate-spark");
 const debatePromptLabel = document.querySelector(".debate-spark__prompt");
 const debateStreakLabel = document.querySelector(".debate-spark__streak");
@@ -115,9 +116,12 @@ const settingsWatermarkClear = document.querySelector(".settings-action--clear-w
 const settingsBrandTitleInput = document.querySelector(".settings-input--brand-title");
 const settingsBrandAccentTextInput = document.querySelector(".settings-input--brand-accent-text");
 const settingsBrandNeutralTextInput = document.querySelector(".settings-input--brand-neutral-text");
+const settingsBrandIntroBadgeTextInput = document.querySelector(".settings-input--brand-intro-badge-text");
 const settingsBrandTitleColorInput = document.querySelector(".settings-input--brand-title-color");
 const settingsBrandAccentColorInput = document.querySelector(".settings-input--brand-accent-color");
 const settingsBrandNeutralColorInput = document.querySelector(".settings-input--brand-neutral-color");
+const settingsBrandButtonColorInput = document.querySelector(".settings-input--brand-button-color");
+const settingsBrandButtonTextColorInput = document.querySelector(".settings-input--brand-button-text-color");
 const settingsRemoteQr = document.querySelector(".settings-remote__qr");
 const settingsRemoteLink = document.querySelector(".settings-remote__link");
 const remoteLaunchQr = document.querySelector(".remote-launch-qr");
@@ -286,9 +290,12 @@ const defaultBranding = {
   titleText: "AI PHOTOBOOTH",
   accentText: "MKR",
   neutralText: "Shift",
+  introBadgeText: "MKRSHIFT",
   titleColor: "#f7f7fb",
   accentColor: "#58d36e",
   neutralColor: "#f7f7fb",
+  buttonColor: "#58d68d",
+  buttonTextColor: "#071b11",
 };
 let branding = { ...defaultBranding };
 let uploadEnabled = true;
@@ -489,9 +496,12 @@ function applyBranding() {
   branding.titleText = normalizeBrandText(branding.titleText, defaultBranding.titleText, 48);
   branding.accentText = normalizeBrandText(branding.accentText, defaultBranding.accentText, 24);
   branding.neutralText = normalizeBrandText(branding.neutralText, defaultBranding.neutralText, 24);
+  branding.introBadgeText = normalizeBrandText(branding.introBadgeText, defaultBranding.introBadgeText, 24);
   branding.titleColor = normalizeBrandColor(branding.titleColor, defaultBranding.titleColor);
   branding.accentColor = normalizeBrandColor(branding.accentColor, defaultBranding.accentColor);
   branding.neutralColor = normalizeBrandColor(branding.neutralColor, defaultBranding.neutralColor);
+  branding.buttonColor = normalizeBrandColor(branding.buttonColor, defaultBranding.buttonColor);
+  branding.buttonTextColor = normalizeBrandColor(branding.buttonTextColor, defaultBranding.buttonTextColor);
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -502,10 +512,15 @@ function applyBranding() {
   if (brandSubtitleNeutralLabel) {
     brandSubtitleNeutralLabel.textContent = branding.neutralText;
   }
+  if (idleOverlayEyebrowAccentLabel) {
+    idleOverlayEyebrowAccentLabel.textContent = branding.introBadgeText;
+  }
 
   document.documentElement.style.setProperty("--brand-title-color", branding.titleColor);
   document.documentElement.style.setProperty("--brand-accent-color", branding.accentColor);
   document.documentElement.style.setProperty("--brand-neutral-color", branding.neutralColor);
+  document.documentElement.style.setProperty("--brand-button-color", branding.buttonColor);
+  document.documentElement.style.setProperty("--brand-button-text-color", branding.buttonTextColor);
 }
 
 function syncBrandingInputs() {
@@ -518,6 +533,9 @@ function syncBrandingInputs() {
   if (settingsBrandNeutralTextInput) {
     settingsBrandNeutralTextInput.value = branding.neutralText;
   }
+  if (settingsBrandIntroBadgeTextInput) {
+    settingsBrandIntroBadgeTextInput.value = branding.introBadgeText;
+  }
   if (settingsBrandTitleColorInput) {
     settingsBrandTitleColorInput.value = branding.titleColor;
   }
@@ -526,6 +544,12 @@ function syncBrandingInputs() {
   }
   if (settingsBrandNeutralColorInput) {
     settingsBrandNeutralColorInput.value = branding.neutralColor;
+  }
+  if (settingsBrandButtonColorInput) {
+    settingsBrandButtonColorInput.value = branding.buttonColor;
+  }
+  if (settingsBrandButtonTextColorInput) {
+    settingsBrandButtonTextColorInput.value = branding.buttonTextColor;
   }
 }
 
@@ -1670,6 +1694,10 @@ function loadPrinterConfig() {
     if (brandNeutralTextRaw) {
       branding.neutralText = brandNeutralTextRaw;
     }
+    const brandIntroBadgeTextRaw = readStoredValue(storageKeys.brandIntroBadgeText);
+    if (brandIntroBadgeTextRaw) {
+      branding.introBadgeText = brandIntroBadgeTextRaw;
+    }
     const brandTitleColorRaw = readStoredValue(storageKeys.brandTitleColor);
     if (brandTitleColorRaw) {
       branding.titleColor = brandTitleColorRaw;
@@ -1681,6 +1709,14 @@ function loadPrinterConfig() {
     const brandNeutralColorRaw = readStoredValue(storageKeys.brandNeutralColor);
     if (brandNeutralColorRaw) {
       branding.neutralColor = brandNeutralColorRaw;
+    }
+    const brandButtonColorRaw = readStoredValue(storageKeys.brandButtonColor);
+    if (brandButtonColorRaw) {
+      branding.buttonColor = brandButtonColorRaw;
+    }
+    const brandButtonTextColorRaw = readStoredValue(storageKeys.brandButtonTextColor);
+    if (brandButtonTextColorRaw) {
+      branding.buttonTextColor = brandButtonTextColorRaw;
     }
     const uploadRaw = readStoredValue(storageKeys.uploadEnabled);
     if (uploadRaw !== null) {
@@ -1848,6 +1884,9 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   if (settingsBrandNeutralTextInput) {
     branding.neutralText = settingsBrandNeutralTextInput.value;
   }
+  if (settingsBrandIntroBadgeTextInput) {
+    branding.introBadgeText = settingsBrandIntroBadgeTextInput.value;
+  }
   if (settingsBrandTitleColorInput) {
     branding.titleColor = settingsBrandTitleColorInput.value;
   }
@@ -1856,6 +1895,12 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   }
   if (settingsBrandNeutralColorInput) {
     branding.neutralColor = settingsBrandNeutralColorInput.value;
+  }
+  if (settingsBrandButtonColorInput) {
+    branding.buttonColor = settingsBrandButtonColorInput.value;
+  }
+  if (settingsBrandButtonTextColorInput) {
+    branding.buttonTextColor = settingsBrandButtonTextColorInput.value;
   }
 
   applyBranding();
@@ -1867,9 +1912,12 @@ function updateBrandingFromInputs({ persist = false } = {}) {
   writeStoredValue(storageKeys.brandTitleText, branding.titleText);
   writeStoredValue(storageKeys.brandAccentText, branding.accentText);
   writeStoredValue(storageKeys.brandNeutralText, branding.neutralText);
+  writeStoredValue(storageKeys.brandIntroBadgeText, branding.introBadgeText);
   writeStoredValue(storageKeys.brandTitleColor, branding.titleColor);
   writeStoredValue(storageKeys.brandAccentColor, branding.accentColor);
   writeStoredValue(storageKeys.brandNeutralColor, branding.neutralColor);
+  writeStoredValue(storageKeys.brandButtonColor, branding.buttonColor);
+  writeStoredValue(storageKeys.brandButtonTextColor, branding.buttonTextColor);
 }
 
 async function savePrinterConfig() {
@@ -2782,6 +2830,9 @@ settingsBrandAccentTextInput?.addEventListener("input", () => {
 settingsBrandNeutralTextInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
+settingsBrandIntroBadgeTextInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
 settingsBrandTitleColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
@@ -2789,6 +2840,12 @@ settingsBrandAccentColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsBrandNeutralColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandButtonColorInput?.addEventListener("input", () => {
+  updateBrandingFromInputs({ persist: true });
+});
+settingsBrandButtonTextColorInput?.addEventListener("input", () => {
   updateBrandingFromInputs({ persist: true });
 });
 settingsWatermarkFileInput?.addEventListener("change", handleWatermarkFileChange);

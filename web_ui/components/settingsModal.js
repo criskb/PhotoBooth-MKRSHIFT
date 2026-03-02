@@ -142,7 +142,7 @@ export function renderSettingsModal() {
           <h3 class="settings-section__title">Watermark</h3>
           <label class="settings-field settings-field--toggle">
             <input class="settings-input settings-input--watermark" type="checkbox" />
-            Add MKRSHIFT watermark on upload/print
+            add brand watermark on upload/print
           </label>
           <div class="settings-watermark">
             <p class="settings-watermark__label">Watermark preview</p>
@@ -207,6 +207,15 @@ export function renderSettingsModal() {
                   maxlength="24"
                 />
               </label>
+              <label class="settings-field settings-field--span-2">
+                Intro badge text
+                <input
+                  class="settings-input form-input settings-input--brand-intro-badge-text"
+                  type="text"
+                  value="MKRSHIFT"
+                  maxlength="24"
+                />
+              </label>
               <label class="settings-field">
                 Title color
                 <input
@@ -229,6 +238,22 @@ export function renderSettingsModal() {
                   class="settings-input form-input settings-input--color settings-input--brand-neutral-color"
                   type="color"
                   value="#f7f7fb"
+                />
+              </label>
+              <label class="settings-field">
+                Button color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-button-color"
+                  type="color"
+                  value="#58d68d"
+                />
+              </label>
+              <label class="settings-field">
+                Button text color
+                <input
+                  class="settings-input form-input settings-input--color settings-input--brand-button-text-color"
+                  type="color"
+                  value="#071b11"
                 />
               </label>
             </div>
