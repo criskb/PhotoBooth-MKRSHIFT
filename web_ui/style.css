@@ -755,6 +755,8 @@ body.debate-fever::before {
   width: 100%;
   height: 100%;
   border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(8, 11, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 58vh;
   object-fit: cover;
@@ -1656,6 +1658,7 @@ body.debate-fever::before {
   border: 4px solid transparent;
   background-clip: padding-box;
   border-radius: 999px;
+  margin-block: 0.45rem;
 }
 
 .settings-card h2 {
@@ -1697,7 +1700,7 @@ body.debate-fever::before {
 .settings-nav__link {
   padding: 0.35rem 0.68rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--panel-border);
   color: rgba(247, 247, 251, 0.82);
   text-decoration: none;
   font-size: 0.72rem;
@@ -2487,7 +2490,7 @@ body.debate-fever::before {
   overflow: visible;
   border-radius: 1.4rem;
   background: linear-gradient(140deg, rgba(12, 16, 26, 0.82), rgba(9, 12, 19, 0.72));
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--panel-border);
   backdrop-filter: blur(10px);
   box-shadow: var(--panel-glow);
   display: flex;
