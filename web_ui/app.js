@@ -192,6 +192,7 @@ let lastShake = 0;
 let motionPermissionGranted = false;
 let currentPromptId = null;
 let progressPoller = null;
+let progressLastUpdateAt = 0;
 let outputReady = false;
 let lastOutputUrl = null;
 let lastCapturedImageData = null;
@@ -599,7 +600,9 @@ function applyBranding() {
   branding.inputBorderColor = normalizeBrandColor(branding.inputBorderColor, defaultBranding.inputBorderColor);
   branding.quickNavButtonBgColor = normalizeBrandColor(branding.quickNavButtonBgColor, defaultBranding.quickNavButtonBgColor);
   branding.quickNavButtonTextColor = normalizeBrandColor(branding.quickNavButtonTextColor, defaultBranding.quickNavButtonTextColor);
-  branding.introBgAnimation = ["classic", "drift", "none"].includes(branding.introBgAnimation) ? branding.introBgAnimation : defaultBranding.introBgAnimation;
+  branding.introBgAnimation = ["classic", "drift", "none", "portals"].includes(branding.introBgAnimation)
+    ? branding.introBgAnimation
+    : defaultBranding.introBgAnimation;
 
   if (brandTitleLabel) {
     brandTitleLabel.textContent = branding.titleText;
@@ -657,6 +660,7 @@ function applyBranding() {
   document.documentElement.style.setProperty("--settings-nav-button-text", branding.quickNavButtonTextColor);
   document.body.classList.toggle("intro-bg-drift", branding.introBgAnimation === "drift");
   document.body.classList.toggle("intro-bg-none", branding.introBgAnimation === "none");
+  document.body.classList.toggle("intro-bg-portals", branding.introBgAnimation === "portals");
 }
 
 function syncBrandingInputs() {
@@ -1718,20 +1722,25 @@ function startProgressPolling() {
   progressFills.forEach((element) => {
     element.style.width = "0%";
   });
+  progressLastUpdateAt = Date.now();
   progressPoller = setInterval(async () => {
     try {
       const headers = comfyApiKey ? { "x-comfy-api-key": comfyApiKey } : {};
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 8000);
       const response = await fetch(
         `/api/progress?promptId=${encodeURIComponent(
           currentPromptId
         )}&comfyServerUrl=${encodeURIComponent(comfyServerUrl)}`,
-        { headers }
+        { headers, signal: controller.signal }
       );
+      window.clearTimeout(timeoutId);
       if (!response.ok) {
         throw new Error("Progress unavailable");
       }
       const data = await response.json();
       updateProgress(data);
+      progressLastUpdateAt = Date.now();
       if (data.complete && progressPreviewManager.isReady(data.outputUrl)) {
         clearInterval(progressPoller);
         progressPoller = null;
@@ -1752,20 +1761,27 @@ function startProgressPolling() {
         });
       }
     } catch (error) {
-      progressLabels.forEach((element) => {
-        element.textContent = HOSTED_COMFY_WAITING_LABEL;
-      });
-      progressPreviewManager.clear();
+      const staleForMs = Date.now() - progressLastUpdateAt;
+      const isStale = staleForMs > 20000;
+      if (staleForMs > 20000) {
+        progressLabels.forEach((element) => {
+          element.textContent = "Reconnecting…";
+        });
+      } else {
+        progressLabels.forEach((element) => {
+          element.textContent = HOSTED_COMFY_WAITING_LABEL;
+        });
+      }
       progressValues.forEach((element) => {
-        element.textContent = "90%";
+        element.textContent = isStale ? "—" : "90%";
       });
       progressFills.forEach((element) => {
-        element.style.width = "90%";
+        element.style.width = isStale ? "0%" : "90%";
       });
       updateRemoteProgress({
-        status: "waiting",
-        label: HOSTED_COMFY_WAITING_LABEL,
-        percent: 90,
+        status: isStale ? "reconnecting" : "waiting",
+        label: isStale ? "Reconnecting…" : HOSTED_COMFY_WAITING_LABEL,
+        percent: isStale ? 0 : 90,
         complete: false,
       });
     }

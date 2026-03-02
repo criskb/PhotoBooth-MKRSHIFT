@@ -427,6 +427,7 @@ export function renderSettingsModal() {
               <select class="settings-input form-input settings-input--brand-intro-bg-animation">
                 <option value="classic">Classic gradient glow</option>
                 <option value="drift">Cinematic drift</option>
+                <option value="portals">Portals</option>
                 <option value="none">None (static)</option>
               </select>
             </label>

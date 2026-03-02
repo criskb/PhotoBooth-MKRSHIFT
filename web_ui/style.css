@@ -96,6 +96,24 @@ body.intro-bg-none {
   background: radial-gradient(circle at top, var(--bg-deep-start) 0%, var(--bg-deep-mid) 55%, var(--bg-deep-end) 100%);
 }
 
+body.intro-bg-portals {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(100, 100, 110, 0.14), transparent 38%),
+    radial-gradient(circle at 82% 28%, rgba(135, 135, 145, 0.12), transparent 36%),
+    linear-gradient(120deg, #1b1c20 0%, #2a2c31 50%, #1f2024 100%);
+  background-size: 140% 140%, 160% 160%, 180% 180%;
+  animation: introPortalsBgShift 14s ease-in-out infinite alternate;
+}
+
+@keyframes introPortalsBgShift {
+  0% {
+    background-position: 0% 0%, 100% 0%, 0% 50%;
+  }
+  100% {
+    background-position: 6% 8%, 92% 14%, 100% 50%;
+  }
+}
+
 body.debate-fever::before {
   content: "";
   position: fixed;
@@ -796,20 +814,6 @@ body.debate-fever::before {
   overflow: hidden;
   background: rgba(8, 11, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  max-height: 58vh;
-  object-fit: cover;
-}
-
-.progress__preview-stage {
-  display: none;
-  position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  max-height: 58vh;
-  border-radius: 1rem;
-  overflow: hidden;
-  background: rgba(8, 11, 18, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress__actions {
@@ -1091,6 +1095,60 @@ body.debate-fever::before {
   transform: scale(1.1);
   filter: saturate(1.2) contrast(1.08);
   animation: idle-cinematic-pan var(--float-duration) ease-in-out infinite;
+}
+
+body.intro-bg-portals .idle-overlay__canvas {
+  mask-image: none;
+}
+
+body.intro-bg-portals .idle-overlay__card {
+  width: clamp(280px, 24vw, 420px);
+  aspect-ratio: 16 / 6;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.42);
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.22) inset,
+    0 0 26px rgba(var(--accent-rgb), 0.32),
+    0 20px 42px rgba(0, 0, 0, 0.45);
+  animation-name: idle-portals-marquee;
+  animation-duration: calc(var(--float-duration) * 0.72);
+  filter: none;
+}
+
+body.intro-bg-portals .idle-overlay__card img {
+  animation-name: idle-portals-pan;
+  transform: scale(1.12);
+  filter: saturate(1.28) contrast(1.14);
+}
+
+@keyframes idle-portals-marquee {
+  0% {
+    transform: translate3d(125vw, var(--lane-y), 0) scale(var(--scale));
+    opacity: 0;
+  }
+  10% {
+    opacity: calc(var(--opacity) * 0.9);
+  }
+  50% {
+    transform: translate3d(50vw, calc(var(--lane-y) + var(--drift) * 0.35), 0) scale(calc(var(--scale) * 1.04));
+    opacity: var(--opacity);
+  }
+  100% {
+    transform: translate3d(-45vw, var(--lane-y), 0) scale(var(--scale));
+    opacity: 0;
+  }
+}
+
+@keyframes idle-portals-pan {
+  0% {
+    transform: scale(1.12) translate3d(-4%, -1%, 0);
+  }
+  50% {
+    transform: scale(1.16) translate3d(1%, 2%, 0);
+  }
+  100% {
+    transform: scale(1.12) translate3d(4%, -2%, 0);
+  }
 }
 
 .idle-overlay__eyebrow {
