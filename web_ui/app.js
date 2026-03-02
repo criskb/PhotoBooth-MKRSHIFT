@@ -312,7 +312,7 @@ const defaultBranding = {
   progressStartColor: "#58d68d",
   progressEndColor: "#feaa3a",
   panelBgColor: "#0c101a",
-  panelBorderColor: "#f7f7fb",
+  panelBorderColor: "rgba(247, 247, 251, 0.14)",
   menuBgColor: "#080b12",
   progressFlowStartColor: "#5fd3ff",
   progressFlowEndColor: "#feaa3a",
@@ -514,6 +514,35 @@ function normalizeBrandColor(value, fallback) {
   return fallback;
 }
 
+function normalizeBorderColor(value, fallback = "rgba(247, 247, 251, 0.14)") {
+  const candidate = String(value || "").trim();
+  if (!candidate) {
+    return fallback;
+  }
+  const hex = normalizeBrandColor(candidate, "");
+  if (hex) {
+    return hexToRgbaString(hex, 0.14, fallback);
+  }
+  const rgbaMatch = candidate.match(/^rgba?\(([^)]+)\)$/i);
+  if (!rgbaMatch) {
+    return fallback;
+  }
+  const parts = rgbaMatch[1].split(",").map((part) => part.trim());
+  if (parts.length < 3 || parts.length > 4) {
+    return fallback;
+  }
+  const channels = parts.slice(0, 3).map((part) => Number(part));
+  if (channels.some((n) => !Number.isFinite(n) || n < 0 || n > 255)) {
+    return fallback;
+  }
+  const alphaRaw = parts[3] == null ? 1 : Number(parts[3]);
+  if (!Number.isFinite(alphaRaw)) {
+    return fallback;
+  }
+  const alpha = Math.max(0, Math.min(1, alphaRaw));
+  return `rgba(${Math.round(channels[0])}, ${Math.round(channels[1])}, ${Math.round(channels[2])}, ${alpha})`;
+}
+
 function hexToRgbTriplet(value, fallback = "95, 211, 255") {
   const normalized = normalizeBrandColor(value, "");
   if (!normalized) {
@@ -567,7 +596,7 @@ function applyBranding() {
   branding.progressStartColor = normalizeBrandColor(branding.progressStartColor, defaultBranding.progressStartColor);
   branding.progressEndColor = normalizeBrandColor(branding.progressEndColor, defaultBranding.progressEndColor);
   branding.panelBgColor = normalizeBrandColor(branding.panelBgColor, defaultBranding.panelBgColor);
-  branding.panelBorderColor = normalizeBrandColor(branding.panelBorderColor, defaultBranding.panelBorderColor);
+  branding.panelBorderColor = normalizeBorderColor(branding.panelBorderColor, defaultBranding.panelBorderColor);
   branding.menuBgColor = normalizeBrandColor(branding.menuBgColor, defaultBranding.menuBgColor);
   branding.progressFlowStartColor = normalizeBrandColor(branding.progressFlowStartColor, defaultBranding.progressFlowStartColor);
   branding.progressFlowEndColor = normalizeBrandColor(branding.progressFlowEndColor, defaultBranding.progressFlowEndColor);
@@ -610,7 +639,7 @@ function applyBranding() {
   document.documentElement.style.setProperty("--progress-flow-start-rgb", progressFlowStartRgb);
   document.documentElement.style.setProperty("--progress-flow-end-rgb", progressFlowEndRgb);
   document.documentElement.style.setProperty("--panel-bg", hexToRgbaString(branding.panelBgColor, 0.72, "rgba(12, 16, 26, 0.72)"));
-  document.documentElement.style.setProperty("--panel-border", hexToRgbaString(branding.panelBorderColor, 0.14, "rgba(255, 255, 255, 0.14)"));
+  document.documentElement.style.setProperty("--panel-border", normalizeBorderColor(branding.panelBorderColor, "rgba(255, 255, 255, 0.14)"));
   document.documentElement.style.setProperty("--menu-bg", hexToRgbaString(branding.menuBgColor, 0.98, "rgba(8, 11, 18, 0.98)"));
   document.documentElement.style.setProperty("--card-bg-start", hexToRgbaString(branding.cardBgStartColor, 0.98, "rgba(10, 14, 22, 0.98)"));
   document.documentElement.style.setProperty("--card-bg-end", hexToRgbaString(branding.cardBgEndColor, 0.92, "rgba(8, 11, 18, 0.92)"));
@@ -2110,7 +2139,7 @@ function updateBrandingFromInputs({ persist = false } = {}) {
     branding.panelBgColor = settingsBrandPanelBgColorInput.value;
   }
   if (settingsBrandPanelBorderColorInput) {
-    branding.panelBorderColor = settingsBrandPanelBorderColorInput.value;
+    branding.panelBorderColor = normalizeBorderColor(settingsBrandPanelBorderColorInput.value, defaultBranding.panelBorderColor);
   }
   if (settingsBrandMenuBgColorInput) {
     branding.menuBgColor = settingsBrandMenuBgColorInput.value;

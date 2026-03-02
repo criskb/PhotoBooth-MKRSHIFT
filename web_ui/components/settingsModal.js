@@ -293,11 +293,12 @@ export function renderSettingsModal() {
                 />
               </label>
               <label class="settings-field">
-                Panel border color
+                Panel border color (RGBA)
                 <input
-                  class="settings-input form-input settings-input--color settings-input--brand-panel-border-color"
-                  type="color"
-                  value="#f7f7fb"
+                  class="settings-input form-input settings-input--brand-panel-border-color"
+                  type="text"
+                  value="rgba(247, 247, 251, 0.14)"
+                  placeholder="rgba(247, 247, 251, 0.14)"
                 />
               </label>
               <label class="settings-field">
