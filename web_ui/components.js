@@ -160,7 +160,7 @@ function renderSettingsModal() {
         </label>
         <label class="settings-field settings-field--toggle">
           <input class="settings-input settings-input--watermark" type="checkbox" />
-          Add MKRSHIFT watermark on upload/print
+          add brand watermark on upload/print
         </label>
         <div class="settings-watermark">
           <p class="settings-watermark__label">Watermark preview</p>
