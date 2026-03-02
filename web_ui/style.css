@@ -640,7 +640,7 @@ body.debate-fever::before {
   position: relative;
   width: min(720px, 92vw);
   background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
   padding: 2.5rem 1.75rem 2rem;
   display: flex;
@@ -755,8 +755,6 @@ body.debate-fever::before {
   width: 100%;
   height: 100%;
   border-radius: 1rem;
-  overflow: hidden;
-  background: rgba(8, 11, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 58vh;
   object-fit: cover;
@@ -1356,7 +1354,7 @@ body.debate-fever::before {
 .diagnostics-card {
   width: min(520px, 92vw);
   background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
   padding: 1.5rem;
   display: flex;
@@ -1471,7 +1469,7 @@ body.debate-fever::before {
 .tos-card {
   width: min(520px, 92vw);
   background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
   padding: 1.5rem;
   display: flex;
@@ -1561,7 +1559,7 @@ body.debate-fever::before {
 .remote-launch-card {
   width: min(460px, 92vw);
   background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--panel-border);
   border-radius: 1.2rem;
   padding: 1.15rem;
   display: flex;
@@ -1628,7 +1626,7 @@ body.debate-fever::before {
   overflow-y: auto;
   overflow-x: hidden;
   background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--panel-border);
   border-radius: 1.4rem;
   padding: 1.35rem 1.65rem 1.55rem 1.3rem;
   display: flex;
@@ -2065,7 +2063,7 @@ body.debate-fever::before {
 .gallery-card {
   width: min(1040px, 94vw);
   background: linear-gradient(150deg, var(--card-bg-start), var(--card-bg-end));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--panel-border);
   border-radius: 1.6rem;
   padding: 1.1rem;
   display: flex;
