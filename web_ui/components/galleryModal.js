@@ -4,7 +4,7 @@ export function renderGalleryModal() {
       <div class="gallery-card">
         <div class="gallery-header">
           <h2 id="gallery-title">Gallery</h2>
-          <button class="gallery-close btn btn--secondary" aria-label="Close gallery">Close</button>
+          <button class="gallery-close btn btn--secondary" aria-label="Close gallery">✕</button>
         </div>
         <div class="gallery-body">
           <div class="gallery-sidebar">
