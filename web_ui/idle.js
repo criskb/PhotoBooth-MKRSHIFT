@@ -199,8 +199,9 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
     const laneCount = portalsMode
       ? 1
       : Math.max(4, Math.min(7, Math.floor(height / 140)));
-    const portalsCardSize = Math.max(840, Math.min(1320, height * 1.35));
-    const portalsSpacing = Math.max(260, portalsCardSize * 0.28);
+    const portalsCardHeight = Math.max(280, height - 200);
+    const portalsCardSize = portalsCardHeight * (4 / 7);
+    const portalsSpacing = Math.max(180, portalsCardSize * 0.56);
     const cardsPerLane = portalsMode
       ? Math.max(8, Math.ceil((width + portalsCardSize * 1.5) / portalsSpacing))
       : Math.max(4, Math.ceil(width / 240));
@@ -216,7 +217,7 @@ export function initIdleOverlay({ timeoutMs = DEFAULT_IDLE_TIMEOUT_MS } = {}) {
 
       const lane = i % laneCount;
       const laneY = portalsMode
-        ? height * 0.5
+        ? (height - portalsCardHeight) * 0.5
         : laneGap * (lane + 1) + randomBetween(-20, 20);
       const depth = portalsMode ? 1 : randomBetween(0.76, 1.24);
       const size = portalsMode ? portalsCardSize : randomBetween(150, 250) * depth;
